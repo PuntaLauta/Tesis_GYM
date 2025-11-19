@@ -22,8 +22,12 @@ export default function Navbar() {
             </>
           ) : (
             <>
+                <Link to="/" className="text-sm">Inicio</Link>
                 <Link to="/classes" className="text-sm">Clases</Link>
                 <Link to="/reservations" className="text-sm">Reservas</Link>
+                {user.rol === 'cliente' && (
+                  <Link to="/profile" className="text-sm">Mi Perfil</Link>
+                )}
                 {(user.rol === 'admin' || user.rol === 'root') && (
                   <>
                     <Link to="/socios" className="text-sm">Socios</Link>

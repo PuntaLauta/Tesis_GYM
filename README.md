@@ -10,12 +10,6 @@ git clone https://github.com/PuntaLauta/Tesis_GYM.git
 cd Tesis_GYM
 ```
 
-SSH
-```bash
-git clone git@github.com:PuntaLauta/Tesis_GYM.git
-cd Tesis_GYM
-```
-
 ## 📦 Instalación y ejecución
 
 ### 1️⃣ Backend
@@ -44,9 +38,10 @@ Una vez ejecutado `npm run seed` en el backend:
 
 | Email | Contraseña | Rol | Socio asociado |
 |-------|------------|-----|----------------|
-| juan@clientes.com | juan123 | cliente | Juan Pérez |
-| maria@clientes.com | maria123 | cliente | María González |
-| carlos@clientes.com | carlos123 | cliente | Carlos Rodríguez |
+| juan@clientes.com | juan123 | cliente | Juan Pérez | ACTIVO |
+| maria@clientes.com | maria123 | cliente | María González | ACTIVO |
+| carlos@clientes.com | carlos123 | cliente | Carlos Rodríguez | INACTIVO |
+| luis@clientes.com | luis123 | cliente | Luis Martínez | INACTIVO |
 | admin@demo.com | admin123 | admin | — |
 | root@demo.com | root123 | root | — |
 
@@ -59,8 +54,7 @@ Una vez ejecutado `npm run seed` en el backend:
 | 1 | Juan Pérez | activo | Mensual | ✅ Permitido | Pago reciente |
 | 2 | María González | activo | Mensual | ✅ Permitido | Pago hace 15 días |
 | 3 | Carlos Rodríguez | inactivo | Mensual | ❌ Denegado | Membresía vencida |
-| 4 | Ana Martínez | activo | Trimestral | ✅ Permitido | Plan trimestral |
-| 5 | Pedro Sánchez | activo | — | ❌ Denegado | Sin plan |
+| 4 | Luis Martínez | inactivo | Mensual | ❌ Denegado | Membresía vencida |
 
 ---
 
@@ -91,22 +85,6 @@ Frontend
 
 ---
 
-## 🆕 Sprint 2 – Funcionalidades
-- Clases y reservas (listado, creación/edición/cancelación; reserva y asistencia)
-- Control de acceso por QR: verificación y registro por token
-- Reportes: activos/inactivos, vencen en 7 días, ingresos por período, ocupación de clases
-
-### Rutas Frontend
-- `/classes`, `/reservations`, `/access` (admin/root), `/reports` (admin/root)
-
-### Endpoints clave
-- `POST /auth/login`, `GET /auth/me`, `POST /auth/logout`
-- Clases: `GET/POST/PUT/DELETE /api/clases`
-- Reservas: `GET /api/reservas`, `GET /api/reservas/mias`, `POST /api/reservas`, `PUT /api/reservas/:id/*`
-- Accesos: `POST /api/accesos`, `GET /api/access/verify?token=...`, `POST /api/access/enter`
-
----
-
 ## 🧪 Flujo QR (acceso)
 - El QR codifica: `http://localhost:3001/api/access/verify?token=<qr_token>`
 - En `/access` (admin/root): pega el token para Verificar/Registrar acceso.
@@ -130,8 +108,3 @@ Frontend
 
 ## 🧭 Contribución
 Rama de trabajo sugerida: `dev`. Crea PRs hacia `main`.
-
----
-
-## 📎 Enlaces
-- Repo: https://github.com/PuntaLauta/Tesis_GYM

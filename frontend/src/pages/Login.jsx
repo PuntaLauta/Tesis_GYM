@@ -15,7 +15,7 @@ export default function Login() {
     try {
       const u = await login(email, password);
       // Redirección por rol
-      if (u.rol === "cliente") nav("/client");
+      if (u.rol === "cliente") nav("/");
       else if (u.rol === "admin") nav("/admin");
       else if (u.rol === "root") nav("/root");
       else nav("/");

@@ -1,11 +1,11 @@
 import { Routes, Route } from "react-router-dom";
 import Navbar from "./components/Navbar";
+import Footer from "./components/Footer";
 import ProtectedRoute from "./components/ProtectedRoute";
 import RoleRoute from "./components/RoleRoute";
 
 import Home from "./pages/Home";
 import Login from "./pages/Login";
-import DashboardClient from "./pages/DashboardClient";
 import DashboardAdmin from "./pages/DashboardAdmin";
 import DashboardRoot from "./pages/DashboardRoot";
 import Classes from "./pages/Classes";
@@ -13,20 +13,22 @@ import Reservations from "./pages/Reservations";
 import AccessControl from "./pages/AccessControl";
 import Reports from "./pages/Reports";
 import Socios from "./pages/Socios";
+import Profile from "./pages/Profile";
 import NotFound from "./pages/NotFound";
 
 export default function App() {
   return (
-    <>
+    <div className="min-h-screen flex flex-col">
       <Navbar />
-      <Routes>
+      <div className="flex-grow">
+        <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/login" element={<Login />} />
 
         <Route path="/client" element={
           <ProtectedRoute>
             <RoleRoute roles={["cliente"]}>
-              <DashboardClient />
+              <Home />
             </RoleRoute>
           </ProtectedRoute>
         }/>
@@ -83,8 +85,18 @@ export default function App() {
               </ProtectedRoute>
             }/>
 
+            <Route path="/profile" element={
+              <ProtectedRoute>
+                <RoleRoute roles={["cliente"]}>
+                  <Profile />
+                </RoleRoute>
+              </ProtectedRoute>
+            }/>
+
             <Route path="*" element={<NotFound />} />
-      </Routes>
-    </>
+        </Routes>
+      </div>
+      <Footer />
+    </div>
   );
 }

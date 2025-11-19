@@ -25,19 +25,14 @@ router.post('/login', async (req, res) => {
       return res.status(401).json({ error: 'Credenciales inválidas' });
     }
 
-    // Si es cliente, asegurar que tenga un socio asignado
+    // Si es cliente, obtener su socio asignado
     let socioId = null;
     if (user.rol === 'cliente') {
       const socioExistente = get('SELECT id FROM socios WHERE usuario_id = ?', [user.id]);
       if (socioExistente) {
         socioId = socioExistente.id;
-      } else {
-        const socioDisponible = get('SELECT id FROM socios WHERE usuario_id IS NULL ORDER BY id LIMIT 1');
-        if (socioDisponible) {
-          run('UPDATE socios SET usuario_id = ? WHERE id = ?', [user.id, socioDisponible.id]);
-          socioId = socioDisponible.id;
-        }
       }
+      // No asignar automáticamente socios sin usuario - deben estar correctamente asociados desde el seed
     }
 
     // Guardar en sesión
@@ -81,6 +76,47 @@ router.get('/me', (req, res) => {
     res.json({ user: req.session.user });
   } else {
     res.json({ user: null });
+  }
+});
+
+// PUT /auth/me/password - Cambiar contraseña (cliente o admin)
+router.put('/me/password', async (req, res) => {
+  try {
+    if (!req.session || !req.session.user) {
+      return res.status(401).json({ error: 'No autenticado' });
+    }
+
+    const { currentPassword, newPassword } = req.body;
+
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ error: 'Contraseña actual y nueva contraseña requeridas' });
+    }
+
+    if (newPassword.length < 6) {
+      return res.status(400).json({ error: 'La nueva contraseña debe tener al menos 6 caracteres' });
+    }
+
+    const user = get('SELECT * FROM usuarios WHERE id = ?', [req.session.user.id]);
+    if (!user) {
+      return res.status(404).json({ error: 'Usuario no encontrado' });
+    }
+
+    // Verificar contraseña actual
+    const isValid = await bcrypt.compare(currentPassword, user.pass_hash);
+    if (!isValid) {
+      return res.status(401).json({ error: 'Contraseña actual incorrecta' });
+    }
+
+    // Hashear nueva contraseña
+    const newHash = await bcrypt.hash(newPassword, 10);
+
+    // Actualizar contraseña
+    run('UPDATE usuarios SET pass_hash = ? WHERE id = ?', [newHash, user.id]);
+
+    res.json({ message: 'Contraseña actualizada correctamente' });
+  } catch (error) {
+    console.error('Error al cambiar contraseña:', error);
+    res.status(500).json({ error: 'Error interno del servidor' });
   }
 });
 

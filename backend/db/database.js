@@ -62,15 +62,50 @@ async function initDatabase() {
     }
   }
   
-  // Generar qr_token para socios que no lo tengan (solo si la columna existe)
+  // Función para generar token de 6 dígitos único
+  function generarToken6Digitos() {
+    let token;
+    let intentos = 0;
+    const maxIntentos = 100;
+    
+    do {
+      // Generar número aleatorio de 6 dígitos (100000 a 999999)
+      token = String(Math.floor(100000 + Math.random() * 900000));
+      const stmtCheck = db.prepare('SELECT id FROM socios WHERE qr_token = ?');
+      stmtCheck.bind([token]);
+      const existe = stmtCheck.step();
+      stmtCheck.free();
+      if (!existe) {
+        return token;
+      }
+      intentos++;
+    } while (intentos < maxIntentos);
+    
+    // Si después de 100 intentos no hay token único, usar timestamp
+    return String(Date.now()).slice(-6);
+  }
+
+  // Generar/actualizar qr_token para socios (solo si la columna existe)
   if (columnaQrExiste) {
     try {
-      const crypto = require('crypto');
+      // Actualizar tokens UUID existentes a tokens de 6 dígitos
+      const sociosConUUID = db.exec("SELECT id, qr_token FROM socios WHERE qr_token IS NOT NULL AND LENGTH(qr_token) > 10");
+      if (sociosConUUID && sociosConUUID[0] && sociosConUUID[0].values && sociosConUUID[0].values.length > 0) {
+        const stmt = db.prepare('UPDATE socios SET qr_token = ? WHERE id = ?');
+        sociosConUUID[0].values.forEach(([id]) => {
+          stmt.run([generarToken6Digitos(), id]);
+        });
+        stmt.free();
+        saveDatabase();
+        console.log('✅ Tokens QR actualizados a formato de 6 dígitos');
+      }
+      
+      // Generar tokens para socios que no lo tengan
       const sociosSinToken = db.exec("SELECT id FROM socios WHERE qr_token IS NULL");
       if (sociosSinToken && sociosSinToken[0] && sociosSinToken[0].values && sociosSinToken[0].values.length > 0) {
         const stmt = db.prepare('UPDATE socios SET qr_token = ? WHERE id = ?');
         sociosSinToken[0].values.forEach(([id]) => {
-          stmt.run([crypto.randomUUID(), id]);
+          stmt.run([generarToken6Digitos(), id]);
         });
         stmt.free();
         saveDatabase();

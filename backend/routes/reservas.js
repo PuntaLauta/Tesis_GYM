@@ -35,22 +35,33 @@ router.get('/', requireAuth, requireRole('admin', 'root'), (req, res) => {
 // GET /api/reservas/mias - Mis reservas (cliente)
 router.get('/mias', requireAuth, (req, res) => {
   try {
-    // Por ahora, el cliente necesita estar vinculado a un socio
-    // Por simplicidad, asumimos que el email del usuario coincide con algún socio
-    // En producción, deberías tener una tabla usuarios_socios
-    
     const user = req.session.user;
+    
+    // Si es cliente, usar socio_id de la sesión
+    if (user.rol === 'cliente') {
+      if (!user.socio_id) {
+        return res.json({ data: [] });
+      }
+      
+      const reservas = query(`
+        SELECT r.*, c.nombre as clase_nombre, c.fecha, c.hora_inicio, c.hora_fin, c.instructor, c.estado as clase_estado
+        FROM reservas r
+        LEFT JOIN clases c ON r.clase_id = c.id
+        WHERE r.socio_id = ? AND (r.estado != 'cancelado' OR c.estado = 'cancelada')
+        ORDER BY c.fecha DESC, c.hora_inicio DESC
+      `, [user.socio_id]);
+
+      return res.json({ data: reservas });
+    }
+    
+    // Para admin/root, devolver todas (aunque no deberían usar este endpoint)
     const reservas = query(`
-      SELECT r.*, c.nombre as clase_nombre, c.fecha, c.hora_inicio, c.hora_fin
+      SELECT r.*, c.nombre as clase_nombre, c.fecha, c.hora_inicio, c.hora_fin, c.instructor, c.estado as clase_estado
       FROM reservas r
       LEFT JOIN clases c ON r.clase_id = c.id
-      LEFT JOIN socios s ON r.socio_id = s.id
-      WHERE s.nombre LIKE ? OR s.id IN (
-        SELECT id FROM socios WHERE nombre LIKE ?
-      )
       ORDER BY c.fecha DESC, c.hora_inicio DESC
-    `, [`%${user.nombre}%`, `%${user.nombre}%`]);
-
+    `);
+    
     res.json({ data: reservas });
   } catch (error) {
     console.error('Error al listar mis reservas:', error);
@@ -80,15 +91,28 @@ router.post('/', requireAuth, (req, res) => {
     // Determinar socio_id
     let finalSocioId = socio_id;
     if (user.rol === 'cliente') {
-      // Cliente solo puede reservar para sí mismo
-      // Buscar socio por nombre (simplificado)
-      const socio = get('SELECT * FROM socios WHERE nombre LIKE ? LIMIT 1', [`%${user.nombre}%`]);
-      if (!socio) {
+      // Cliente solo puede reservar para sí mismo usando socio_id de la sesión
+      if (!user.socio_id) {
         return res.status(400).json({ error: 'No se encontró tu perfil de socio' });
       }
-      finalSocioId = socio.id;
+      finalSocioId = user.socio_id;
+      
+      // Verificar que el socio esté activo
+      const socio = get('SELECT estado FROM socios WHERE id = ?', [finalSocioId]);
+      if (!socio) {
+        return res.status(404).json({ error: 'Socio no encontrado' });
+      }
+      if (socio.estado !== 'activo') {
+        return res.status(403).json({ error: 'No puedes reservar clases porque tu cuenta está inactiva. Contacta a recepción para reactivar tu membresía.' });
+      }
     } else if (!socio_id) {
       return res.status(400).json({ error: 'socio_id requerido' });
+    } else {
+      // Para admin/root, también verificar que el socio esté activo
+      const socio = get('SELECT estado FROM socios WHERE id = ?', [socio_id]);
+      if (socio && socio.estado !== 'activo') {
+        return res.status(403).json({ error: 'El socio está inactivo y no puede reservar clases' });
+      }
     }
 
     // Verificar cupo
@@ -97,23 +121,36 @@ router.post('/', requireAuth, (req, res) => {
       return res.status(409).json({ error: 'Cupo lleno' });
     }
 
-    // Verificar si ya existe reserva
-    const reservaExistente = get(
-      'SELECT * FROM reservas WHERE clase_id = ? AND socio_id = ?',
-      [clase_id, finalSocioId]
+    // Verificar si ya existe reserva activa (excluyendo canceladas)
+    const reservaActiva = get(
+      'SELECT * FROM reservas WHERE clase_id = ? AND socio_id = ? AND estado != ?',
+      [clase_id, finalSocioId, 'cancelado']
     );
-    if (reservaExistente) {
+    if (reservaActiva) {
       return res.status(409).json({ error: 'Ya tienes una reserva para esta clase' });
     }
 
-    // Crear reserva
-    const result = insert(
-      `INSERT INTO reservas (clase_id, socio_id, estado) VALUES (?, ?, 'reservado')`,
-      [clase_id, finalSocioId]
+    // Verificar si existe una reserva cancelada para reactivar
+    const reservaCancelada = get(
+      'SELECT * FROM reservas WHERE clase_id = ? AND socio_id = ? AND estado = ?',
+      [clase_id, finalSocioId, 'cancelado']
     );
 
-    const nuevaReserva = get('SELECT * FROM reservas WHERE id = ?', [result.lastInsertRowid]);
-    res.status(201).json({ data: nuevaReserva });
+    let reservaFinal;
+    if (reservaCancelada) {
+      // Reactivar la reserva cancelada
+      run('UPDATE reservas SET estado = ?, ts = datetime("now") WHERE id = ?', ['reservado', reservaCancelada.id]);
+      reservaFinal = get('SELECT * FROM reservas WHERE id = ?', [reservaCancelada.id]);
+    } else {
+      // Crear nueva reserva
+      const result = insert(
+        `INSERT INTO reservas (clase_id, socio_id, estado) VALUES (?, ?, 'reservado')`,
+        [clase_id, finalSocioId]
+      );
+      reservaFinal = get('SELECT * FROM reservas WHERE id = ?', [result.lastInsertRowid]);
+    }
+
+    res.status(201).json({ data: reservaFinal });
   } catch (error) {
     console.error('Error al crear reserva:', error);
     res.status(500).json({ error: 'Error interno del servidor' });
@@ -132,8 +169,7 @@ router.put('/:id/cancelar', requireAuth, (req, res) => {
     
     // Cliente solo puede cancelar sus propias reservas
     if (user.rol === 'cliente') {
-      const socio = get('SELECT * FROM socios WHERE nombre LIKE ? LIMIT 1', [`%${user.nombre}%`]);
-      if (!socio || socio.id !== reserva.socio_id) {
+      if (!user.socio_id || user.socio_id !== reserva.socio_id) {
         return res.status(403).json({ error: 'No puedes cancelar esta reserva' });
       }
     }
@@ -171,4 +207,7 @@ router.put('/:id/asistencia', requireAuth, requireRole('admin', 'root'), (req, r
 });
 
 module.exports = router;
+
+
+
 

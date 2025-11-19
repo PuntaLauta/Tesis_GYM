@@ -18,3 +18,5 @@ export const getOcupacionClases = (params = {}) => {
   return api.get(`/api/reportes/ocupacion_clases?${queryParams}`).then(r => r.data);
 };
 
+
+

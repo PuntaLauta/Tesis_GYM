@@ -21,18 +21,10 @@ export default function DashboardClient() {
     };
   }, [qrUrl]);
 
-  const formatSocioId = (id, nombre) => {
+  const formatSocioId = (id) => {
     if (!id) return '';
-    const num = String(id).padStart(2, '0');
-    const initials = (nombre || '')
-      .split(' ')
-      .filter(Boolean)
-      .slice(0, 2)
-      .map(w => w[0]?.toUpperCase() || '')
-      .join('')
-      .padEnd(2, 'A')
-      .slice(0, 2);
-    return `${num}-${initials}`;
+    // Formato autoincremental único: 0001, 0002, 0003, etc.
+    return String(id).padStart(4, '0');
   };
 
   const loadSocio = async () => {
@@ -91,7 +83,7 @@ export default function DashboardClient() {
         <div className="bg-white p-6 rounded-lg shadow mb-6">
           <h2 className="text-lg font-semibold mb-4">Mi Información</h2>
           <div className="space-y-2">
-            <p><strong>ID:</strong> {formatSocioId(socio.id, socio.nombre)}</p>
+            <p><strong>ID:</strong> {formatSocioId(socio.id)}</p>
             <p><strong>Nombre:</strong> {socio.nombre}</p>
             {socio.telefono && <p><strong>Teléfono:</strong> {socio.telefono}</p>}
             <p><strong>Estado:</strong> 
@@ -103,7 +95,35 @@ export default function DashboardClient() {
                 {socio.estado}
               </span>
             </p>
-            {socio.plan_nombre && <p><strong>Plan:</strong> {socio.plan_nombre}</p>}
+            {socio.plan_nombre && (
+              <>
+                <p><strong>Plan:</strong> {socio.plan_nombre}</p>
+                {socio.fecha_vencimiento && (
+                  <div className="mt-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                    <p className="text-sm text-gray-700 mb-2">
+                      <strong>Próximo vencimiento:</strong> {new Date(socio.fecha_vencimiento).toLocaleDateString('es-ES', { 
+                        year: 'numeric', 
+                        month: 'long', 
+                        day: 'numeric' 
+                      })}
+                    </p>
+                    {socio.plan_precio && (
+                      <p className="text-sm text-gray-700 mb-3">
+                        <strong>Monto a pagar:</strong> ${socio.plan_precio.toLocaleString('es-ES')}
+                      </p>
+                    )}
+                    <button
+                      onClick={() => {
+                        alert('Sistema de pagos próximamente. Esta funcionalidad estará disponible pronto.');
+                      }}
+                      className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition-colors"
+                    >
+                      Pagar
+                    </button>
+                  </div>
+                )}
+              </>
+            )}
           </div>
         </div>
       )}

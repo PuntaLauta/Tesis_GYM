@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { createReservation } from '../services/reservations';
+import { createReservation, cancelReservation } from '../services/reservations';
 
 export default function ReserveButton({ clase, onSuccess }) {
   const { user } = useAuth();
@@ -37,21 +37,64 @@ export default function ReserveButton({ clase, onSuccess }) {
     }
   };
 
+  const handleCancel = async () => {
+    if (!clase.reserva_id) return;
+    
+    if (!confirm('¿Estás seguro de que deseas eliminar esta reserva?')) {
+      return;
+    }
+
+    setError('');
+    setLoading(true);
+
+    try {
+      await cancelReservation(clase.reserva_id);
+      onSuccess();
+    } catch (err) {
+      setError(err.response?.data?.error || 'Error al eliminar reserva');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const isFull = clase.ocupados >= clase.cupo;
+  const tieneReserva = clase.tiene_reserva && clase.reserva_id;
+  const socioInactivo = user.rol === 'cliente' && clase.socio_activo === false;
 
   return (
     <>
-      <button
-        onClick={handleReserve}
-        disabled={isFull || loading || clase.estado !== 'activa'}
-        className={`px-3 py-1 rounded text-sm ${
-          isFull || clase.estado !== 'activa'
-            ? 'bg-gray-300 cursor-not-allowed'
-            : 'bg-green-600 text-white hover:bg-green-700'
-        }`}
-      >
-        {isFull ? 'Cupo lleno' : clase.estado !== 'activa' ? 'Cancelada' : 'Reservar'}
-      </button>
+      <div className="flex gap-2 items-center">
+        {tieneReserva ? (
+          <>
+            <span className="px-3 py-1 rounded text-sm bg-blue-100 text-blue-800">
+              Reservado
+            </span>
+            <button
+              onClick={handleCancel}
+              disabled={loading}
+              className="px-3 py-1 rounded text-sm bg-red-600 text-white hover:bg-red-700 disabled:opacity-50"
+            >
+              {loading ? 'Eliminando...' : 'Eliminar'}
+            </button>
+          </>
+        ) : (
+          <button
+            onClick={handleReserve}
+            disabled={isFull || loading || clase.estado !== 'activa' || socioInactivo}
+            className={`px-3 py-1 rounded text-sm ${
+              isFull || clase.estado !== 'activa' || socioInactivo
+                ? 'bg-gray-300 cursor-not-allowed'
+                : 'bg-green-600 text-white hover:bg-green-700'
+            }`}
+            title={socioInactivo ? 'Tu cuenta está inactiva. Contacta a recepción para reactivar tu membresía.' : ''}
+          >
+            {socioInactivo ? 'Cuenta inactiva' : 
+             isFull ? 'Cupo lleno' : 
+             clase.estado !== 'activa' ? 'Cancelada' : 
+             loading ? 'Reservando...' : 'Reservar'}
+          </button>
+        )}
+      </div>
 
       {error && <div className="text-red-600 text-xs mt-1">{error}</div>}
 
@@ -91,4 +134,6 @@ export default function ReserveButton({ clase, onSuccess }) {
     </>
   );
 }
+
+
 
