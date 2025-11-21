@@ -115,6 +115,34 @@ async function initDatabase() {
       console.log('Nota: No se pudieron generar tokens QR para socios existentes');
     }
   }
+
+  // Verificar si existe la tabla de preguntas de seguridad
+  let tablaPreguntasExiste = false;
+  try {
+    const tables = db.exec("SELECT name FROM sqlite_master WHERE type='table' AND name='preguntas_seguridad'");
+    tablaPreguntasExiste = tables && tables[0] && tables[0].values && tables[0].values.length > 0;
+  } catch (e) {
+    // Error al verificar, asumir que no existe
+  }
+
+  // Crear tabla de preguntas de seguridad si no existe (migración)
+  if (!tablaPreguntasExiste) {
+    try {
+      db.run(`
+        CREATE TABLE IF NOT EXISTS preguntas_seguridad (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          usuario_id INTEGER NOT NULL UNIQUE,
+          pregunta TEXT NOT NULL,
+          respuesta_hash TEXT NOT NULL,
+          FOREIGN KEY (usuario_id) REFERENCES usuarios(id)
+        )
+      `);
+      saveDatabase();
+      console.log('✅ Tabla de preguntas de seguridad creada');
+    } catch (e) {
+      console.log('Advertencia: No se pudo crear tabla de preguntas de seguridad:', e.message);
+    }
+  }
   
   return db;
 }

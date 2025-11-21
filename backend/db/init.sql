@@ -70,3 +70,12 @@ CREATE TABLE IF NOT EXISTS accesos (
   motivo TEXT,
   FOREIGN KEY (socio_id) REFERENCES socios(id)
 );
+
+-- Tabla de preguntas de seguridad
+CREATE TABLE IF NOT EXISTS preguntas_seguridad (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  usuario_id INTEGER NOT NULL UNIQUE,
+  pregunta TEXT NOT NULL,
+  respuesta_hash TEXT NOT NULL,
+  FOREIGN KEY (usuario_id) REFERENCES usuarios(id)
+);

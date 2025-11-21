@@ -99,6 +99,34 @@ async function seed() {
     ['Root Demo', 'root@demo.com', rootHash, 'root']
   );
 
+  // Crear preguntas de seguridad para usuarios demo
+  // Hashear respuestas (sin tildes para evitar problemas de coincidencia)
+  const juanRespuestaHash = await bcrypt.hash('boca', 10); // Equipo de fútbol
+  const mariaRespuestaHash = await bcrypt.hash('pizza', 10); // Comida favorita
+  const carlosRespuestaHash = await bcrypt.hash('cordoba', 10); // Ciudad donde naciste
+  const luisRespuestaHash = await bcrypt.hash('gonzalez', 10); // Apellido de soltera de tu madre
+
+  // Insertar preguntas de seguridad
+  insert(
+    `INSERT INTO preguntas_seguridad (usuario_id, pregunta, respuesta_hash) VALUES (?, ?, ?)`,
+    [juanUsuario.lastInsertRowid, '¿Equipo de fútbol que seguís?', juanRespuestaHash]
+  );
+
+  insert(
+    `INSERT INTO preguntas_seguridad (usuario_id, pregunta, respuesta_hash) VALUES (?, ?, ?)`,
+    [mariaUsuario.lastInsertRowid, '¿Comida favorita?', mariaRespuestaHash]
+  );
+
+  insert(
+    `INSERT INTO preguntas_seguridad (usuario_id, pregunta, respuesta_hash) VALUES (?, ?, ?)`,
+    [carlosUsuario.lastInsertRowid, '¿Ciudad donde naciste?', carlosRespuestaHash]
+  );
+
+  insert(
+    `INSERT INTO preguntas_seguridad (usuario_id, pregunta, respuesta_hash) VALUES (?, ?, ?)`,
+    [luisUsuario.lastInsertRowid, '¿Apellido de soltera de tu madre?', luisRespuestaHash]
+  );
+
   // Crear algunas clases de ejemplo
   const { query } = require('./db/database');
   const hoy = new Date();
@@ -270,12 +298,17 @@ async function seed() {
 
   console.log('✅ Seed completado:');
   console.log('   - juan@clientes.com / juan123 → cliente (Juan Pérez) - ACTIVO');
+  console.log('     Pregunta: ¿Equipo de fútbol que seguís? → Respuesta: boca');
   console.log('   - maria@clientes.com / maria123 → cliente (María González) - ACTIVO');
+  console.log('     Pregunta: ¿Comida favorita? → Respuesta: pizza');
   console.log('   - carlos@clientes.com / carlos123 → cliente (Carlos Rodríguez) - INACTIVO');
+  console.log('     Pregunta: ¿Ciudad donde naciste? → Respuesta: cordoba');
   console.log('   - luis@clientes.com / luis123 → cliente (Luis Martínez) - INACTIVO');
+  console.log('     Pregunta: ¿Apellido de soltera de tu madre? → Respuesta: gonzalez');
   console.log('   - admin@demo.com / admin123 → admin');
   console.log('   - root@demo.com / root123 → root');
   console.log('   - Clases de ejemplo creadas');
+  console.log('   - Preguntas de seguridad configuradas para usuarios demo');
   console.log('\n📋 IDs de Socios para probar:');
   sociosFinales.forEach(socio => {
     console.log(`   - ID ${socio.id}: ${socio.nombre} (${socio.estado})`);

@@ -6,6 +6,7 @@ import RoleRoute from "./components/RoleRoute";
 
 import Home from "./pages/Home";
 import Login from "./pages/Login";
+import ForgotPassword from "./pages/ForgotPassword";
 import DashboardAdmin from "./pages/DashboardAdmin";
 import DashboardRoot from "./pages/DashboardRoot";
 import Classes from "./pages/Classes";
@@ -24,6 +25,7 @@ export default function App() {
         <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/login" element={<Login />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
 
         <Route path="/client" element={
           <ProtectedRoute>
