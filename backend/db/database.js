@@ -116,6 +116,28 @@ async function initDatabase() {
     }
   }
 
+  // Verificar si existe la columna metodo_pago en la tabla pagos
+  let columnaMetodoPagoExiste = false;
+  try {
+    const tableInfo = db.exec("PRAGMA table_info(pagos)");
+    if (tableInfo && tableInfo[0] && tableInfo[0].values) {
+      columnaMetodoPagoExiste = tableInfo[0].values.some(row => row[1] === 'metodo_pago');
+    }
+  } catch (e) {
+    // Error al verificar, asumir que no existe
+  }
+  
+  // Agregar columna metodo_pago si no existe (migración)
+  if (!columnaMetodoPagoExiste) {
+    try {
+      db.run('ALTER TABLE pagos ADD COLUMN metodo_pago TEXT CHECK(metodo_pago IN ("transferencia", "efectivo"))');
+      saveDatabase();
+      console.log('✅ Columna metodo_pago agregada a la tabla pagos');
+    } catch (e) {
+      console.log('Advertencia: No se pudo agregar columna metodo_pago:', e.message);
+    }
+  }
+
   // Verificar si existe la tabla de preguntas de seguridad
   let tablaPreguntasExiste = false;
   try {

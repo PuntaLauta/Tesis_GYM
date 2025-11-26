@@ -179,6 +179,161 @@ router.get('/ocupacion_clases', (req, res) => {
   }
 });
 
+// GET /api/reportes/accesos?desde=YYYY-MM-DD&hasta=YYYY-MM-DD
+router.get('/accesos', (req, res) => {
+  try {
+    const { desde, hasta } = req.query;
+    let sql = `
+      SELECT a.*, s.nombre as socio_nombre 
+      FROM accesos a
+      LEFT JOIN socios s ON a.socio_id = s.id
+      WHERE 1=1
+    `;
+    const params = [];
+
+    if (desde) {
+      sql += ' AND DATE(a.fecha_hora) >= ?';
+      params.push(desde);
+    }
+    if (hasta) {
+      sql += ' AND DATE(a.fecha_hora) <= ?';
+      params.push(hasta);
+    }
+
+    sql += ' ORDER BY a.fecha_hora DESC';
+
+    const accesos = query(sql, params);
+
+    const total = accesos.length;
+    const permitidos = accesos.filter(a => a.permitido === 1).length;
+    const denegados = accesos.filter(a => a.permitido === 0).length;
+
+    // Agrupar por día
+    const porDia = {};
+    accesos.forEach(acceso => {
+      const fecha = acceso.fecha_hora.split('T')[0];
+      if (!porDia[fecha]) {
+        porDia[fecha] = { fecha, total: 0, permitidos: 0, denegados: 0 };
+      }
+      porDia[fecha].total++;
+      if (acceso.permitido === 1) {
+        porDia[fecha].permitidos++;
+      } else {
+        porDia[fecha].denegados++;
+      }
+    });
+
+    res.json({
+      data: {
+        total,
+        permitidos,
+        denegados,
+        porcentajePermitidos: total > 0 ? Math.round((permitidos / total) * 100) : 0,
+        porDia: Object.values(porDia),
+      },
+    });
+  } catch (error) {
+    console.error('Error al obtener accesos:', error);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
+// GET /api/reportes/socios_activos
+router.get('/socios_activos', (req, res) => {
+  try {
+    const socios = query(`
+      SELECT 
+        s.id,
+        s.nombre,
+        COUNT(DISTINCT r.id) as total_reservas,
+        COUNT(DISTINCT a.id) as total_accesos,
+        COUNT(DISTINCT CASE WHEN a.permitido = 1 THEN a.id END) as accesos_permitidos,
+        COUNT(DISTINCT p.id) as total_pagos,
+        SUM(p.monto) as total_pagado
+      FROM socios s
+      LEFT JOIN reservas r ON s.id = r.socio_id
+      LEFT JOIN accesos a ON s.id = a.socio_id
+      LEFT JOIN pagos p ON s.id = p.socio_id
+      GROUP BY s.id, s.nombre
+      ORDER BY total_reservas DESC, total_accesos DESC
+      LIMIT 10
+    `);
+
+    res.json({ data: socios });
+  } catch (error) {
+    console.error('Error al obtener socios activos:', error);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
+// GET /api/reportes/clases_populares
+router.get('/clases_populares', (req, res) => {
+  try {
+    const clases = query(`
+      SELECT 
+        c.nombre,
+        COUNT(DISTINCT c.id) as total_clases,
+        COUNT(DISTINCT r.id) as total_reservas,
+        AVG(CASE WHEN r.estado = 'asistio' THEN 1 ELSE 0 END) * 100 as porcentaje_asistencia,
+        SUM(c.cupo) as total_cupos,
+        SUM((SELECT COUNT(*) FROM reservas r2 WHERE r2.clase_id = c.id AND r2.estado != 'cancelado')) as total_ocupados
+      FROM clases c
+      LEFT JOIN reservas r ON c.id = r.clase_id
+      GROUP BY c.nombre
+      ORDER BY total_reservas DESC
+    `);
+
+    res.json({ data: clases });
+  } catch (error) {
+    console.error('Error al obtener clases populares:', error);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
+// GET /api/reportes/metodos_pago
+router.get('/metodos_pago', (req, res) => {
+  try {
+    const { desde, hasta } = req.query;
+    let sql = 'SELECT * FROM pagos WHERE 1=1';
+    const params = [];
+
+    if (desde) {
+      sql += ' AND fecha >= ?';
+      params.push(desde);
+    }
+    if (hasta) {
+      sql += ' AND fecha <= ?';
+      params.push(hasta);
+    }
+
+    const pagos = query(sql, params);
+
+    const efectivo = pagos.filter(p => p.metodo_pago === 'efectivo').length;
+    const transferencia = pagos.filter(p => p.metodo_pago === 'transferencia').length;
+    const totalEfectivo = pagos.filter(p => p.metodo_pago === 'efectivo').reduce((sum, p) => sum + p.monto, 0);
+    const totalTransferencia = pagos.filter(p => p.metodo_pago === 'transferencia').reduce((sum, p) => sum + p.monto, 0);
+
+    res.json({
+      data: {
+        efectivo: {
+          cantidad: efectivo,
+          total: totalEfectivo,
+          porcentaje: pagos.length > 0 ? Math.round((efectivo / pagos.length) * 100) : 0,
+        },
+        transferencia: {
+          cantidad: transferencia,
+          total: totalTransferencia,
+          porcentaje: pagos.length > 0 ? Math.round((transferencia / pagos.length) * 100) : 0,
+        },
+        total: pagos.length,
+      },
+    });
+  } catch (error) {
+    console.error('Error al obtener métodos de pago:', error);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
 module.exports = router;
 
 

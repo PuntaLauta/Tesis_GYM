@@ -36,14 +36,20 @@ npm run dev    # http://localhost:5173
 ## 👤 Usuarios Demo
 Una vez ejecutado `npm run seed` en el backend:
 
-| Email | Contraseña | Rol | Socio asociado | Estado |
-|-------|------------|-----|----------------|--------|
-| juan@clientes.com | juan123 | cliente | Juan Pérez | ACTIVO |
-| maria@clientes.com | maria123 | cliente | María González | ACTIVO |
-| carlos@clientes.com | carlos123 | cliente | Carlos Rodríguez | INACTIVO |
-| luis@clientes.com | luis123 | cliente | Luis Martínez | INACTIVO |
-| admin@demo.com | admin123 | admin | — | — |
-| root@demo.com | root123 | root | — | — |
+| Email | Contraseña | Rol | Socio asociado | Estado | Vencimiento |
+|-------|------------|-----|----------------|--------|-------------|
+| juan@clientes.com | juan123 | cliente | Juan Pérez | ACTIVO | — |
+| maria@clientes.com | maria123 | cliente | María González | ACTIVO | En 3 días |
+| carlos@clientes.com | carlos123 | cliente | Carlos Rodríguez | ACTIVO | En 5 días |
+| luis@clientes.com | luis123 | cliente | Luis Martínez | INACTIVO | Vencido |
+| ana@clientes.com | ana123 | cliente | Ana Martínez | ACTIVO | En 2 días |
+| pedro@clientes.com | pedro123 | cliente | Pedro Sánchez | ACTIVO | En 7 días |
+| laura@clientes.com | laura123 | cliente | Laura Fernández | ACTIVO | En 1 día |
+| roberto@clientes.com | roberto123 | cliente | Roberto Díaz | ACTIVO | — |
+| carmen@clientes.com | carmen123 | cliente | Carmen López | ACTIVO | En 4 días |
+| miguel@clientes.com | miguel123 | cliente | Miguel Torres | INACTIVO | Vencido |
+| admin@demo.com | admin123 | admin | — | — | — |
+| root@demo.com | root123 | root | — | — | — |
 
 ### 🔐 Preguntas de Seguridad (Recuperación de Contraseña)
 Los usuarios demo tienen preguntas de seguridad configuradas para probar la recuperación de contraseña:
@@ -54,19 +60,32 @@ Los usuarios demo tienen preguntas de seguridad configuradas para probar la recu
 | maria@clientes.com | ¿Comida favorita? | **pizza** |
 | carlos@clientes.com | ¿Ciudad donde naciste? | **cordoba** |
 | luis@clientes.com | ¿Apellido de soltera de tu madre? | **gonzalez** |
+| ana@clientes.com | ¿Nombre de tu mascota? | **max** |
+| pedro@clientes.com | ¿Comida favorita? | **asado** |
+| laura@clientes.com | ¿Ciudad donde naciste? | **buenosaires** |
+| roberto@clientes.com | ¿Apellido de soltera de tu madre? | **perez** |
+| carmen@clientes.com | ¿Nombre de tu colegio primario? | **sanmartin** |
+| miguel@clientes.com | ¿Nombre de tu mascota? | **toby** |
 
 **Nota:** Las respuestas son case-insensitive (no importan mayúsculas/minúsculas).
 
 ---
 
-## 📋 Socios Demo (IDs para pruebas)
+## 📋 Socios Demo
+Todos los socios tienen credenciales para ingresar al sistema:
 
-| ID | Nombre | Estado | Plan | Acceso | Para probar |
-|----|--------|--------|------|--------|-------------|
-| 1 | Juan Pérez | activo | Mensual | ✅ Permitido | Pago reciente |
-| 2 | María González | activo | Mensual | ✅ Permitido | Pago hace 15 días |
-| 3 | Carlos Rodríguez | inactivo | Mensual | ❌ Denegado | Membresía vencida |
-| 4 | Luis Martínez | inactivo | Mensual | ❌ Denegado | Membresía vencida |
+| ID | Nombre | Estado | Plan | Vencimiento | Acceso |
+|----|--------|--------|------|-------------|--------|
+| 1 | Juan Pérez | activo | Mensual | — | ✅ Permitido |
+| 2 | María González | activo | Mensual | En 3 días | ✅ Permitido |
+| 3 | Carlos Rodríguez | activo | Mensual | En 5 días | ✅ Permitido |
+| 4 | Luis Martínez | inactivo | Mensual | Vencido | ❌ Denegado |
+| 5 | Ana Martínez | activo | Mensual | En 2 días | ✅ Permitido |
+| 6 | Pedro Sánchez | activo | Mensual | En 7 días | ✅ Permitido |
+| 7 | Laura Fernández | activo | Mensual | En 1 día | ✅ Permitido |
+| 8 | Roberto Díaz | activo | Mensual | — | ✅ Permitido |
+| 9 | Carmen López | activo | Mensual | En 4 días | ✅ Permitido |
+| 10 | Miguel Torres | inactivo | Mensual | Vencido | ❌ Denegado |
 
 ---
 

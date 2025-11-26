@@ -10,24 +10,35 @@ export default function Classes() {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingClass, setEditingClass] = useState(null);
-  const [filters, setFilters] = useState({ desde: '', hasta: '', estado: '' });
+  const [filters, setFilters] = useState({ puedoInscribirme: false });
+  const [allClases, setAllClases] = useState([]);
 
   const isAdmin = user?.rol === 'admin' || user?.rol === 'root';
 
   useEffect(() => {
     loadClasses();
-  }, [filters]);
+  }, []);
+
+  useEffect(() => {
+    if (filters.puedoInscribirme) {
+      // Filtrar clases activas con cupo disponible
+      const clasesDisponibles = allClases.filter(clase => 
+        clase.estado === 'activa' && (clase.ocupados || 0) < clase.cupo
+      );
+      setClases(clasesDisponibles);
+    } else {
+      // Mostrar todas las clases
+      setClases(allClases);
+    }
+  }, [filters.puedoInscribirme, allClases]);
 
   const loadClasses = async () => {
     setLoading(true);
     try {
-      const params = {};
-      if (filters.desde) params.desde = filters.desde;
-      if (filters.hasta) params.hasta = filters.hasta;
-      if (filters.estado) params.estado = filters.estado;
-
-      const data = await listClasses(params);
-      setClases(data.data || []);
+      const data = await listClasses({});
+      const clasesData = data.data || [];
+      setAllClases(clasesData);
+      setClases(clasesData);
     } catch (error) {
       console.error('Error al cargar clases:', error);
     } finally {
@@ -85,34 +96,23 @@ export default function Classes() {
         </div>
       )}
 
-      <div className="bg-white p-4 rounded-lg shadow mb-4">
-        <h3 className="font-semibold mb-3">Filtros</h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-          <input
-            type="date"
-            placeholder="Desde"
-            value={filters.desde}
-            onChange={(e) => setFilters({ ...filters, desde: e.target.value })}
-            className="border rounded px-3 py-2"
-          />
-          <input
-            type="date"
-            placeholder="Hasta"
-            value={filters.hasta}
-            onChange={(e) => setFilters({ ...filters, hasta: e.target.value })}
-            className="border rounded px-3 py-2"
-          />
-          <select
-            value={filters.estado}
-            onChange={(e) => setFilters({ ...filters, estado: e.target.value })}
-            className="border rounded px-3 py-2"
-          >
-            <option value="">Todos los estados</option>
-            <option value="activa">Activa</option>
-            <option value="cancelada">Cancelada</option>
-          </select>
+      {!isAdmin && (
+        <div className="bg-white p-4 rounded-lg shadow mb-4">
+          <h3 className="font-semibold mb-3">Filtros</h3>
+          <div className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              id="puedoInscribirme"
+              checked={filters.puedoInscribirme}
+              onChange={(e) => setFilters({ ...filters, puedoInscribirme: e.target.checked })}
+              className="w-4 h-4"
+            />
+            <label htmlFor="puedoInscribirme" className="text-sm cursor-pointer">
+              Me puedo inscribir
+            </label>
+          </div>
         </div>
-      </div>
+      )}
 
       {loading ? (
         <div className="text-center py-8">Cargando...</div>

@@ -95,6 +95,18 @@ router.put('/me/password', async (req, res) => {
       return res.status(401).json({ error: 'No autenticado' });
     }
 
+    const user = get('SELECT * FROM usuarios WHERE id = ?', [req.session.user.id]);
+    if (!user) {
+      return res.status(404).json({ error: 'Usuario no encontrado' });
+    }
+
+    // Validar si es admin o root (o email termina en @demo.com)
+    if (user.rol === 'admin' || user.rol === 'root' || user.email.endsWith('@demo.com') || user.email.endsWith('@admin.com')) {
+      return res.status(403).json({ 
+        error: 'Para cambiar tu contraseña, contactate con los desarrolladores' 
+      });
+    }
+
     const { currentPassword, newPassword } = req.body;
 
     if (!currentPassword || !newPassword) {
@@ -103,11 +115,6 @@ router.put('/me/password', async (req, res) => {
 
     if (newPassword.length < 6) {
       return res.status(400).json({ error: 'La nueva contraseña debe tener al menos 6 caracteres' });
-    }
-
-    const user = get('SELECT * FROM usuarios WHERE id = ?', [req.session.user.id]);
-    if (!user) {
-      return res.status(404).json({ error: 'Usuario no encontrado' });
     }
 
     // Verificar contraseña actual
@@ -180,10 +187,17 @@ router.get('/security-question/:email', (req, res) => {
     }
 
     // Buscar usuario por email
-    const user = get('SELECT id FROM usuarios WHERE email = ?', [email]);
+    const user = get('SELECT id, rol FROM usuarios WHERE email = ?', [email]);
     if (!user) {
       // No revelar si el email existe o no por seguridad
       return res.status(404).json({ error: 'Usuario no encontrado' });
+    }
+
+    // Validar si es admin o root (o email termina en @demo.com o @admin.com)
+    if (user.rol === 'admin' || user.rol === 'root' || email.endsWith('@demo.com') || email.endsWith('@admin.com')) {
+      return res.status(403).json({ 
+        error: 'Para cambiar tu contraseña, contactate con los desarrolladores' 
+      });
     }
 
     // Buscar pregunta de seguridad
@@ -249,10 +263,17 @@ router.post('/recover-password', async (req, res) => {
     }
 
     // Buscar usuario por email
-    const user = get('SELECT id FROM usuarios WHERE email = ?', [email]);
+    const user = get('SELECT id, rol FROM usuarios WHERE email = ?', [email]);
     if (!user) {
       // No revelar si el email existe o no por seguridad
       return res.status(401).json({ error: 'Credenciales inválidas' });
+    }
+
+    // Validar si es admin o root (o email termina en @demo.com o @admin.com)
+    if (user.rol === 'admin' || user.rol === 'root' || email.endsWith('@demo.com') || email.endsWith('@admin.com')) {
+      return res.status(403).json({ 
+        error: 'Para cambiar tu contraseña, contactate con los desarrolladores' 
+      });
     }
 
     // Buscar pregunta de seguridad

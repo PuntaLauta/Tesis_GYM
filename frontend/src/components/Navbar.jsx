@@ -22,7 +22,7 @@ export default function Navbar() {
             </>
           ) : (
             <>
-                <Link to="/" className="text-sm">Inicio</Link>
+                <Link to={user.rol === 'cliente' ? '/' : user.rol === 'admin' ? '/admin' : '/root'} className="text-sm">Inicio</Link>
                 <Link to="/classes" className="text-sm">Clases</Link>
                 <Link to="/reservations" className="text-sm">Reservas</Link>
                 {user.rol === 'cliente' && (
@@ -31,6 +31,7 @@ export default function Navbar() {
                 {(user.rol === 'admin' || user.rol === 'root') && (
                   <>
                     <Link to="/socios" className="text-sm">Socios</Link>
+                    <Link to="/pagos" className="text-sm">Gestionar Pagos</Link>
                     <Link to="/access" className="text-sm">Acceso</Link>
                     <Link to="/reports" className="text-sm">Reportes</Link>
                   </>

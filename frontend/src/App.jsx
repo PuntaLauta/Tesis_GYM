@@ -15,6 +15,7 @@ import AccessControl from "./pages/AccessControl";
 import Reports from "./pages/Reports";
 import Socios from "./pages/Socios";
 import Profile from "./pages/Profile";
+import GestionPagos from "./pages/GestionPagos";
 import NotFound from "./pages/NotFound";
 
 export default function App() {
@@ -83,6 +84,14 @@ export default function App() {
               <ProtectedRoute>
                 <RoleRoute roles={["admin", "root"]}>
                   <Socios />
+                </RoleRoute>
+              </ProtectedRoute>
+            }/>
+
+            <Route path="/pagos" element={
+              <ProtectedRoute>
+                <RoleRoute roles={["admin", "root"]}>
+                  <GestionPagos />
                 </RoleRoute>
               </ProtectedRoute>
             }/>

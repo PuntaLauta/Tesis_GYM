@@ -92,22 +92,46 @@ router.get('/:id', (req, res) => {
 // POST /api/pagos - Crear pago (solo admin/root)
 router.post('/', requireRole('admin', 'root'), (req, res) => {
   try {
-    const { socio_id, monto } = req.body;
+    const { socio_id, monto, metodo_pago } = req.body;
 
     if (!socio_id || !monto) {
       return res.status(400).json({ error: 'Socio ID y monto requeridos' });
     }
 
-    // Verificar que el socio existe
-    const socio = get('SELECT * FROM socios WHERE id = ?', [socio_id]);
+    if (!metodo_pago || (metodo_pago !== 'transferencia' && metodo_pago !== 'efectivo')) {
+      return res.status(400).json({ error: 'Método de pago requerido (transferencia o efectivo)' });
+    }
+
+    // Verificar que el socio existe y obtener su plan
+    const socio = get(`
+      SELECT s.*, p.duracion as plan_duracion 
+      FROM socios s 
+      LEFT JOIN planes p ON s.plan_id = p.id
+      WHERE s.id = ?
+    `, [socio_id]);
+    
     if (!socio) {
       return res.status(404).json({ error: 'Socio no encontrado' });
     }
 
+    if (!socio.plan_id) {
+      return res.status(400).json({ error: 'El socio no tiene un plan asignado' });
+    }
+
+    // Crear el pago
     const result = insert(
-      `INSERT INTO pagos (socio_id, monto, fecha) VALUES (?, ?, datetime('now'))`,
-      [socio_id, monto]
+      `INSERT INTO pagos (socio_id, monto, fecha, metodo_pago) VALUES (?, ?, datetime('now'), ?)`,
+      [socio_id, monto, metodo_pago]
     );
+
+    // Calcular nueva fecha de vencimiento basada en el plan
+    const fechaPago = new Date();
+    const fechaVencimiento = new Date(fechaPago);
+    fechaVencimiento.setDate(fechaVencimiento.getDate() + socio.plan_duracion);
+
+    // Actualizar el estado del socio a 'activo' si estaba inactivo
+    const { run } = require('../db/database');
+    run('UPDATE socios SET estado = ? WHERE id = ?', ['activo', socio_id]);
 
     const nuevoPago = get(`
       SELECT p.*, s.nombre as socio_nombre 
@@ -116,7 +140,12 @@ router.post('/', requireRole('admin', 'root'), (req, res) => {
       WHERE p.id = ?
     `, [result.lastInsertRowid]);
 
-    res.status(201).json({ data: nuevoPago });
+    res.status(201).json({ 
+      data: {
+        ...nuevoPago,
+        fecha_vencimiento: fechaVencimiento.toISOString().split('T')[0]
+      }
+    });
   } catch (error) {
     console.error('Error al crear pago:', error);
     res.status(500).json({ error: 'Error interno del servidor' });

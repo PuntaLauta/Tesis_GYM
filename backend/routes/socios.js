@@ -12,11 +12,12 @@ router.get('/', requireAuth, (req, res) => {
     const user = req.session.user;
     
     if (user.rol === 'admin' || user.rol === 'root') {
-      // Admin/root ven todos los socios
+      // Admin/root ven todos los socios con email del usuario asociado
       const socios = query(`
-        SELECT s.*, p.nombre as plan_nombre 
+        SELECT s.*, p.nombre as plan_nombre, p.precio as plan_precio, p.duracion as plan_duracion, u.email as usuario_email
         FROM socios s 
         LEFT JOIN planes p ON s.plan_id = p.id
+        LEFT JOIN usuarios u ON s.usuario_id = u.id
       `);
       res.json({ data: socios });
     } else {
@@ -61,9 +62,10 @@ router.get('/:id', requireAuth, (req, res) => {
   try {
     const user = req.session.user;
     const socio = get(`
-      SELECT s.*, p.nombre as plan_nombre 
+      SELECT s.*, p.nombre as plan_nombre, u.email as usuario_email
       FROM socios s 
       LEFT JOIN planes p ON s.plan_id = p.id
+      LEFT JOIN usuarios u ON s.usuario_id = u.id
       WHERE s.id = ?
     `, [req.params.id]);
 
@@ -86,23 +88,52 @@ router.get('/:id', requireAuth, (req, res) => {
 });
 
 // POST /api/socios - Crear (solo admin/root)
-router.post('/', requireAdmin, (req, res) => {
+router.post('/', requireAdmin, async (req, res) => {
   try {
-    const { nombre, telefono, estado, plan_id, qr_token } = req.body;
+    const { nombre, telefono, estado, plan_id, qr_token, email, password } = req.body;
+    const bcrypt = require('bcrypt');
 
     if (!nombre) {
       return res.status(400).json({ error: 'Nombre requerido' });
+    }
+
+    let usuarioId = null;
+    
+    // Si se proporciona email y contraseña, crear usuario
+    if (email && password) {
+      // Verificar que el email no exista
+      const usuarioExistente = get('SELECT id FROM usuarios WHERE email = ?', [email]);
+      if (usuarioExistente) {
+        return res.status(400).json({ error: 'El email ya está en uso' });
+      }
+
+      // Hashear contraseña
+      const passHash = await bcrypt.hash(password, 10);
+      
+      // Crear usuario
+      const usuarioResult = insert(
+        `INSERT INTO usuarios (nombre, email, pass_hash, rol) VALUES (?, ?, ?, ?)`,
+        [nombre, email, passHash, 'cliente']
+      );
+      usuarioId = usuarioResult.lastInsertRowid;
     }
 
     // Generar qr_token de 6 dígitos si no viene
     const token = qr_token || generarToken6Digitos();
 
     const result = insert(
-      `INSERT INTO socios (nombre, telefono, estado, plan_id, qr_token) VALUES (?, ?, ?, ?, ?)`,
-      [nombre, telefono || null, estado || 'activo', plan_id || null, token]
+      `INSERT INTO socios (nombre, telefono, estado, plan_id, qr_token, usuario_id) VALUES (?, ?, ?, ?, ?, ?)`,
+      [nombre, telefono || null, estado || 'activo', plan_id || null, token, usuarioId]
     );
 
-    const nuevoSocio = get('SELECT * FROM socios WHERE id = ?', [result.lastInsertRowid]);
+    const nuevoSocio = get(`
+      SELECT s.*, p.nombre as plan_nombre, u.email as usuario_email
+      FROM socios s 
+      LEFT JOIN planes p ON s.plan_id = p.id
+      LEFT JOIN usuarios u ON s.usuario_id = u.id
+      WHERE s.id = ?
+    `, [result.lastInsertRowid]);
+    
     res.status(201).json({ data: nuevoSocio });
   } catch (error) {
     console.error('Error al crear socio:', error);
@@ -111,10 +142,11 @@ router.post('/', requireAdmin, (req, res) => {
 });
 
 // PUT /api/socios/:id - Editar (admin/root pueden editar todo, cliente solo su perfil)
-router.put('/:id', requireAuth, (req, res) => {
+router.put('/:id', requireAuth, async (req, res) => {
   try {
     const user = req.session.user;
-    const { nombre, telefono, estado, plan_id, email } = req.body;
+    const { nombre, telefono, estado, plan_id, email, password } = req.body;
+    const bcrypt = require('bcrypt');
 
     const socio = get('SELECT * FROM socios WHERE id = ?', [req.params.id]);
     if (!socio) {
@@ -135,19 +167,33 @@ router.put('/:id', requireAuth, (req, res) => {
       }
     } else {
       // Admin/root pueden editar todo
+      const planIdFinal = plan_id !== undefined && plan_id !== '' ? plan_id : (plan_id === '' ? null : socio.plan_id);
       run(
         `UPDATE socios SET nombre = ?, telefono = ?, estado = ?, plan_id = ? WHERE id = ?`,
         [
           nombre || socio.nombre,
           telefono !== undefined ? telefono : socio.telefono,
           estado || socio.estado,
-          plan_id !== undefined ? plan_id : socio.plan_id,
+          planIdFinal,
           req.params.id
         ]
       );
+
+      // Si el socio tiene usuario_id y se proporciona contraseña, actualizarla
+      if (socio.usuario_id && password) {
+        const passHash = await bcrypt.hash(password, 10);
+        run('UPDATE usuarios SET pass_hash = ? WHERE id = ?', [passHash, socio.usuario_id]);
+      }
     }
 
-    const socioActualizado = get('SELECT * FROM socios WHERE id = ?', [req.params.id]);
+    const socioActualizado = get(`
+      SELECT s.*, p.nombre as plan_nombre, u.email as usuario_email
+      FROM socios s 
+      LEFT JOIN planes p ON s.plan_id = p.id
+      LEFT JOIN usuarios u ON s.usuario_id = u.id
+      WHERE s.id = ?
+    `, [req.params.id]);
+    
     res.json({ data: socioActualizado });
   } catch (error) {
     console.error('Error al actualizar socio:', error);

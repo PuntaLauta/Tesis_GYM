@@ -8,6 +8,10 @@ export const listMine = () => {
   return api.get('/api/reservas/mias').then(r => r.data);
 };
 
+export const listAll = () => {
+  return api.get('/api/reservas').then(r => r.data);
+};
+
 export const createReservation = (data) => {
   return api.post('/api/reservas', data).then(r => r.data);
 };

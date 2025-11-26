@@ -1,9 +1,12 @@
 import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { listSocios, createSocio, updateSocio, deleteSocio } from '../services/socios';
+import { listPlanes } from '../services/planes';
 import SocioQrCard from '../components/SocioQrCard';
 
 export default function Socios() {
   const [socios, setSocios] = useState([]);
+  const [planes, setPlanes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingSocio, setEditingSocio] = useState(null);
@@ -13,11 +16,23 @@ export default function Socios() {
     telefono: '',
     estado: 'activo',
     plan_id: '',
+    email: '',
+    password: '',
   });
 
   useEffect(() => {
+    loadPlanes();
     loadSocios();
   }, []);
+
+  const loadPlanes = async () => {
+    try {
+      const data = await listPlanes();
+      setPlanes(data.data || []);
+    } catch (error) {
+      console.error('Error al cargar planes:', error);
+    }
+  };
 
   const loadSocios = async () => {
     setLoading(true);
@@ -36,13 +51,21 @@ export default function Socios() {
     e.preventDefault();
     try {
       if (editingSocio) {
-        await updateSocio(editingSocio.id, formData);
+        // Si hay contraseña nueva, incluirla en la actualización
+        const updateData = { ...formData };
+        // Solo incluir password si se proporcionó una nueva
+        if (!updateData.password || updateData.password.trim() === '') {
+          delete updateData.password;
+        }
+        // No enviar email en la actualización (ya está deshabilitado)
+        delete updateData.email;
+        await updateSocio(editingSocio.id, updateData);
       } else {
         await createSocio(formData);
       }
       setShowForm(false);
       setEditingSocio(null);
-      setFormData({ nombre: '', telefono: '', estado: 'activo', plan_id: '' });
+      setFormData({ nombre: '', telefono: '', estado: 'activo', plan_id: '', email: '', password: '' });
       loadSocios();
       alert(editingSocio ? 'Socio actualizado' : 'Socio creado. QR generado automáticamente.');
     } catch (error) {
@@ -57,8 +80,24 @@ export default function Socios() {
       telefono: socio.telefono || '',
       estado: socio.estado,
       plan_id: socio.plan_id || '',
+      email: socio.usuario_email || '',
+      password: '',
     });
     setShowForm(true);
+  };
+
+  const handleChangePassword = async (socioId, newPassword) => {
+    if (!newPassword || newPassword.length < 6) {
+      alert('La contraseña debe tener al menos 6 caracteres');
+      return;
+    }
+
+    try {
+      await updateSocio(socioId, { password: newPassword });
+      alert('Contraseña actualizada correctamente');
+    } catch (error) {
+      alert(error.response?.data?.error || 'Error al actualizar contraseña');
+    }
   };
 
   const handleDelete = async (id) => {
@@ -79,7 +118,7 @@ export default function Socios() {
           onClick={() => {
             setShowForm(true);
             setEditingSocio(null);
-            setFormData({ nombre: '', telefono: '', estado: 'activo', plan_id: '' });
+            setFormData({ nombre: '', telefono: '', estado: 'activo', plan_id: '', email: '', password: '' });
           }}
           className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
         >
@@ -113,6 +152,21 @@ export default function Socios() {
               />
             </div>
             <div>
+              <label className="block text-sm font-medium mb-1">Plan</label>
+              <select
+                value={formData.plan_id}
+                onChange={(e) => setFormData({ ...formData, plan_id: e.target.value })}
+                className="w-full border rounded px-3 py-2"
+              >
+                <option value="">Sin plan</option>
+                {planes.map((plan) => (
+                  <option key={plan.id} value={plan.id}>
+                    {plan.nombre} - ${plan.precio} ({plan.duracion} días)
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
               <label className="block text-sm font-medium mb-1">Estado</label>
               <select
                 value={formData.estado}
@@ -124,6 +178,47 @@ export default function Socios() {
                 <option value="inactivo">Inactivo</option>
               </select>
             </div>
+            {!editingSocio && (
+              <>
+                <div>
+                  <label className="block text-sm font-medium mb-1">Email (para credenciales) *</label>
+                  <input
+                    type="email"
+                    required
+                    value={formData.email}
+                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                    className="w-full border rounded px-3 py-2"
+                    placeholder="ejemplo@clientes.com"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">Contraseña (para credenciales) *</label>
+                  <input
+                    type="password"
+                    required
+                    value={formData.password}
+                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                    className="w-full border rounded px-3 py-2"
+                    placeholder="Minimo 6 caracteres"
+                    minLength={6}
+                  />
+                </div>
+              </>
+            )}
+            {editingSocio && editingSocio.usuario_id && (
+              <div>
+                <label className="block text-sm font-medium mb-1">Cambiar Contraseña</label>
+                <input
+                  type="password"
+                  value={formData.password}
+                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                  className="w-full border rounded px-3 py-2"
+                  placeholder="Dejar vacio para no cambiar (minimo 6 caracteres si se cambia)"
+                  minLength={6}
+                />
+                <p className="text-xs text-gray-500 mt-1">Dejar vacio si no deseas cambiar la contraseña</p>
+              </div>
+            )}
             <div className="flex gap-2">
               <button
                 type="submit"
@@ -162,9 +257,24 @@ export default function Socios() {
                     <div className="flex justify-between items-start">
                       <div className="flex-1">
                         <h3 className="font-bold">{socio.nombre}</h3>
-                        <div className="text-sm text-gray-600 mt-1">
-                          {socio.telefono && `Tel: ${socio.telefono} • `}
-                          Plan: {socio.plan_nombre || 'Sin plan'}
+                        <div className="text-sm text-gray-600 mt-1 space-y-1">
+                          <div>ID: {String(socio.id).padStart(4, '0')}</div>
+                          {socio.telefono && <div>Telefono: {socio.telefono}</div>}
+                          <div>Plan: {socio.plan_nombre || 'Sin plan'}</div>
+                          {socio.usuario_email && (
+                            <div>
+                              <label className="font-medium">Email:</label>
+                              <input
+                                type="email"
+                                value={socio.usuario_email}
+                                disabled
+                                className="ml-2 border rounded px-2 py-1 bg-gray-100 text-gray-600"
+                              />
+                            </div>
+                          )}
+                          {!socio.usuario_email && (
+                            <div className="text-orange-600 text-xs">Sin credenciales</div>
+                          )}
                         </div>
                         <span className={`inline-block mt-2 px-2 py-1 rounded text-xs ${
                           socio.estado === 'activo' ? 'bg-green-100 text-green-800' :
@@ -187,6 +297,13 @@ export default function Socios() {
                         >
                           Editar
                         </button>
+                        <Link
+                          to="/pagos"
+                          state={{ socio_id: socio.id }}
+                          className="px-3 py-1 bg-green-600 text-white rounded text-sm hover:bg-green-700 text-center"
+                        >
+                          Gestionar Pagos
+                        </Link>
                         <button
                           onClick={() => handleDelete(socio.id)}
                           className="px-3 py-1 bg-red-600 text-white rounded text-sm hover:bg-red-700"
