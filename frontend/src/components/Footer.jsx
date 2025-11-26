@@ -186,7 +186,7 @@ export default function Footer() {
               {user && (user.rol === 'admin' || user.rol === 'root') && (
                 <>
                   <p>
-                    <a href="/dashboard" className="hover:text-white underline">Dashboard</a>
+                    <a href={user.rol === 'admin' ? '/admin' : '/root'} className="hover:text-white underline">Inicio</a>
                   </p>
                   <p>
                     <a href="/socios" className="hover:text-white underline">Socios</a>

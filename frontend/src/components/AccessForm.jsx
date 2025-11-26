@@ -29,7 +29,11 @@ export default function AccessForm({ onSuccess }) {
     setLoading(true);
 
     try {
-      const data = await registerAccess(parseInt(socioId));
+      // Intentar como documento primero, si no funciona como ID numérico
+      const socio = socios.find(s => s.documento === socioId || String(s.id) === socioId);
+      const data = socio && socio.documento 
+        ? await registerAccess(null, socio.documento)
+        : await registerAccess(parseInt(socioId));
       setResult(data.data);
       setSocioId('');
       if (onSuccess) onSuccess();
@@ -52,10 +56,10 @@ export default function AccessForm({ onSuccess }) {
                 <div 
                   key={socio.id} 
                   className="flex justify-between items-center py-1 hover:bg-gray-100 px-2 rounded cursor-pointer"
-                  onClick={() => setSocioId(String(socio.id))}
+                  onClick={() => setSocioId(socio.documento || String(socio.id))}
                 >
                   <span className="font-medium">{socio.nombre}</span>
-                  <span className="text-gray-600">ID: {String(socio.id).padStart(4, '0')}</span>
+                  <span className="text-gray-600">DNI: {socio.documento || String(socio.id).padStart(4, '0')}</span>
                 </div>
               ))}
             </div>

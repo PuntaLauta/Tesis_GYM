@@ -7,19 +7,29 @@ const router = express.Router();
 // POST /api/accesos - Registrar acceso (admin/root)
 router.post('/', requireAuth, requireRole('admin', 'root'), (req, res) => {
   try {
-    const { socio_id } = req.body;
+    const { socio_id, documento } = req.body;
 
-    if (!socio_id) {
-      return res.status(400).json({ error: 'socio_id requerido' });
+    if (!socio_id && !documento) {
+      return res.status(400).json({ error: 'socio_id o documento requerido' });
+    }
+
+    // Si se proporciona documento, buscar el socio por documento
+    let socioIdFinal = socio_id;
+    if (documento && !socio_id) {
+      const socio = get('SELECT id FROM socios WHERE documento = ?', [documento]);
+      if (!socio) {
+        return res.status(404).json({ error: 'Socio no encontrado con ese documento' });
+      }
+      socioIdFinal = socio.id;
     }
 
     // Verificar si el socio está activo
-    const validacion = isSocioActivo(socio_id);
+    const validacion = isSocioActivo(socioIdFinal);
 
     // Registrar acceso
     const result = insert(
       `INSERT INTO accesos (socio_id, permitido, motivo) VALUES (?, ?, ?)`,
-      [socio_id, validacion.activo ? 1 : 0, validacion.motivo]
+      [socioIdFinal, validacion.activo ? 1 : 0, validacion.motivo]
     );
 
     res.json({
@@ -45,7 +55,7 @@ router.get('/verify', requireAuth, requireRole('admin', 'root'), (req, res) => {
     }
 
     // Buscar socio por token
-    const socio = get('SELECT id, nombre FROM socios WHERE qr_token = ?', [token]);
+    const socio = get('SELECT id, nombre, documento FROM socios WHERE qr_token = ?', [token]);
     
     if (!socio) {
       return res.status(404).json({ error: 'Token no válido' });
@@ -59,6 +69,7 @@ router.get('/verify', requireAuth, requireRole('admin', 'root'), (req, res) => {
         socio: {
           id: socio.id,
           nombre: socio.nombre,
+          documento: socio.documento || String(socio.id).padStart(4, '0'),
         },
         activo: validacion.activo,
         motivo: validacion.motivo,

@@ -243,16 +243,16 @@ async function seed() {
   
   // Crear socios asociados a usuarios (10 socios total, todos con credenciales)
   const sociosConUsuario = [
-    { nombre: 'Juan Pérez', telefono: '123456789', usuario: juanUsuario.lastInsertRowid, email: 'juan@clientes.com' },
-    { nombre: 'María González', telefono: '987654321', usuario: mariaUsuario.lastInsertRowid, email: 'maria@clientes.com' },
-    { nombre: 'Carlos Rodríguez', telefono: '555555555', usuario: carlosUsuario.lastInsertRowid, email: 'carlos@clientes.com' },
-    { nombre: 'Luis Martínez', telefono: '777888999', usuario: luisUsuario.lastInsertRowid, email: 'luis@clientes.com' },
-    { nombre: 'Ana Martínez', telefono: '111222333', usuario: anaUsuario.lastInsertRowid, email: 'ana@clientes.com' },
-    { nombre: 'Pedro Sánchez', telefono: '444555666', usuario: pedroUsuario.lastInsertRowid, email: 'pedro@clientes.com' },
-    { nombre: 'Laura Fernández', telefono: '222333444', usuario: lauraUsuario.lastInsertRowid, email: 'laura@clientes.com' },
-    { nombre: 'Roberto Díaz', telefono: '333444555', usuario: robertoUsuario.lastInsertRowid, email: 'roberto@clientes.com' },
-    { nombre: 'Carmen López', telefono: '666777888', usuario: carmenUsuario.lastInsertRowid, email: 'carmen@clientes.com' },
-    { nombre: 'Miguel Torres', telefono: '888999000', usuario: miguelUsuario.lastInsertRowid, email: 'miguel@clientes.com' }
+    { nombre: 'Juan Pérez', documento: '40123456', telefono: '123456789', usuario: juanUsuario.lastInsertRowid, email: 'juan@clientes.com' },
+    { nombre: 'María González', documento: '40987654', telefono: '987654321', usuario: mariaUsuario.lastInsertRowid, email: 'maria@clientes.com' },
+    { nombre: 'Carlos Rodríguez', documento: '40555555', telefono: '555555555', usuario: carlosUsuario.lastInsertRowid, email: 'carlos@clientes.com' },
+    { nombre: 'Luis Martínez', documento: '40778899', telefono: '777888999', usuario: luisUsuario.lastInsertRowid, email: 'luis@clientes.com' },
+    { nombre: 'Ana Martínez', documento: '40111222', telefono: '111222333', usuario: anaUsuario.lastInsertRowid, email: 'ana@clientes.com' },
+    { nombre: 'Pedro Sánchez', documento: '40444555', telefono: '444555666', usuario: pedroUsuario.lastInsertRowid, email: 'pedro@clientes.com' },
+    { nombre: 'Laura Fernández', documento: '40222333', telefono: '222333444', usuario: lauraUsuario.lastInsertRowid, email: 'laura@clientes.com' },
+    { nombre: 'Roberto Díaz', documento: '40333444', telefono: '333444555', usuario: robertoUsuario.lastInsertRowid, email: 'roberto@clientes.com' },
+    { nombre: 'Carmen López', documento: '40666777', telefono: '666777888', usuario: carmenUsuario.lastInsertRowid, email: 'carmen@clientes.com' },
+    { nombre: 'Miguel Torres', documento: '40888999', telefono: '888999000', usuario: miguelUsuario.lastInsertRowid, email: 'miguel@clientes.com' }
   ];
 
   const planMensual = planes.find(p => p.nombre === 'Mensual') || planes[0];
@@ -337,14 +337,14 @@ async function seed() {
       // Actualizar socio existente
       socioId = socioExistente[0].id;
       run(
-        'UPDATE socios SET nombre = ?, telefono = ?, estado = ?, plan_id = ?, qr_token = ? WHERE id = ?',
-        [item.nombre, item.telefono, estado, planSeleccionado.id, generarToken6Digitos(), socioId]
+        'UPDATE socios SET nombre = ?, documento = ?, telefono = ?, estado = ?, plan_id = ?, qr_token = ? WHERE id = ?',
+        [item.nombre, item.documento, item.telefono, estado, planSeleccionado.id, generarToken6Digitos(), socioId]
       );
     } else {
       // Crear nuevo socio
       const socio = insert(
-        'INSERT INTO socios (nombre, telefono, estado, plan_id, usuario_id, qr_token) VALUES (?, ?, ?, ?, ?, ?)',
-        [item.nombre, item.telefono, estado, planSeleccionado.id, item.usuario, generarToken6Digitos()]
+        'INSERT INTO socios (nombre, documento, telefono, estado, plan_id, usuario_id, qr_token) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        [item.nombre, item.documento, item.telefono, estado, planSeleccionado.id, item.usuario, generarToken6Digitos()]
       );
       socioId = socio.lastInsertRowid;
     }

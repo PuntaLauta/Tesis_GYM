@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { getActivosInactivos, getVencenSemana, getIngresos, getOcupacionClases } from '../services/reports';
+import { getActivosInactivos, getIngresos, getOcupacionClases } from '../services/reports';
 import { listClasses } from '../services/classes';
 import { listAll } from '../services/reservations';
 import { listAllPayments } from '../services/pagos';
@@ -12,7 +12,6 @@ export default function DashboardAdmin() {
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState(null);
-  const [vencen, setVencen] = useState([]);
   const [ingresos, setIngresos] = useState(null);
   const [ocupacion, setOcupacion] = useState(null);
   const [clasesHoy, setClasesHoy] = useState([]);
@@ -39,7 +38,6 @@ export default function DashboardAdmin() {
       // Cargar datos en paralelo
       const [
         activosData,
-        vencenData,
         ingresosData,
         ocupacionData,
         clasesData,
@@ -48,7 +46,6 @@ export default function DashboardAdmin() {
         sociosData
       ] = await Promise.all([
         getActivosInactivos(),
-        getVencenSemana(),
         getIngresos({ desde: hoy, hasta: hoy }),
         getOcupacionClases({ desde: hoy, hasta: hoy }),
         listClasses({ desde: desdeMes, hasta: hastaMes }),
@@ -58,7 +55,6 @@ export default function DashboardAdmin() {
       ]);
 
       setStats(activosData.data);
-      setVencen(vencenData.data || []);
       setIngresos(ingresosData.data);
       setOcupacion(ocupacionData.data);
       
@@ -127,13 +123,13 @@ export default function DashboardAdmin() {
       if (bValue == null) bValue = '';
 
       // Convertir a string para comparar
-      aValue = String(aValue).toLowerCase();
-      bValue = String(bValue).toLowerCase();
-
-      if (sortConfig.key === 'id') {
-        // Para ID, comparar numéricamente
-        aValue = parseInt(a.id) || 0;
-        bValue = parseInt(b.id) || 0;
+      if (sortConfig.key === 'documento') {
+        // Para documento, comparar como string
+        aValue = String(a.documento || '').toLowerCase();
+        bValue = String(b.documento || '').toLowerCase();
+      } else {
+        aValue = String(aValue).toLowerCase();
+        bValue = String(bValue).toLowerCase();
       }
 
       if (aValue < bValue) {
@@ -193,25 +189,8 @@ export default function DashboardAdmin() {
       />
 
       {/* Alertas y Notificaciones */}
-      {(vencen.length > 0 || clasesAlerta.length > 0) && (
+      {clasesAlerta.length > 0 && (
         <div className="mb-6 space-y-3">
-          {vencen.length > 0 && (
-            <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded">
-              <div className="flex items-center">
-                <div className="flex-shrink-0">
-                  <span className="text-yellow-400 text-xl">⚠️</span>
-                </div>
-                <div className="ml-3">
-                  <h3 className="text-sm font-medium text-yellow-800">
-                    {vencen.length} {vencen.length === 1 ? 'membresia vence' : 'membresias vencen'} esta semana
-                  </h3>
-                  <div className="mt-2 text-sm text-yellow-700">
-                    <Link to="/socios" className="underline">Ver detalles</Link>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
 
           {clasesAlerta.length > 0 && (
             <div className="bg-orange-50 border-l-4 border-orange-400 p-4 rounded">
@@ -261,9 +240,9 @@ export default function DashboardAdmin() {
                 <tr className="border-b">
                   <th 
                     className="text-left py-2 cursor-pointer hover:bg-gray-100 select-none"
-                    onClick={() => handleSort('id')}
+                    onClick={() => handleSort('documento')}
                   >
-                    ID {sortConfig.key === 'id' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                    Documento {sortConfig.key === 'documento' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
                   </th>
                   <th 
                     className="text-left py-2 cursor-pointer hover:bg-gray-100 select-none"
@@ -300,7 +279,7 @@ export default function DashboardAdmin() {
               <tbody>
                 {getSortedSocios().map((socio) => (
                   <tr key={socio.id} className="border-b hover:bg-gray-50">
-                    <td className="py-2">{String(socio.id).padStart(4, '0')}</td>
+                    <td className="py-2">{socio.documento || String(socio.id).padStart(4, '0')}</td>
                     <td className="py-2">{socio.nombre}</td>
                     <td className="py-2">{socio.telefono || '-'}</td>
                     <td className="py-2">{socio.usuario_email || '-'}</td>
@@ -360,29 +339,6 @@ export default function DashboardAdmin() {
           )}
         </div>
 
-        {/* Vencen esta Semana */}
-        <div className="bg-white p-4 rounded-lg shadow">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="font-bold">Vencen esta Semana</h2>
-            <Link to="/reports" className="text-sm text-blue-600 hover:underline">
-              Ver reportes
-            </Link>
-          </div>
-          {vencen.length === 0 ? (
-            <div className="text-gray-500 text-sm">No hay vencimientos esta semana</div>
-          ) : (
-            <div className="space-y-2 max-h-64 overflow-y-auto">
-              {vencen.slice(0, 10).map((socio) => (
-                <div key={socio.id} className="border-b pb-2">
-                  <div className="font-medium">{socio.nombre}</div>
-                  <div className="text-sm text-gray-600">
-                    Vence: {socio.fecha_vencimiento} • Plan: {socio.plan_nombre || 'Sin plan'}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
 
         {/* Ultimas Reservas */}
         <div className="bg-white p-4 rounded-lg shadow">

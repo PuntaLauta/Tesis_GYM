@@ -19,12 +19,54 @@ async function initDatabase() {
   
   db = new SQL.Database(data);
   
+  // Verificar si existe la columna documento ANTES de ejecutar init.sql
+  let columnaDocumentoExiste = false;
+  try {
+    const tableInfo = db.exec("PRAGMA table_info(socios)");
+    if (tableInfo && tableInfo[0] && tableInfo[0].values) {
+      columnaDocumentoExiste = tableInfo[0].values.some(row => row[1] === 'documento');
+    }
+  } catch (e) {
+    // Tabla no existe aún, está bien
+  }
+  
+  // Agregar columna documento si no existe (ANTES de init.sql para que el índice funcione)
+  if (!columnaDocumentoExiste) {
+    try {
+      db.run('ALTER TABLE socios ADD COLUMN documento TEXT');
+      saveDatabase();
+      console.log('✅ Columna documento agregada a la tabla socios');
+    } catch (e) {
+      // Si la tabla no existe, init.sql la creará con la columna
+      if (!e.message.includes('no such table')) {
+        console.log('Advertencia: No se pudo agregar columna documento:', e.message);
+      }
+    }
+  }
+  
   // Ejecutar init.sql si existe
   if (fs.existsSync(initSqlPath)) {
     const initSql = fs.readFileSync(initSqlPath, 'utf8');
-    db.run(initSql);
-    saveDatabase();
-    console.log('✅ Base de datos inicializada');
+    try {
+      db.run(initSql);
+      saveDatabase();
+      console.log('✅ Base de datos inicializada');
+    } catch (e) {
+      // Si falla por el índice, intentar crearlo después
+      if (e.message.includes('documento')) {
+        console.log('Advertencia al ejecutar init.sql:', e.message);
+        // Intentar crear el índice después
+        try {
+          db.run('CREATE UNIQUE INDEX IF NOT EXISTS idx_socios_documento ON socios(documento)');
+          saveDatabase();
+          console.log('✅ Índice único creado para documento');
+        } catch (idxError) {
+          console.log('Advertencia: No se pudo crear índice único:', idxError.message);
+        }
+      } else {
+        throw e;
+      }
+    }
   }
   
   // Verificar columnas usando PRAGMA
@@ -202,6 +244,7 @@ async function initDatabase() {
       console.log('Advertencia: No se pudo crear tabla configuracion_gym:', e.message);
     }
   }
+
   
   return db;
 }

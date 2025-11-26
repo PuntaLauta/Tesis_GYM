@@ -13,6 +13,7 @@ export default function Socios() {
   const [selectedSocioId, setSelectedSocioId] = useState(null);
   const [formData, setFormData] = useState({
     nombre: '',
+    documento: '',
     telefono: '',
     estado: 'activo',
     plan_id: '',
@@ -65,7 +66,7 @@ export default function Socios() {
       }
       setShowForm(false);
       setEditingSocio(null);
-      setFormData({ nombre: '', telefono: '', estado: 'activo', plan_id: '', email: '', password: '' });
+      setFormData({ nombre: '', documento: '', telefono: '', estado: 'activo', plan_id: '', email: '', password: '' });
       loadSocios();
       alert(editingSocio ? 'Socio actualizado' : 'Socio creado. QR generado automáticamente.');
     } catch (error) {
@@ -77,6 +78,7 @@ export default function Socios() {
     setEditingSocio(socio);
     setFormData({
       nombre: socio.nombre,
+      documento: socio.documento || '',
       telefono: socio.telefono || '',
       estado: socio.estado,
       plan_id: socio.plan_id || '',
@@ -118,7 +120,7 @@ export default function Socios() {
           onClick={() => {
             setShowForm(true);
             setEditingSocio(null);
-            setFormData({ nombre: '', telefono: '', estado: 'activo', plan_id: '', email: '', password: '' });
+            setFormData({ nombre: '', documento: '', telefono: '', estado: 'activo', plan_id: '', email: '', password: '' });
           }}
           className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
         >
@@ -140,6 +142,17 @@ export default function Socios() {
                 value={formData.nombre}
                 onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
                 className="w-full border rounded px-3 py-2"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Documento *</label>
+              <input
+                type="text"
+                required
+                value={formData.documento}
+                onChange={(e) => setFormData({ ...formData, documento: e.target.value })}
+                className="w-full border rounded px-3 py-2"
+                disabled={!!editingSocio}
               />
             </div>
             <div>
@@ -258,7 +271,7 @@ export default function Socios() {
                       <div className="flex-1">
                         <h3 className="font-bold">{socio.nombre}</h3>
                         <div className="text-sm text-gray-600 mt-1 space-y-1">
-                          <div>ID: {String(socio.id).padStart(4, '0')}</div>
+                          <div>Documento: {socio.documento || String(socio.id).padStart(4, '0')}</div>
                           {socio.telefono && <div>Telefono: {socio.telefono}</div>}
                           <div>Plan: {socio.plan_nombre || 'Sin plan'}</div>
                           {socio.usuario_email && (

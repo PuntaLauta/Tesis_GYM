@@ -19,6 +19,7 @@ CREATE TABLE IF NOT EXISTS planes (
 CREATE TABLE IF NOT EXISTS socios (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   nombre TEXT NOT NULL,
+  documento TEXT,
   telefono TEXT,
   estado TEXT NOT NULL DEFAULT 'activo' CHECK(estado IN ('activo', 'suspendido', 'inactivo')),
   plan_id INTEGER,
@@ -27,6 +28,9 @@ CREATE TABLE IF NOT EXISTS socios (
   FOREIGN KEY (plan_id) REFERENCES planes(id),
   FOREIGN KEY (usuario_id) REFERENCES usuarios(id)
 );
+
+-- Índice único para documento
+CREATE UNIQUE INDEX IF NOT EXISTS idx_socios_documento ON socios(documento);
 
 -- Tabla de pagos
 CREATE TABLE IF NOT EXISTS pagos (

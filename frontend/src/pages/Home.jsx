@@ -35,9 +35,9 @@ export default function Home() {
     };
   }, [qrUrl]);
 
-  const formatSocioId = (id) => {
-    if (!id) return '';
-    return String(id).padStart(4, '0');
+  const formatSocioId = (socio) => {
+    if (!socio) return '';
+    return socio.documento || String(socio.id).padStart(4, '0');
   };
 
   const loadSocio = async () => {
@@ -257,7 +257,7 @@ export default function Home() {
                   <div className="bg-white p-6 rounded-lg shadow flex-1">
                     <h2 className="text-xl font-semibold mb-4">Mi Información</h2>
                     <div className="space-y-2">
-                      <p><strong>ID:</strong> {formatSocioId(socio.id)}</p>
+                      <p><strong>Documento:</strong> {formatSocioId(socio)}</p>
                       <p><strong>Nombre:</strong> {socio.nombre}</p>
                       {socio.telefono && <p><strong>Teléfono:</strong> {socio.telefono}</p>}
                       <p><strong>Estado:</strong> 
@@ -334,7 +334,7 @@ export default function Home() {
                 )}
 
                 {/* Clases Reservadas */}
-                <div className="bg-white p-6 rounded-lg shadow flex-1">
+                <div className="bg-white p-6 rounded-lg shadow flex-1 flex flex-col">
                   <h2 className="text-xl font-semibold mb-4">Mis Clases Reservadas</h2>
                   {loading ? (
                     <div className="text-center py-4 text-gray-500">Cargando...</div>
@@ -360,8 +360,9 @@ export default function Home() {
                       )}
                     </div>
                   ) : (
-                    <div className="space-y-4">
-                      {reservas.map((reserva) => (
+                    <div className="flex-1 overflow-y-auto pr-2" style={{ maxHeight: 'calc(100vh - 300px)' }}>
+                      <div className="space-y-4">
+                        {reservas.map((reserva) => (
                         <div 
                           key={reserva.id} 
                           className="border rounded-lg p-4 hover:shadow-md transition-shadow"
@@ -405,15 +406,18 @@ export default function Home() {
                             </div>
                           </div>
                         </div>
-                      ))}
-                      <div className="mt-4 pt-4 border-t">
-                        <Link 
-                          to="/classes" 
-                          className="text-blue-600 hover:underline"
-                        >
-                          Ver todas las clases disponibles →
-                        </Link>
+                        ))}
                       </div>
+                    </div>
+                  )}
+                  {reservas.length > 0 && (
+                    <div className="mt-4 pt-4 border-t">
+                      <Link 
+                        to="/classes" 
+                        className="text-blue-600 hover:underline"
+                      >
+                        Ver todas las clases disponibles →
+                      </Link>
                     </div>
                   )}
                 </div>

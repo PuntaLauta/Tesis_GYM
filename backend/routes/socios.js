@@ -90,11 +90,21 @@ router.get('/:id', requireAuth, (req, res) => {
 // POST /api/socios - Crear (solo admin/root)
 router.post('/', requireAdmin, async (req, res) => {
   try {
-    const { nombre, telefono, estado, plan_id, qr_token, email, password } = req.body;
+    const { nombre, documento, telefono, estado, plan_id, qr_token, email, password } = req.body;
     const bcrypt = require('bcrypt');
 
     if (!nombre) {
       return res.status(400).json({ error: 'Nombre requerido' });
+    }
+
+    if (!documento) {
+      return res.status(400).json({ error: 'Documento requerido' });
+    }
+
+    // Verificar que el documento no exista
+    const documentoExistente = get('SELECT id FROM socios WHERE documento = ?', [documento]);
+    if (documentoExistente) {
+      return res.status(400).json({ error: 'El documento ya está en uso' });
     }
 
     let usuarioId = null;
@@ -122,8 +132,8 @@ router.post('/', requireAdmin, async (req, res) => {
     const token = qr_token || generarToken6Digitos();
 
     const result = insert(
-      `INSERT INTO socios (nombre, telefono, estado, plan_id, qr_token, usuario_id) VALUES (?, ?, ?, ?, ?, ?)`,
-      [nombre, telefono || null, estado || 'activo', plan_id || null, token, usuarioId]
+      `INSERT INTO socios (nombre, documento, telefono, estado, plan_id, qr_token, usuario_id) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [nombre, documento, telefono || null, estado || 'activo', plan_id || null, token, usuarioId]
     );
 
     const nuevoSocio = get(`
@@ -167,11 +177,22 @@ router.put('/:id', requireAuth, async (req, res) => {
       }
     } else {
       // Admin/root pueden editar todo
+      const { documento } = req.body;
+      
+      // Si se está cambiando el documento, verificar que no exista
+      if (documento && documento !== socio.documento) {
+        const documentoExistente = get('SELECT id FROM socios WHERE documento = ? AND id != ?', [documento, req.params.id]);
+        if (documentoExistente) {
+          return res.status(400).json({ error: 'El documento ya está en uso' });
+        }
+      }
+      
       const planIdFinal = plan_id !== undefined && plan_id !== '' ? plan_id : (plan_id === '' ? null : socio.plan_id);
       run(
-        `UPDATE socios SET nombre = ?, telefono = ?, estado = ?, plan_id = ? WHERE id = ?`,
+        `UPDATE socios SET nombre = ?, documento = ?, telefono = ?, estado = ?, plan_id = ? WHERE id = ?`,
         [
           nombre || socio.nombre,
+          documento !== undefined ? documento : socio.documento,
           telefono !== undefined ? telefono : socio.telefono,
           estado || socio.estado,
           planIdFinal,
@@ -276,15 +297,15 @@ router.get('/:id/qr.png', requireAuth, async (req, res) => {
 
     const QRCode = require('qrcode');
     
-    // Formatear ID del socio (4 dígitos)
-    const socioIdFormateado = String(socio.id).padStart(4, '0');
-    
     // Eliminar tildes del nombre del socio
     const nombreSinTildes = eliminarTildes(socio.nombre);
     
+    // Obtener documento o usar ID como fallback
+    const documento = socio.documento || String(socio.id).padStart(4, '0');
+    
     // Crear contenido del QR con información visible (sin tildes para evitar problemas de caracteres)
     const qrContent = `SOCIO: ${nombreSinTildes}
-ID: ${socioIdFormateado}
+Documento: ${documento}
 Estado: ${socio.estado.toUpperCase()}
 Codigo Token: ${socio.qr_token}
 URL: Esperando despliegue online`;

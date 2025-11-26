@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 import { listSocios } from '../services/socios';
 import { createPayment } from '../services/pagos';
 
 export default function GestionPagos() {
   const navigate = useNavigate();
   const location = useLocation();
+  const { user } = useAuth();
   const [socios, setSocios] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedSocio, setSelectedSocio] = useState(null);
@@ -125,7 +127,7 @@ export default function GestionPagos() {
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold">Gestionar Pagos</h1>
         <button
-          onClick={() => navigate('/')}
+          onClick={() => navigate(user?.rol === 'root' ? '/root' : '/admin')}
           className="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700"
         >
           Volver al Dashboard
