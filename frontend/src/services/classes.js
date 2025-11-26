@@ -21,3 +21,5 @@ export const cancelClass = (id) => {
   return api.delete(`/api/clases/${id}`).then(r => r.data);
 };
 
+
+

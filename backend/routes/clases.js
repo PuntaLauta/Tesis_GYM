@@ -28,14 +28,46 @@ router.get('/', (req, res) => {
 
     const clases = query(sql, params);
     
-    // Agregar ocupación a cada clase
+    // Obtener socio_id y estado del usuario si es cliente
+    let userSocioId = null;
+    let socioEstado = null;
+    if (req.session && req.session.user) {
+      const user = req.session.user;
+      if (user.rol === 'cliente' && user.socio_id) {
+        userSocioId = user.socio_id;
+        const socio = get('SELECT estado FROM socios WHERE id = ?', [userSocioId]);
+        if (socio) {
+          socioEstado = socio.estado;
+        }
+      }
+    }
+
+    // Agregar ocupación y estado de reserva a cada clase
     const clasesConOcupacion = clases.map(clase => {
       const ocupados = getOcupacionClase(clase.id);
+      
+      // Verificar si el usuario tiene una reserva activa para esta clase
+      let tieneReserva = false;
+      let reservaId = null;
+      if (userSocioId) {
+        const reserva = get(
+          'SELECT id FROM reservas WHERE clase_id = ? AND socio_id = ? AND estado != ?',
+          [clase.id, userSocioId, 'cancelado']
+        );
+        if (reserva) {
+          tieneReserva = true;
+          reservaId = reserva.id;
+        }
+      }
+      
       return {
         ...clase,
         ocupados,
         disponibles: clase.cupo - ocupados,
         porcentaje: clase.cupo > 0 ? Math.round((ocupados / clase.cupo) * 100) : 0,
+        tiene_reserva: tieneReserva,
+        reserva_id: reservaId,
+        socio_activo: socioEstado === 'activo', // Indica si el socio del usuario está activo
       };
     });
 

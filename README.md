@@ -1,18 +1,12 @@
 # Gestión GYM
 
-Sistema simple y funcional para gestión de gimnasio. Backend Express + SQLite (sql.js) con sesiones; Frontend React + Vite + Tailwind. Incluye login por roles, clases y reservas, control de acceso por QR y reportes básicos.
+Sistema simple y funcional para gestión de gimnasio. Backend Express + SQLite (sql.js) con sesiones; Frontend React + Vite + Tailwind. Incluye login por roles, clases y reservas, control de acceso por QR, recuperación de contraseña con preguntas de seguridad y reportes básicos.
 
 ## 🧩 Clonar el repositorio
 
 HTTPS
 ```bash
 git clone https://github.com/PuntaLauta/Tesis_GYM.git
-cd Tesis_GYM
-```
-
-SSH
-```bash
-git clone git@github.com:PuntaLauta/Tesis_GYM.git
 cd Tesis_GYM
 ```
 
@@ -42,25 +36,56 @@ npm run dev    # http://localhost:5173
 ## 👤 Usuarios Demo
 Una vez ejecutado `npm run seed` en el backend:
 
-| Email | Contraseña | Rol | Socio asociado |
-|-------|------------|-----|----------------|
-| juan@clientes.com | juan123 | cliente | Juan Pérez |
-| maria@clientes.com | maria123 | cliente | María González |
-| carlos@clientes.com | carlos123 | cliente | Carlos Rodríguez |
-| admin@demo.com | admin123 | admin | — |
-| root@demo.com | root123 | root | — |
+| Email | Contraseña | Rol | Socio asociado | Estado | Vencimiento |
+|-------|------------|-----|----------------|--------|-------------|
+| juan@clientes.com | juan123 | cliente | Juan Pérez | ACTIVO | — |
+| maria@clientes.com | maria123 | cliente | María González | ACTIVO | En 3 días |
+| carlos@clientes.com | carlos123 | cliente | Carlos Rodríguez | ACTIVO | En 5 días |
+| luis@clientes.com | luis123 | cliente | Luis Martínez | INACTIVO | Vencido |
+| ana@clientes.com | ana123 | cliente | Ana Martínez | ACTIVO | En 2 días |
+| pedro@clientes.com | pedro123 | cliente | Pedro Sánchez | ACTIVO | En 7 días |
+| laura@clientes.com | laura123 | cliente | Laura Fernández | ACTIVO | En 1 día |
+| roberto@clientes.com | roberto123 | cliente | Roberto Díaz | ACTIVO | — |
+| carmen@clientes.com | carmen123 | cliente | Carmen López | ACTIVO | En 4 días |
+| miguel@clientes.com | miguel123 | cliente | Miguel Torres | INACTIVO | Vencido |
+| admin@demo.com | admin123 | admin | — | — | — |
+| root@demo.com | root123 | root | — | — | — |
+
+### 🔐 Preguntas de Seguridad (Recuperación de Contraseña)
+Los usuarios demo tienen preguntas de seguridad configuradas para probar la recuperación de contraseña:
+
+| Email | Pregunta | Respuesta |
+|-------|----------|-----------|
+| juan@clientes.com | ¿Equipo de fútbol que seguís? | **boca** |
+| maria@clientes.com | ¿Comida favorita? | **pizza** |
+| carlos@clientes.com | ¿Ciudad donde naciste? | **cordoba** |
+| luis@clientes.com | ¿Apellido de soltera de tu madre? | **gonzalez** |
+| ana@clientes.com | ¿Nombre de tu mascota? | **max** |
+| pedro@clientes.com | ¿Comida favorita? | **asado** |
+| laura@clientes.com | ¿Ciudad donde naciste? | **buenosaires** |
+| roberto@clientes.com | ¿Apellido de soltera de tu madre? | **perez** |
+| carmen@clientes.com | ¿Nombre de tu colegio primario? | **sanmartin** |
+| miguel@clientes.com | ¿Nombre de tu mascota? | **toby** |
+
+**Nota:** Las respuestas son case-insensitive (no importan mayúsculas/minúsculas).
 
 ---
 
-## 📋 Socios Demo (IDs para pruebas)
+## 📋 Socios Demo
+Todos los socios tienen credenciales para ingresar al sistema:
 
-| ID | Nombre | Estado | Plan | Acceso | Para probar |
-|----|--------|--------|------|--------|-------------|
-| 1 | Juan Pérez | activo | Mensual | ✅ Permitido | Pago reciente |
-| 2 | María González | activo | Mensual | ✅ Permitido | Pago hace 15 días |
-| 3 | Carlos Rodríguez | inactivo | Mensual | ❌ Denegado | Membresía vencida |
-| 4 | Ana Martínez | activo | Trimestral | ✅ Permitido | Plan trimestral |
-| 5 | Pedro Sánchez | activo | — | ❌ Denegado | Sin plan |
+| ID | Nombre | Estado | Plan | Vencimiento | Acceso |
+|----|--------|--------|------|-------------|--------|
+| 1 | Juan Pérez | activo | Mensual | — | ✅ Permitido |
+| 2 | María González | activo | Mensual | En 3 días | ✅ Permitido |
+| 3 | Carlos Rodríguez | activo | Mensual | En 5 días | ✅ Permitido |
+| 4 | Luis Martínez | inactivo | Mensual | Vencido | ❌ Denegado |
+| 5 | Ana Martínez | activo | Mensual | En 2 días | ✅ Permitido |
+| 6 | Pedro Sánchez | activo | Mensual | En 7 días | ✅ Permitido |
+| 7 | Laura Fernández | activo | Mensual | En 1 día | ✅ Permitido |
+| 8 | Roberto Díaz | activo | Mensual | — | ✅ Permitido |
+| 9 | Carmen López | activo | Mensual | En 4 días | ✅ Permitido |
+| 10 | Miguel Torres | inactivo | Mensual | Vencido | ❌ Denegado |
 
 ---
 
@@ -84,26 +109,29 @@ Frontend
 
 ---
 
+## 🔑 Recuperación de Contraseña
+El sistema incluye recuperación de contraseña mediante preguntas de seguridad:
+
+1. **Configurar pregunta de seguridad:**
+   - Los clientes pueden configurar su pregunta desde "Mi Perfil" → "Pregunta de Seguridad"
+   - Preguntas disponibles: Equipo de fútbol, Comida favorita, Ciudad donde naciste, Apellido de soltera de tu madre, Nombre de tu colegio primario, Nombre de tu mascota
+
+2. **Recuperar contraseña:**
+   - En la página de login, click en "¿Olvidaste tu contraseña?"
+   - Ingresar email → Responder pregunta de seguridad → Establecer nueva contraseña
+
+3. **Seguridad:**
+   - Las respuestas se almacenan hasheadas (bcrypt)
+   - Las respuestas se normalizan (minúsculas, sin espacios)
+   - No se revela si un email existe o no en el sistema
+
+---
+
 ## 📝 Notas
 - La base se crea automáticamente en `backend/db/gym.db`.
 - Las sesiones persisten mientras el servidor esté activo.
 - Si reinicias el backend, deberás volver a iniciar sesión.
-
----
-
-## 🆕 Sprint 2 – Funcionalidades
-- Clases y reservas (listado, creación/edición/cancelación; reserva y asistencia)
-- Control de acceso por QR: verificación y registro por token
-- Reportes: activos/inactivos, vencen en 7 días, ingresos por período, ocupación de clases
-
-### Rutas Frontend
-- `/classes`, `/reservations`, `/access` (admin/root), `/reports` (admin/root)
-
-### Endpoints clave
-- `POST /auth/login`, `GET /auth/me`, `POST /auth/logout`
-- Clases: `GET/POST/PUT/DELETE /api/clases`
-- Reservas: `GET /api/reservas`, `GET /api/reservas/mias`, `POST /api/reservas`, `PUT /api/reservas/:id/*`
-- Accesos: `POST /api/accesos`, `GET /api/access/verify?token=...`, `POST /api/access/enter`
+- **Importante:** Si actualizas el código, reinicia el backend para que se cree la tabla `preguntas_seguridad` (migración automática).
 
 ---
 
@@ -130,8 +158,3 @@ Frontend
 
 ## 🧭 Contribución
 Rama de trabajo sugerida: `dev`. Crea PRs hacia `main`.
-
----
-
-## 📎 Enlaces
-- Repo: https://github.com/PuntaLauta/Tesis_GYM

@@ -77,12 +77,20 @@ router.put('/:id', (req, res) => {
   }
 });
 
-// DELETE /api/planes/:id
-router.delete('/:id', (req, res) => {
+// DELETE /api/planes/:id - Solo root puede eliminar
+router.delete('/:id', requireRole('root'), (req, res) => {
   try {
     const plan = get('SELECT * FROM planes WHERE id = ?', [req.params.id]);
     if (!plan) {
       return res.status(404).json({ error: 'Plan no encontrado' });
+    }
+
+    // Verificar si hay socios usando este plan
+    const sociosConPlan = query('SELECT COUNT(*) as total FROM socios WHERE plan_id = ?', [req.params.id]);
+    if (sociosConPlan[0].total > 0) {
+      return res.status(400).json({ 
+        error: `No se puede eliminar el plan porque ${sociosConPlan[0].total} socio(s) lo están usando` 
+      });
     }
 
     run('DELETE FROM planes WHERE id = ?', [req.params.id]);

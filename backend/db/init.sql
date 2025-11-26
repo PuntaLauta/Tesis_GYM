@@ -19,6 +19,7 @@ CREATE TABLE IF NOT EXISTS planes (
 CREATE TABLE IF NOT EXISTS socios (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   nombre TEXT NOT NULL,
+  documento TEXT,
   telefono TEXT,
   estado TEXT NOT NULL DEFAULT 'activo' CHECK(estado IN ('activo', 'suspendido', 'inactivo')),
   plan_id INTEGER,
@@ -27,6 +28,9 @@ CREATE TABLE IF NOT EXISTS socios (
   FOREIGN KEY (plan_id) REFERENCES planes(id),
   FOREIGN KEY (usuario_id) REFERENCES usuarios(id)
 );
+
+-- Índice único para documento
+CREATE UNIQUE INDEX IF NOT EXISTS idx_socios_documento ON socios(documento);
 
 -- Tabla de pagos
 CREATE TABLE IF NOT EXISTS pagos (
@@ -69,4 +73,23 @@ CREATE TABLE IF NOT EXISTS accesos (
   permitido INTEGER NOT NULL CHECK(permitido IN (0, 1)),
   motivo TEXT,
   FOREIGN KEY (socio_id) REFERENCES socios(id)
+);
+
+-- Tabla de preguntas de seguridad
+CREATE TABLE IF NOT EXISTS preguntas_seguridad (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  usuario_id INTEGER NOT NULL UNIQUE,
+  pregunta TEXT NOT NULL,
+  respuesta_hash TEXT NOT NULL,
+  FOREIGN KEY (usuario_id) REFERENCES usuarios(id)
+);
+
+-- Tabla de configuracion del gimnasio
+CREATE TABLE IF NOT EXISTS configuracion_gym (
+  id INTEGER PRIMARY KEY CHECK(id = 1),
+  nombre TEXT NOT NULL DEFAULT 'Gimnasio',
+  telefono TEXT,
+  email TEXT,
+  horarios_lunes_viernes TEXT,
+  horarios_sabado TEXT
 );

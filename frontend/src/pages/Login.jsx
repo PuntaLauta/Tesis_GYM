@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 
 export default function Login() {
@@ -15,7 +15,7 @@ export default function Login() {
     try {
       const u = await login(email, password);
       // Redirección por rol
-      if (u.rol === "cliente") nav("/client");
+      if (u.rol === "cliente") nav("/");
       else if (u.rol === "admin") nav("/admin");
       else if (u.rol === "root") nav("/root");
       else nav("/");
@@ -45,6 +45,11 @@ export default function Login() {
         />
         {err && <div className="text-red-600 text-sm">{err}</div>}
         <button className="w-full bg-gray-900 text-white rounded py-2">Entrar</button>
+        <div className="text-center mt-3">
+          <Link to="/forgot-password" className="text-sm text-blue-600 hover:underline">
+            ¿Olvidaste tu contraseña?
+          </Link>
+        </div>
       </form>
     </div>
   );

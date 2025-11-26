@@ -89,7 +89,9 @@ export default function AccessControl() {
                 {verification.activo ? '✅ Permitido' : '❌ Denegado'}
               </div>
               {verification.socio && (
-                <div className="text-sm mt-1">Socio: {verification.socio.nombre}</div>
+                <div className="text-sm mt-1">
+                  Socio: {verification.socio.nombre} (Documento: {verification.socio.documento || verification.socio.id})
+                </div>
               )}
               <div className="text-sm mt-1">{verification.motivo}</div>
             </div>

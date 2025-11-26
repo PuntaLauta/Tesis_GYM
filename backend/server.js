@@ -45,6 +45,8 @@ app.use('/api/reservas', require('./routes/reservas'));
 app.use('/api/accesos', require('./routes/accesos'));
 app.use('/api/access', require('./routes/accesos')); // Alias para rutas de acceso por token
 app.use('/api/reportes', require('./routes/reportes'));
+app.use('/api/configuracion', require('./routes/configuracion'));
+app.use('/api/usuarios', require('./routes/usuarios'));
 
 // 404
 app.use((req, res) => {
