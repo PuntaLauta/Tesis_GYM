@@ -1,9 +1,34 @@
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { getConfiguracion } from '../services/configuracion';
 
 export default function Footer() {
   const { user, logout } = useAuth();
   const nav = useNavigate();
+  const [config, setConfig] = useState({
+    nombre: 'Gimnasio',
+    telefono: '381 000000',
+    email: 'soporte.am@gmail.com',
+    horarios_lunes_viernes: 'Lunes a viernes: 7:00 a 23:00',
+    horarios_sabado: 'Sabados: 8:00 a 20:00'
+  });
+
+  useEffect(() => {
+    loadConfiguracion();
+  }, []);
+
+  const loadConfiguracion = async () => {
+    try {
+      const data = await getConfiguracion();
+      if (data.data) {
+        setConfig(data.data);
+      }
+    } catch (error) {
+      console.error('Error al cargar configuración:', error);
+      // Mantener valores por defecto si hay error
+    }
+  };
 
   const handleLogout = async () => {
     await logout();
@@ -82,23 +107,34 @@ export default function Footer() {
           <div>
             <h3 className="font-semibold text-lg mb-4">Contacto</h3>
             <div className="space-y-2 text-sm text-gray-300">
-              <p>
-                <strong>Telefono:</strong><br />
-                <a href="tel:381000000" className="hover:text-white">381 000000</a>
-              </p>
-              <p>
-                <strong>Email:</strong><br />
-                <a href="mailto:soporte.am@gmail.com" className="hover:text-white break-all">soporte.am@gmail.com</a>
-              </p>
+              {config.telefono && (
+                <p>
+                  <strong>Telefono:</strong><br />
+                  <a href={`tel:${config.telefono.replace(/\s/g, '')}`} className="hover:text-white">{config.telefono}</a>
+                </p>
+              )}
+              {config.email && (
+                <p>
+                  <strong>Email:</strong><br />
+                  <a href={`mailto:${config.email}`} className="hover:text-white break-all">{config.email}</a>
+                </p>
+              )}
               <p>
                 <strong>Direccion:</strong><br />
                 Maipu 490
               </p>
-              <p>
-                <strong>Horarios:</strong><br />
-                Lunes a viernes: 7:00 a 23:00<br />
-                Sabados: 8:00 a 20:00
-              </p>
+              {config.horarios_lunes_viernes && (
+                <p>
+                  <strong>Horarios:</strong><br />
+                  {config.horarios_lunes_viernes}
+                  {config.horarios_sabado && (
+                    <>
+                      <br />
+                      {config.horarios_sabado}
+                    </>
+                  )}
+                </p>
+              )}
             </div>
           </div>
 

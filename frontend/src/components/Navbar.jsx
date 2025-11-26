@@ -23,17 +23,26 @@ export default function Navbar() {
           ) : (
             <>
                 <Link to={user.rol === 'cliente' ? '/' : user.rol === 'admin' ? '/admin' : '/root'} className="text-sm">Inicio</Link>
-                <Link to="/classes" className="text-sm">Clases</Link>
-                <Link to="/reservations" className="text-sm">Reservas</Link>
-                {user.rol === 'cliente' && (
-                  <Link to="/profile" className="text-sm">Mi Perfil</Link>
-                )}
-                {(user.rol === 'admin' || user.rol === 'root') && (
+                {user.rol === 'root' ? (
                   <>
                     <Link to="/socios" className="text-sm">Socios</Link>
-                    <Link to="/pagos" className="text-sm">Gestionar Pagos</Link>
-                    <Link to="/access" className="text-sm">Acceso</Link>
-                    <Link to="/reports" className="text-sm">Reportes</Link>
+                    <Link to="/root/configuracion" className="text-sm">Configuracion</Link>
+                  </>
+                ) : (
+                  <>
+                    <Link to="/classes" className="text-sm">Clases</Link>
+                    <Link to="/reservations" className="text-sm">Reservas</Link>
+                    {user.rol === 'cliente' && (
+                      <Link to="/profile" className="text-sm">Mi Perfil</Link>
+                    )}
+                    {user.rol === 'admin' && (
+                      <>
+                        <Link to="/socios" className="text-sm">Socios</Link>
+                        <Link to="/pagos" className="text-sm">Gestionar Pagos</Link>
+                        <Link to="/access" className="text-sm">Acceso</Link>
+                        <Link to="/reports" className="text-sm">Reportes</Link>
+                      </>
+                    )}
                   </>
                 )}
               <span className="text-sm text-gray-600">Rol: <b>{user.rol}</b></span>

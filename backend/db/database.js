@@ -165,6 +165,43 @@ async function initDatabase() {
       console.log('Advertencia: No se pudo crear tabla de preguntas de seguridad:', e.message);
     }
   }
+
+  // Verificar si existe la tabla de configuracion del gimnasio
+  let tablaConfigExiste = false;
+  try {
+    const tables = db.exec("SELECT name FROM sqlite_master WHERE type='table' AND name='configuracion_gym'");
+    tablaConfigExiste = tables && tables[0] && tables[0].values && tables[0].values.length > 0;
+  } catch (e) {
+    // Error al verificar, asumir que no existe
+  }
+
+  // Crear tabla de configuracion del gimnasio si no existe (migración)
+  if (!tablaConfigExiste) {
+    try {
+      db.run(`
+        CREATE TABLE IF NOT EXISTS configuracion_gym (
+          id INTEGER PRIMARY KEY CHECK(id = 1),
+          nombre TEXT NOT NULL DEFAULT 'Gimnasio',
+          telefono TEXT,
+          email TEXT,
+          horarios_lunes_viernes TEXT,
+          horarios_sabado TEXT
+        )
+      `);
+      // Insertar registro inicial si no existe
+      const configExistente = db.exec("SELECT id FROM configuracion_gym WHERE id = 1");
+      if (!configExistente || !configExistente[0] || !configExistente[0].values || configExistente[0].values.length === 0) {
+        db.run(`
+          INSERT INTO configuracion_gym (id, nombre, telefono, email, horarios_lunes_viernes, horarios_sabado)
+          VALUES (1, 'Gimnasio', '381 000000', 'soporte.am@gmail.com', 'Lunes a viernes: 7:00 a 23:00', 'Sabados: 8:00 a 20:00')
+        `);
+      }
+      saveDatabase();
+      console.log('✅ Tabla configuracion_gym creada');
+    } catch (e) {
+      console.log('Advertencia: No se pudo crear tabla configuracion_gym:', e.message);
+    }
+  }
   
   return db;
 }

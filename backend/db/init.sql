@@ -79,3 +79,13 @@ CREATE TABLE IF NOT EXISTS preguntas_seguridad (
   respuesta_hash TEXT NOT NULL,
   FOREIGN KEY (usuario_id) REFERENCES usuarios(id)
 );
+
+-- Tabla de configuracion del gimnasio
+CREATE TABLE IF NOT EXISTS configuracion_gym (
+  id INTEGER PRIMARY KEY CHECK(id = 1),
+  nombre TEXT NOT NULL DEFAULT 'Gimnasio',
+  telefono TEXT,
+  email TEXT,
+  horarios_lunes_viernes TEXT,
+  horarios_sabado TEXT
+);

@@ -208,6 +208,15 @@ async function seed() {
   const pasadoMañana = new Date(hoy);
   pasadoMañana.setDate(pasadoMañana.getDate() + 2);
 
+  // Crear o actualizar configuracion del gimnasio
+  const configExistente = query('SELECT id FROM configuracion_gym WHERE id = 1');
+  if (configExistente.length === 0) {
+    insert(
+      'INSERT INTO configuracion_gym (id, nombre, telefono, email, horarios_lunes_viernes, horarios_sabado) VALUES (?, ?, ?, ?, ?, ?)',
+      [1, 'Gimnasio', '381 000000', 'soporte.am@gmail.com', 'Lunes a viernes: 7:00 a 23:00', 'Sabados: 8:00 a 20:00']
+    );
+  }
+
   // Crear o actualizar planes de ejemplo
   let planes = query('SELECT * FROM planes');
   if (planes.length === 0) {

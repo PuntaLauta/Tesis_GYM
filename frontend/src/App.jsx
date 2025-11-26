@@ -16,6 +16,9 @@ import Reports from "./pages/Reports";
 import Socios from "./pages/Socios";
 import Profile from "./pages/Profile";
 import GestionPagos from "./pages/GestionPagos";
+import GestionAdmins from "./pages/GestionAdmins";
+import ConfiguracionGym from "./pages/ConfiguracionGym";
+import GestionPlanes from "./pages/GestionPlanes";
 import NotFound from "./pages/NotFound";
 
 export default function App() {
@@ -100,6 +103,30 @@ export default function App() {
               <ProtectedRoute>
                 <RoleRoute roles={["cliente"]}>
                   <Profile />
+                </RoleRoute>
+              </ProtectedRoute>
+            }/>
+
+            <Route path="/root/admins" element={
+              <ProtectedRoute>
+                <RoleRoute roles={["root"]}>
+                  <GestionAdmins />
+                </RoleRoute>
+              </ProtectedRoute>
+            }/>
+
+            <Route path="/root/configuracion" element={
+              <ProtectedRoute>
+                <RoleRoute roles={["root"]}>
+                  <ConfiguracionGym />
+                </RoleRoute>
+              </ProtectedRoute>
+            }/>
+
+            <Route path="/root/planes" element={
+              <ProtectedRoute>
+                <RoleRoute roles={["root"]}>
+                  <GestionPlanes />
                 </RoleRoute>
               </ProtectedRoute>
             }/>
