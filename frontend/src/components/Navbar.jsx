@@ -27,6 +27,7 @@ export default function Navbar() {
                   <>
                     <Link to="/socios" className="text-sm">Socios</Link>
                     <Link to="/root/configuracion" className="text-sm">Configuracion</Link>
+                    <Link to="/root/backup" className="text-sm">Backup</Link>
                   </>
                 ) : (
                   <>

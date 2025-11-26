@@ -84,6 +84,14 @@ export default function GestionPlanes() {
     setShowForm(true);
     setError('');
     setSuccess('');
+    
+    // Scroll automático al formulario
+    setTimeout(() => {
+      const formElement = document.getElementById('formulario-plan');
+      if (formElement) {
+        formElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }, 100);
   };
 
   const handleDelete = async (id) => {
@@ -143,6 +151,14 @@ export default function GestionPlanes() {
                 setFormData({ nombre: '', duracion: '', precio: '' });
                 setError('');
                 setSuccess('');
+                
+                // Scroll automático al formulario
+                setTimeout(() => {
+                  const formElement = document.getElementById('formulario-plan');
+                  if (formElement) {
+                    formElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                  }
+                }, 100);
               }}
               className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
             >
@@ -189,7 +205,7 @@ export default function GestionPlanes() {
           </div>
         </>
       ) : (
-        <div className="bg-white p-6 rounded-lg shadow">
+        <div id="formulario-plan" className="bg-white p-6 rounded-lg shadow">
           <h2 className="text-xl font-semibold mb-4">
             {editingPlan ? 'Editar Plan' : 'Nuevo Plan'}
           </h2>

@@ -83,6 +83,14 @@ export default function GestionAdmins() {
     setShowForm(true);
     setError('');
     setSuccess('');
+    
+    // Scroll automático al formulario
+    setTimeout(() => {
+      const formElement = document.getElementById('formulario-admin');
+      if (formElement) {
+        formElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }, 100);
   };
 
   const handleDelete = async (id) => {
@@ -173,6 +181,14 @@ export default function GestionAdmins() {
                 setFormData({ nombre: '', email: '', password: '', rol: 'admin' });
                 setError('');
                 setSuccess('');
+                
+                // Scroll automático al formulario
+                setTimeout(() => {
+                  const formElement = document.getElementById('formulario-admin');
+                  if (formElement) {
+                    formElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                  }
+                }, 100);
               }}
               className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
             >
@@ -211,7 +227,17 @@ export default function GestionAdmins() {
                           Editar
                         </button>
                         <button
-                          onClick={() => setChangingPassword(usuario)}
+                          onClick={() => {
+                            setChangingPassword(usuario);
+                            
+                            // Scroll automático al modal después de un pequeño delay
+                            setTimeout(() => {
+                              const modalElement = document.getElementById('modal-password');
+                              if (modalElement) {
+                                modalElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                              }
+                            }, 100);
+                          }}
                           className="px-3 py-1 bg-indigo-600 text-white rounded text-sm hover:bg-indigo-700"
                         >
                           Cambiar Pass
@@ -231,7 +257,7 @@ export default function GestionAdmins() {
           </div>
         </>
       ) : (
-        <div className="bg-white p-6 rounded-lg shadow">
+        <div id="formulario-admin" className="bg-white p-6 rounded-lg shadow">
           <h2 className="text-xl font-semibold mb-4">
             {editingUsuario ? 'Editar Administrador' : 'Nuevo Administrador'}
           </h2>
@@ -310,7 +336,7 @@ export default function GestionAdmins() {
       {/* Modal para cambiar contraseña */}
       {changingPassword && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white p-6 rounded-lg shadow-lg max-w-md w-full mx-4">
+          <div id="modal-password" className="bg-white p-6 rounded-lg shadow-lg max-w-md w-full mx-4">
             <h2 className="text-xl font-semibold mb-4">
               Cambiar Contraseña - {changingPassword.nombre}
             </h2>

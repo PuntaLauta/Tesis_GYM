@@ -10,16 +10,27 @@ const requireAdmin = [requireAuth, requireRole('admin', 'root')];
 router.get('/', requireAuth, (req, res) => {
   try {
     const user = req.session.user;
+    const { search } = req.query;
     
     if (user.rol === 'admin' || user.rol === 'root') {
       // Admin/root ven todos los socios con email del usuario asociado
-      const socios = query(`
+      let sql = `
         SELECT s.*, p.nombre as plan_nombre, p.precio as plan_precio, p.duracion as plan_duracion, u.email as usuario_email
         FROM socios s 
         LEFT JOIN planes p ON s.plan_id = p.id
         LEFT JOIN usuarios u ON s.usuario_id = u.id
-      `);
-      res.json({ data: socios });
+      `;
+      
+      // Si hay búsqueda, filtrar por nombre o documento
+      if (search && search.trim()) {
+        const searchTerm = `%${search.trim()}%`;
+        sql += ` WHERE s.nombre LIKE ? OR s.documento LIKE ?`;
+        const socios = query(sql, [searchTerm, searchTerm]);
+        res.json({ data: socios });
+      } else {
+        const socios = query(sql);
+        res.json({ data: socios });
+      }
     } else {
       // Cliente ve solo su socio
       const socio = get(`
@@ -90,7 +101,7 @@ router.get('/:id', requireAuth, (req, res) => {
 // POST /api/socios - Crear (solo admin/root)
 router.post('/', requireAdmin, async (req, res) => {
   try {
-    const { nombre, documento, telefono, estado, plan_id, qr_token, email, password } = req.body;
+    const { nombre, documento, telefono, estado, plan_id, qr_token, email, password, notas } = req.body;
     const bcrypt = require('bcrypt');
 
     if (!nombre) {
@@ -132,8 +143,8 @@ router.post('/', requireAdmin, async (req, res) => {
     const token = qr_token || generarToken6Digitos();
 
     const result = insert(
-      `INSERT INTO socios (nombre, documento, telefono, estado, plan_id, qr_token, usuario_id) VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [nombre, documento, telefono || null, estado || 'activo', plan_id || null, token, usuarioId]
+      `INSERT INTO socios (nombre, documento, telefono, estado, plan_id, qr_token, usuario_id, notas) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [nombre, documento, telefono || null, estado || 'activo', plan_id || null, token, usuarioId, notas || null]
     );
 
     const nuevoSocio = get(`
@@ -177,7 +188,7 @@ router.put('/:id', requireAuth, async (req, res) => {
       }
     } else {
       // Admin/root pueden editar todo
-      const { documento } = req.body;
+      const { documento, notas } = req.body;
       
       // Si se está cambiando el documento, verificar que no exista
       if (documento && documento !== socio.documento) {
@@ -189,13 +200,14 @@ router.put('/:id', requireAuth, async (req, res) => {
       
       const planIdFinal = plan_id !== undefined && plan_id !== '' ? plan_id : (plan_id === '' ? null : socio.plan_id);
       run(
-        `UPDATE socios SET nombre = ?, documento = ?, telefono = ?, estado = ?, plan_id = ? WHERE id = ?`,
+        `UPDATE socios SET nombre = ?, documento = ?, telefono = ?, estado = ?, plan_id = ?, notas = ? WHERE id = ?`,
         [
           nombre || socio.nombre,
           documento !== undefined ? documento : socio.documento,
           telefono !== undefined ? telefono : socio.telefono,
           estado || socio.estado,
           planIdFinal,
+          notas !== undefined ? notas : socio.notas,
           req.params.id
         ]
       );

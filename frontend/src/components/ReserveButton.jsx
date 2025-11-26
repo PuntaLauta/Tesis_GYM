@@ -104,7 +104,7 @@ export default function ReserveButton({ clase, onSuccess }) {
             <h3 className="font-bold mb-4">Reservar para socio</h3>
             <input
               type="number"
-              placeholder="ID del socio"
+              placeholder="DNI del socio"
               value={socioId}
               onChange={(e) => setSocioId(e.target.value)}
               className="w-full border rounded px-3 py-2 mb-4"

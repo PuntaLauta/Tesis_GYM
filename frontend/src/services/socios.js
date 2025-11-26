@@ -1,7 +1,9 @@
 import api from './api';
 
-export const listSocios = () => {
-  return api.get('/api/socios').then(r => r.data);
+export const listSocios = (search) => {
+  const params = search ? { search } : {};
+  const queryString = new URLSearchParams(params).toString();
+  return api.get(`/api/socios${queryString ? '?' + queryString : ''}`).then(r => r.data);
 };
 
 export const getSocio = (id) => {

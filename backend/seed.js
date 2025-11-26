@@ -333,18 +333,26 @@ async function seed() {
     const socioExistente = query('SELECT id FROM socios WHERE usuario_id = ?', [item.usuario]);
     
     let socioId;
+    // Determinar notas según el socio
+    let notas = null;
+    if (item.nombre === 'Juan Pérez') {
+      notas = 'Socio con discapacidad - requiere asistencia en el acceso';
+    } else if (item.nombre === 'María González') {
+      notas = 'Alergia a productos de limpieza - usar productos hipoalergenicos';
+    }
+    
     if (socioExistente.length > 0) {
       // Actualizar socio existente
       socioId = socioExistente[0].id;
       run(
-        'UPDATE socios SET nombre = ?, documento = ?, telefono = ?, estado = ?, plan_id = ?, qr_token = ? WHERE id = ?',
-        [item.nombre, item.documento, item.telefono, estado, planSeleccionado.id, generarToken6Digitos(), socioId]
+        'UPDATE socios SET nombre = ?, documento = ?, telefono = ?, estado = ?, plan_id = ?, qr_token = ?, notas = ? WHERE id = ?',
+        [item.nombre, item.documento, item.telefono, estado, planSeleccionado.id, generarToken6Digitos(), notas, socioId]
       );
     } else {
       // Crear nuevo socio
       const socio = insert(
-        'INSERT INTO socios (nombre, documento, telefono, estado, plan_id, usuario_id, qr_token) VALUES (?, ?, ?, ?, ?, ?, ?)',
-        [item.nombre, item.documento, item.telefono, estado, planSeleccionado.id, item.usuario, generarToken6Digitos()]
+        'INSERT INTO socios (nombre, documento, telefono, estado, plan_id, usuario_id, qr_token, notas) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+        [item.nombre, item.documento, item.telefono, estado, planSeleccionado.id, item.usuario, generarToken6Digitos(), notas]
       );
       socioId = socio.lastInsertRowid;
     }

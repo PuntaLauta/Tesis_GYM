@@ -334,6 +334,212 @@ router.get('/metodos_pago', (req, res) => {
   }
 });
 
+// Función helper para convertir datos a CSV
+function convertirACSV(datos, headers) {
+  const filas = [];
+  
+  // Agregar encabezados
+  filas.push(headers.join(','));
+  
+  // Agregar datos
+  datos.forEach(fila => {
+    const valores = headers.map(header => {
+      const valor = fila[header] || '';
+      // Escapar comillas y envolver en comillas si contiene comas
+      const valorStr = String(valor).replace(/"/g, '""');
+      return valorStr.includes(',') || valorStr.includes('"') || valorStr.includes('\n')
+        ? `"${valorStr}"`
+        : valorStr;
+    });
+    filas.push(valores.join(','));
+  });
+  
+  return filas.join('\n');
+}
+
+// GET /api/reportes/export/:tipo - Exportar reporte a CSV
+router.get('/export/:tipo', (req, res) => {
+  try {
+    const { tipo } = req.params;
+    const { desde, hasta } = req.query;
+    
+    let csv = '';
+    let nombreArchivo = '';
+    
+    switch (tipo) {
+      case 'ingresos': {
+        const { desde, hasta } = req.query;
+        let sql = 'SELECT p.*, s.nombre as socio_nombre FROM pagos p LEFT JOIN socios s ON p.socio_id = s.id WHERE 1=1';
+        const params = [];
+        
+        if (desde) {
+          sql += ' AND p.fecha >= ?';
+          params.push(desde);
+        }
+        if (hasta) {
+          sql += ' AND p.fecha <= ?';
+          params.push(hasta);
+        }
+        sql += ' ORDER BY p.fecha';
+        
+        const pagos = query(sql, params);
+        csv = convertirACSV(pagos, ['id', 'socio_nombre', 'monto', 'fecha', 'metodo_pago']);
+        nombreArchivo = `ingresos_${desde || 'all'}_${hasta || 'all'}.csv`;
+        break;
+      }
+      
+      case 'ocupacion': {
+        const { desde, hasta } = req.query;
+        let sql = 'SELECT * FROM clases WHERE 1=1';
+        const params = [];
+        
+        if (desde) {
+          sql += ' AND fecha >= ?';
+          params.push(desde);
+        }
+        if (hasta) {
+          sql += ' AND fecha <= ?';
+          params.push(hasta);
+        }
+        sql += ' ORDER BY fecha';
+        
+        const clases = query(sql, params);
+        const ocupacion = clases.map(clase => {
+          const ocupados = getOcupacionClase(clase.id);
+          return {
+            id: clase.id,
+            nombre: clase.nombre,
+            fecha: clase.fecha,
+            hora_inicio: clase.hora_inicio,
+            hora_fin: clase.hora_fin,
+            cupo: clase.cupo,
+            ocupados: ocupados,
+            disponibles: clase.cupo - ocupados,
+            porcentaje: clase.cupo > 0 ? Math.round((ocupados / clase.cupo) * 100) : 0,
+            instructor: clase.instructor,
+            estado: clase.estado
+          };
+        });
+        csv = convertirACSV(ocupacion, ['id', 'nombre', 'fecha', 'hora_inicio', 'hora_fin', 'cupo', 'ocupados', 'disponibles', 'porcentaje', 'instructor', 'estado']);
+        nombreArchivo = `ocupacion_clases_${desde || 'all'}_${hasta || 'all'}.csv`;
+        break;
+      }
+      
+      case 'accesos': {
+        const { desde, hasta } = req.query;
+        let sql = `
+          SELECT a.*, s.nombre as socio_nombre, s.documento
+          FROM accesos a
+          LEFT JOIN socios s ON a.socio_id = s.id
+          WHERE 1=1
+        `;
+        const params = [];
+        
+        if (desde) {
+          sql += ' AND DATE(a.fecha_hora) >= ?';
+          params.push(desde);
+        }
+        if (hasta) {
+          sql += ' AND DATE(a.fecha_hora) <= ?';
+          params.push(hasta);
+        }
+        sql += ' ORDER BY a.fecha_hora DESC';
+        
+        const accesos = query(sql, params);
+        const accesosFormateados = accesos.map(a => ({
+          id: a.id,
+          socio_nombre: a.socio_nombre,
+          documento: a.documento,
+          fecha_hora: a.fecha_hora,
+          permitido: a.permitido === 1 ? 'Si' : 'No',
+          motivo: a.motivo
+        }));
+        csv = convertirACSV(accesosFormateados, ['id', 'socio_nombre', 'documento', 'fecha_hora', 'permitido', 'motivo']);
+        nombreArchivo = `accesos_${desde || 'all'}_${hasta || 'all'}.csv`;
+        break;
+      }
+      
+      case 'socios_activos': {
+        const socios = query(`
+          SELECT 
+            s.id,
+            s.nombre,
+            s.documento,
+            s.estado,
+            COUNT(DISTINCT r.id) as total_reservas,
+            COUNT(DISTINCT a.id) as total_accesos,
+            COUNT(DISTINCT CASE WHEN a.permitido = 1 THEN a.id END) as accesos_permitidos,
+            COUNT(DISTINCT p.id) as total_pagos,
+            COALESCE(SUM(p.monto), 0) as total_pagado
+          FROM socios s
+          LEFT JOIN reservas r ON s.id = r.socio_id
+          LEFT JOIN accesos a ON s.id = a.socio_id
+          LEFT JOIN pagos p ON s.id = p.socio_id
+          GROUP BY s.id, s.nombre, s.documento, s.estado
+          ORDER BY total_reservas DESC, total_accesos DESC
+        `);
+        csv = convertirACSV(socios, ['id', 'nombre', 'documento', 'estado', 'total_reservas', 'total_accesos', 'accesos_permitidos', 'total_pagos', 'total_pagado']);
+        nombreArchivo = 'socios_activos.csv';
+        break;
+      }
+      
+      case 'clases_populares': {
+        const clases = query(`
+          SELECT 
+            c.nombre,
+            COUNT(DISTINCT c.id) as total_clases,
+            COUNT(DISTINCT r.id) as total_reservas
+          FROM clases c
+          LEFT JOIN reservas r ON c.id = r.clase_id
+          GROUP BY c.nombre
+          ORDER BY total_reservas DESC
+        `);
+        csv = convertirACSV(clases, ['nombre', 'total_clases', 'total_reservas']);
+        nombreArchivo = 'clases_populares.csv';
+        break;
+      }
+      
+      case 'metodos_pago': {
+        const { desde, hasta } = req.query;
+        let sql = 'SELECT * FROM pagos WHERE 1=1';
+        const params = [];
+        
+        if (desde) {
+          sql += ' AND fecha >= ?';
+          params.push(desde);
+        }
+        if (hasta) {
+          sql += ' AND fecha <= ?';
+          params.push(hasta);
+        }
+        
+        const pagos = query(sql, params);
+        const resumen = pagos.map(p => ({
+          id: p.id,
+          socio_id: p.socio_id,
+          monto: p.monto,
+          fecha: p.fecha,
+          metodo_pago: p.metodo_pago
+        }));
+        csv = convertirACSV(resumen, ['id', 'socio_id', 'monto', 'fecha', 'metodo_pago']);
+        nombreArchivo = `metodos_pago_${desde || 'all'}_${hasta || 'all'}.csv`;
+        break;
+      }
+      
+      default:
+        return res.status(400).json({ error: 'Tipo de reporte no válido' });
+    }
+    
+    // Configurar headers para descarga
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="${nombreArchivo}"`);
+    res.send('\ufeff' + csv); // BOM para UTF-8 en Excel
+  } catch (error) {
+    console.error('Error al exportar reporte:', error);
+    res.status(500).json({ error: 'Error al exportar reporte' });
+  }
+});
+
 module.exports = router;
 
 

@@ -93,3 +93,12 @@ CREATE TABLE IF NOT EXISTS configuracion_gym (
   horarios_lunes_viernes TEXT,
   horarios_sabado TEXT
 );
+
+-- Tabla de configuracion de backups
+CREATE TABLE IF NOT EXISTS backup_config (
+  id INTEGER PRIMARY KEY DEFAULT 1,
+  frecuencia TEXT CHECK(frecuencia IN ('diario', 'semanal', 'mensual')),
+  hora TEXT,
+  mantener_backups INTEGER DEFAULT 30,
+  activo INTEGER DEFAULT 1
+);

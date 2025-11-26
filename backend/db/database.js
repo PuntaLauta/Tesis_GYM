@@ -245,6 +245,62 @@ async function initDatabase() {
     }
   }
 
+  // Verificar si existe la tabla backup_config
+  let tablaBackupConfigExiste = false;
+  try {
+    const tables = db.exec("SELECT name FROM sqlite_master WHERE type='table' AND name='backup_config'");
+    tablaBackupConfigExiste = tables && tables[0] && tables[0].values && tables[0].values.length > 0;
+  } catch (e) {
+    // Error al verificar, asumir que no existe
+  }
+
+  if (!tablaBackupConfigExiste) {
+    try {
+      db.run(`
+        CREATE TABLE IF NOT EXISTS backup_config (
+          id INTEGER PRIMARY KEY DEFAULT 1,
+          frecuencia TEXT CHECK(frecuencia IN ('diario', 'semanal', 'mensual')),
+          hora TEXT,
+          mantener_backups INTEGER DEFAULT 30,
+          activo INTEGER DEFAULT 1
+        )
+      `);
+      // Insertar configuración por defecto
+      const configExistente = db.exec("SELECT id FROM backup_config WHERE id = 1");
+      if (!configExistente || !configExistente[0] || !configExistente[0].values || configExistente[0].values.length === 0) {
+        db.run(`
+          INSERT INTO backup_config (id, frecuencia, hora, mantener_backups, activo)
+          VALUES (1, 'diario', '02:00', 30, 1)
+        `);
+      }
+      saveDatabase();
+      console.log('✅ Tabla backup_config creada');
+    } catch (e) {
+      console.log('Advertencia: No se pudo crear tabla backup_config:', e.message);
+    }
+  }
+
+  // Verificar si existe la columna notas en la tabla socios
+  let columnaNotasExiste = false;
+  try {
+    const tableInfo = db.exec("PRAGMA table_info(socios)");
+    if (tableInfo && tableInfo[0] && tableInfo[0].values) {
+      columnaNotasExiste = tableInfo[0].values.some(row => row[1] === 'notas');
+    }
+  } catch (e) {
+    // Error al verificar, asumir que no existe
+  }
+
+  if (!columnaNotasExiste) {
+    try {
+      db.run('ALTER TABLE socios ADD COLUMN notas TEXT');
+      saveDatabase();
+      console.log('✅ Columna notas agregada a la tabla socios');
+    } catch (e) {
+      console.log('Advertencia: No se pudo agregar columna notas:', e.message);
+    }
+  }
+
   
   return db;
 }

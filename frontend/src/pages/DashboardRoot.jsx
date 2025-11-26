@@ -89,6 +89,13 @@ export default function DashboardRoot() {
             <div className="font-semibold mb-1">Gestionar Planes</div>
             <div className="text-sm text-gray-600">Crear y editar planes de membresia</div>
           </Link>
+          <Link
+            to="/root/backup"
+            className="p-4 border rounded-lg hover:bg-gray-50 transition"
+          >
+            <div className="font-semibold mb-1">Gestionar Backups</div>
+            <div className="text-sm text-gray-600">Backups automaticos y manuales</div>
+          </Link>
         </div>
       </div>
     </div>

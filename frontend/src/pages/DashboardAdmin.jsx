@@ -274,12 +274,17 @@ export default function DashboardAdmin() {
                   >
                     Plan {sortConfig.key === 'plan_nombre' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
                   </th>
+                  <th className="text-left py-2" style={{ maxWidth: '200px', width: '200px' }}>
+                    Notas
+                  </th>
                 </tr>
               </thead>
               <tbody>
                 {getSortedSocios().map((socio) => (
                   <tr key={socio.id} className="border-b hover:bg-gray-50">
-                    <td className="py-2">{socio.documento || String(socio.id).padStart(4, '0')}</td>
+                    <td className="py-2">
+                      {socio.documento || String(socio.id).padStart(4, '0')}
+                    </td>
                     <td className="py-2">{socio.nombre}</td>
                     <td className="py-2">{socio.telefono || '-'}</td>
                     <td className="py-2">{socio.usuario_email || '-'}</td>
@@ -293,6 +298,15 @@ export default function DashboardAdmin() {
                       </span>
                     </td>
                     <td className="py-2">{socio.plan_nombre || 'Sin plan'}</td>
+                    <td className="py-2 max-w-xs">
+                      {socio.notas ? (
+                        <span className="text-xs text-gray-700 block truncate" title={socio.notas} style={{ maxWidth: '200px' }}>
+                          {socio.notas}
+                        </span>
+                      ) : (
+                        <span className="text-gray-400 text-xs">-</span>
+                      )}
+                    </td>
                   </tr>
                 ))}
               </tbody>

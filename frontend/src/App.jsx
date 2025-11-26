@@ -19,6 +19,7 @@ import GestionPagos from "./pages/GestionPagos";
 import GestionAdmins from "./pages/GestionAdmins";
 import ConfiguracionGym from "./pages/ConfiguracionGym";
 import GestionPlanes from "./pages/GestionPlanes";
+import Backup from "./pages/Backup";
 import NotFound from "./pages/NotFound";
 
 export default function App() {
@@ -127,6 +128,14 @@ export default function App() {
               <ProtectedRoute>
                 <RoleRoute roles={["root"]}>
                   <GestionPlanes />
+                </RoleRoute>
+              </ProtectedRoute>
+            }/>
+
+            <Route path="/root/backup" element={
+              <ProtectedRoute>
+                <RoleRoute roles={["root"]}>
+                  <Backup />
                 </RoleRoute>
               </ProtectedRoute>
             }/>
