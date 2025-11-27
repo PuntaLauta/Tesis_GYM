@@ -101,11 +101,11 @@ export default function Footer() {
 
   return (
     <footer className="bg-gray-800 text-white mt-auto">
-      <div className="max-w-6xl mx-auto px-4 py-8">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+      <div className="max-w-6xl mx-auto px-4 py-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           {/* Sección: Información de Contacto */}
           <div>
-            <h3 className="font-semibold text-lg mb-4">Contacto</h3>
+            <h3 className="font-semibold text-lg mb-2">Contacto</h3>
             <div className="space-y-2 text-sm text-gray-300">
               {config.telefono && (
                 <p>
@@ -140,7 +140,7 @@ export default function Footer() {
 
           {/* Sección: Redes Sociales */}
           <div>
-            <h3 className="font-semibold text-lg mb-4">Siguenos</h3>
+            <h3 className="font-semibold text-lg mb-2">Siguenos</h3>
             <div className="space-y-2 text-sm text-gray-300">
               <p>
                 <a 
@@ -157,13 +157,13 @@ export default function Footer() {
 
           {/* Sección: Ayuda Rápida (Contextual) */}
           <div>
-            <h3 className="font-semibold text-lg mb-4">Ayuda Rapida</h3>
+            <h3 className="font-semibold text-lg mb-2">Ayuda Rapida</h3>
             {renderFAQ()}
           </div>
 
           {/* Sección: Enlaces Rápidos */}
           <div>
-            <h3 className="font-semibold text-lg mb-4">Enlaces</h3>
+            <h3 className="font-semibold text-lg mb-2">Enlaces</h3>
             <div className="space-y-2 text-sm text-gray-300">
               {user && user.rol === 'cliente' && (
                 <>
@@ -215,7 +215,7 @@ export default function Footer() {
           </div>
         </div>
 
-        <div className="mt-8 pt-6 border-t border-gray-700 text-center text-sm text-gray-400">
+        <div className="mt-4 pt-4 border-t border-gray-700 text-center text-sm text-gray-400">
           <p>© 2025 Gestión GYM. Todos los derechos reservados.</p>
         </div>
       </div>

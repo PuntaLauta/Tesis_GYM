@@ -146,33 +146,33 @@ export default function DashboardAdmin() {
 
   return (
     <div className="max-w-6xl mx-auto p-6">
-      <h1 className="text-2xl font-bold mb-6">Dashboard Administrador</h1>
+      <h1 className="text-2xl font-bold mb-6 text-center md:text-left">Dashboard Administrador</h1>
 
       {/* Acciones Rapidas */}
       <div className="bg-white p-4 rounded-lg shadow mb-6">
-        <h2 className="font-bold mb-4">Acciones Rapidas</h2>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <h2 className="font-bold mb-4 text-center md:text-left">Acciones Rapidas</h2>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 justify-items-center md:justify-items-stretch">
           <Link
             to="/classes"
-            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-center text-sm"
+            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-center text-sm w-full md:w-auto"
           >
             Nueva Clase
           </Link>
           <Link
             to="/socios"
-            className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 text-center text-sm"
+            className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 text-center text-sm w-full md:w-auto"
           >
             Nuevo Socio
           </Link>
           <Link
             to="/pagos"
-            className="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 text-center text-sm"
+            className="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 text-center text-sm w-full md:w-auto"
           >
             Gestionar Pagos
           </Link>
           <Link
             to="/access"
-            className="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700 text-center text-sm"
+            className="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700 text-center text-sm w-full md:w-auto"
           >
             Verificar Acceso
           </Link>

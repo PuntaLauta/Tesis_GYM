@@ -43,15 +43,15 @@ export default function DashboardRoot() {
 
   return (
     <div className="max-w-6xl mx-auto p-6">
-      <h1 className="text-2xl font-bold mb-6">Panel Root</h1>
+      <h1 className="text-2xl font-bold mb-6 text-center md:text-left">Panel Root</h1>
 
       {/* Estadísticas */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-        <div className="bg-white p-4 rounded-lg shadow">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6 justify-items-center md:justify-items-stretch">
+        <div className="bg-white p-4 rounded-lg shadow w-full md:w-auto text-center md:text-left">
           <div className="text-sm text-gray-600 mb-1">Total Administradores</div>
           <div className="text-3xl font-bold text-blue-600">{stats.totalAdmins}</div>
         </div>
-        <div className="bg-white p-4 rounded-lg shadow">
+        <div className="bg-white p-4 rounded-lg shadow w-full md:w-auto text-center md:text-left">
           <div className="text-sm text-gray-600 mb-1">Total Socios</div>
           <div className="text-3xl font-bold text-green-600">{stats.totalSocios}</div>
         </div>
@@ -59,39 +59,39 @@ export default function DashboardRoot() {
 
       {/* Acciones Rápidas */}
       <div className="bg-white p-6 rounded-lg shadow mb-6">
-        <h2 className="font-bold mb-4">Gestion del Sistema</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <h2 className="font-bold mb-4 text-center md:text-left">Gestion del Sistema</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 justify-items-center md:justify-items-stretch">
           <Link
             to="/root/admins"
-            className="p-4 border rounded-lg hover:bg-gray-50 transition"
+            className="p-4 border rounded-lg hover:bg-gray-50 transition w-full md:w-auto text-center md:text-left"
           >
             <div className="font-semibold mb-1">Gestionar Admins</div>
             <div className="text-sm text-gray-600">Crear y editar usuarios administradores</div>
           </Link>
           <Link
             to="/socios"
-            className="p-4 border rounded-lg hover:bg-gray-50 transition"
+            className="p-4 border rounded-lg hover:bg-gray-50 transition w-full md:w-auto text-center md:text-left"
           >
             <div className="font-semibold mb-1">Gestionar Socios</div>
             <div className="text-sm text-gray-600">Ver y gestionar todos los socios</div>
           </Link>
           <Link
             to="/root/configuracion"
-            className="p-4 border rounded-lg hover:bg-gray-50 transition"
+            className="p-4 border rounded-lg hover:bg-gray-50 transition w-full md:w-auto text-center md:text-left"
           >
             <div className="font-semibold mb-1">Configuracion</div>
             <div className="text-sm text-gray-600">Configurar datos del gimnasio</div>
           </Link>
           <Link
             to="/root/planes"
-            className="p-4 border rounded-lg hover:bg-gray-50 transition"
+            className="p-4 border rounded-lg hover:bg-gray-50 transition w-full md:w-auto text-center md:text-left"
           >
             <div className="font-semibold mb-1">Gestionar Planes</div>
             <div className="text-sm text-gray-600">Crear y editar planes de membresia</div>
           </Link>
           <Link
             to="/root/backup"
-            className="p-4 border rounded-lg hover:bg-gray-50 transition"
+            className="p-4 border rounded-lg hover:bg-gray-50 transition w-full md:w-auto text-center md:text-left"
           >
             <div className="font-semibold mb-1">Gestionar Backups</div>
             <div className="text-sm text-gray-600">Backups automaticos y manuales</div>
