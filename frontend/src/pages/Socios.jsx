@@ -321,8 +321,8 @@ export default function Socios() {
       {loading ? (
         <div className="text-center py-8">Cargando...</div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="md:col-span-1">
+        <div className="grid grid-cols-1 gap-6">
+          <div>
             <div className="mb-4">
               <input
                 type="text"
@@ -376,29 +376,29 @@ export default function Socios() {
                           {socio.estado}
                         </span>
                       </div>
-                      <div className="flex gap-2">
+                      <div className="flex flex-col md:flex-row gap-2 ml-4">
                         <button
                           onClick={() => setSelectedSocioId(socio.id)}
-                          className="px-3 py-1 bg-blue-600 text-white rounded text-sm hover:bg-blue-700"
+                          className="px-3 py-1 bg-blue-600 text-white rounded text-sm hover:bg-blue-700 whitespace-nowrap"
                         >
                           Ver QR
                         </button>
                         <button
                           onClick={() => handleEdit(socio)}
-                          className="px-3 py-1 bg-yellow-600 text-white rounded text-sm hover:bg-yellow-700"
+                          className="px-3 py-1 bg-yellow-600 text-white rounded text-sm hover:bg-yellow-700 whitespace-nowrap"
                         >
                           Editar
                         </button>
                         <Link
                           to="/pagos"
                           state={{ socio_id: socio.id }}
-                          className="px-3 py-1 bg-green-600 text-white rounded text-sm hover:bg-green-700 text-center"
+                          className="px-3 py-1 bg-green-600 text-white rounded text-sm hover:bg-green-700 text-center whitespace-nowrap"
                         >
                           Gestionar Pagos
                         </Link>
                         <button
                           onClick={() => handleDelete(socio.id)}
-                          className="px-3 py-1 bg-red-600 text-white rounded text-sm hover:bg-red-700"
+                          className="px-3 py-1 bg-red-600 text-white rounded text-sm hover:bg-red-700 whitespace-nowrap"
                         >
                           Eliminar
                         </button>
@@ -411,7 +411,7 @@ export default function Socios() {
           </div>
 
           {selectedSocioId && (
-            <div className="md:col-span-1">
+            <div>
               <SocioQrCard socioId={selectedSocioId} />
               <button
                 onClick={() => setSelectedSocioId(null)}
