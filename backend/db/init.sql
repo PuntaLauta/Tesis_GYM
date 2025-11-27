@@ -41,16 +41,24 @@ CREATE TABLE IF NOT EXISTS pagos (
   FOREIGN KEY (socio_id) REFERENCES socios(id)
 );
 
+-- Tabla de tipo_clase
+CREATE TABLE IF NOT EXISTS tipo_clase (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  nombre TEXT NOT NULL,
+  descripcion TEXT
+);
+
 -- Tabla de clases
 CREATE TABLE IF NOT EXISTS clases (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
-  nombre TEXT NOT NULL,
+  tipo_clase_id INTEGER NOT NULL,
   fecha TEXT NOT NULL,
   hora_inicio TEXT NOT NULL,
   hora_fin TEXT NOT NULL,
   cupo INTEGER NOT NULL,
   instructor TEXT,
-  estado TEXT DEFAULT 'activa' CHECK(estado IN ('activa', 'cancelada'))
+  estado TEXT DEFAULT 'activa' CHECK(estado IN ('activa', 'cancelada')),
+  FOREIGN KEY (tipo_clase_id) REFERENCES tipo_clase(id)
 );
 
 -- Tabla de reservas

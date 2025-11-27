@@ -1,22 +1,30 @@
 import { useState, useEffect } from 'react';
 import { createClass, updateClass } from '../services/classes';
+import { listTiposClase } from '../services/tipoClase';
 
 export default function ClassForm({ clase, onSuccess, onCancel }) {
   const [formData, setFormData] = useState({
-    nombre: '',
+    tipo_clase_id: '',
     fecha: '',
     hora_inicio: '',
     hora_fin: '',
     cupo: '',
     instructor: '',
   });
+  const [tiposClase, setTiposClase] = useState([]);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [showDropdown, setShowDropdown] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
+    loadTiposClase();
+  }, []);
+
+  useEffect(() => {
     if (clase) {
       setFormData({
-        nombre: clase.nombre || '',
+        tipo_clase_id: clase.tipo_clase_id || '',
         fecha: clase.fecha || '',
         hora_inicio: clase.hora_inicio || '',
         hora_fin: clase.hora_fin || '',
@@ -25,6 +33,21 @@ export default function ClassForm({ clase, onSuccess, onCancel }) {
       });
     }
   }, [clase]);
+
+  const loadTiposClase = async () => {
+    try {
+      const data = await listTiposClase();
+      setTiposClase(data.data || []);
+    } catch (error) {
+      console.error('Error al cargar tipos de clase:', error);
+    }
+  };
+
+  const filteredTipos = tiposClase.filter(tipo =>
+    tipo.nombre.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const selectedTipo = tiposClase.find(t => t.id === parseInt(formData.tipo_clase_id));
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -49,14 +72,50 @@ export default function ClassForm({ clase, onSuccess, onCancel }) {
     <form onSubmit={handleSubmit} className="space-y-3">
       {error && <div className="text-red-600 text-sm">{error}</div>}
       
-      <div>
-        <label className="block text-sm font-medium mb-1">Nombre</label>
+      <div className="relative">
+        <label className="block text-sm font-medium mb-1">Tipo de Clase</label>
+        <div className="relative">
+          <input
+            type="text"
+            required
+            value={searchTerm || (selectedTipo ? selectedTipo.nombre : '')}
+            onChange={(e) => {
+              setSearchTerm(e.target.value);
+              setShowDropdown(true);
+            }}
+            onFocus={() => setShowDropdown(true)}
+            onBlur={() => {
+              // Delay para permitir click en dropdown
+              setTimeout(() => setShowDropdown(false), 200);
+            }}
+            placeholder="Buscar tipo de clase..."
+            className="w-full border rounded px-3 py-2"
+          />
+          {showDropdown && filteredTipos.length > 0 && (
+            <div className="absolute z-10 w-full mt-1 bg-white border rounded shadow-lg max-h-48 overflow-y-auto">
+              {filteredTipos.map((tipo) => (
+                <div
+                  key={tipo.id}
+                  onClick={() => {
+                    setFormData({ ...formData, tipo_clase_id: tipo.id });
+                    setSearchTerm('');
+                    setShowDropdown(false);
+                  }}
+                  className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
+                >
+                  <div className="font-medium">{tipo.nombre}</div>
+                  {tipo.descripcion && (
+                    <div className="text-sm text-gray-600">{tipo.descripcion}</div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
         <input
-          type="text"
+          type="hidden"
+          value={formData.tipo_clase_id}
           required
-          value={formData.nombre}
-          onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
-          className="w-full border rounded px-3 py-2"
         />
       </div>
 

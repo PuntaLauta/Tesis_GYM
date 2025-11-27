@@ -59,7 +59,13 @@ function getOcupacionClase(claseId) {
 
 // Obtener detalle de clase con ocupación
 function getClaseConOcupacion(claseId) {
-  const clase = get('SELECT * FROM clases WHERE id = ?', [claseId]);
+  const clase = get(
+    `SELECT c.*, tc.nombre as nombre, tc.descripcion as tipo_descripcion 
+     FROM clases c 
+     LEFT JOIN tipo_clase tc ON c.tipo_clase_id = tc.id 
+     WHERE c.id = ?`,
+    [claseId]
+  );
   if (!clase) return null;
 
   const ocupados = getOcupacionClase(claseId);

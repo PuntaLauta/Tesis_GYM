@@ -301,6 +301,14 @@ async function initDatabase() {
     }
   }
 
+  // Ejecutar migración de tipo_clase
+  try {
+    const { migrateTipoClase } = require('./migrate_tipo_clase');
+    migrateTipoClase();
+  } catch (e) {
+    console.log('Advertencia: No se pudo ejecutar migración tipo_clase:', e.message);
+  }
+
   
   return db;
 }
