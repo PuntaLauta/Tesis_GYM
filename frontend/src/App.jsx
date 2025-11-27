@@ -10,7 +10,6 @@ import ForgotPassword from "./pages/ForgotPassword";
 import DashboardAdmin from "./pages/DashboardAdmin";
 import DashboardRoot from "./pages/DashboardRoot";
 import Classes from "./pages/Classes";
-import Reservations from "./pages/Reservations";
 import AccessControl from "./pages/AccessControl";
 import Reports from "./pages/Reports";
 import Socios from "./pages/Socios";
@@ -59,12 +58,6 @@ export default function App() {
         <Route path="/classes" element={
           <ProtectedRoute>
             <Classes />
-          </ProtectedRoute>
-        }/>
-
-        <Route path="/reservations" element={
-          <ProtectedRoute>
-            <Reservations />
           </ProtectedRoute>
         }/>
 

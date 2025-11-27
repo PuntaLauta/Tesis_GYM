@@ -63,16 +63,16 @@ export default function ReserveButton({ clase, onSuccess }) {
 
   return (
     <>
-      <div className="flex gap-2 items-center">
+      <div className="flex flex-col md:flex-row gap-2 items-stretch md:items-center w-full md:w-auto">
         {tieneReserva ? (
           <>
-            <span className="px-3 py-1 rounded text-sm bg-blue-100 text-blue-800">
+            <span className="px-3 py-1 rounded text-sm bg-blue-100 text-blue-800 text-center md:text-left">
               Reservado
             </span>
             <button
               onClick={handleCancel}
               disabled={loading}
-              className="px-3 py-1 rounded text-sm bg-red-600 text-white hover:bg-red-700 disabled:opacity-50"
+              className="w-full md:w-auto px-3 py-1 rounded text-sm bg-red-600 text-white hover:bg-red-700 disabled:opacity-50"
             >
               {loading ? 'Eliminando...' : 'Eliminar'}
             </button>
@@ -81,7 +81,7 @@ export default function ReserveButton({ clase, onSuccess }) {
           <button
             onClick={handleReserve}
             disabled={isFull || loading || clase.estado !== 'activa' || socioInactivo}
-            className={`px-3 py-1 rounded text-sm ${
+            className={`w-full md:w-auto px-3 py-1 rounded text-sm ${
               isFull || clase.estado !== 'activa' || socioInactivo
                 ? 'bg-gray-300 cursor-not-allowed'
                 : 'bg-green-600 text-white hover:bg-green-700'

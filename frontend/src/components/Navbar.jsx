@@ -42,23 +42,22 @@ export default function Navbar() {
             <Link to="/root/configuracion" className="text-sm block py-2" onClick={closeMobileMenu}>Configuracion</Link>
             <Link to="/root/backup" className="text-sm block py-2" onClick={closeMobileMenu}>Backup</Link>
           </>
-        ) : (
-          <>
-            <Link to="/classes" className="text-sm block py-2" onClick={closeMobileMenu}>Clases</Link>
-            <Link to="/reservations" className="text-sm block py-2" onClick={closeMobileMenu}>Reservas</Link>
-            {user.rol === 'cliente' && (
-              <Link to="/profile" className="text-sm block py-2" onClick={closeMobileMenu}>Mi Perfil</Link>
-            )}
-            {user.rol === 'admin' && (
-              <>
-                <Link to="/socios" className="text-sm block py-2" onClick={closeMobileMenu}>Socios</Link>
-                <Link to="/pagos" className="text-sm block py-2" onClick={closeMobileMenu}>Gestionar Pagos</Link>
-                <Link to="/access" className="text-sm block py-2" onClick={closeMobileMenu}>Acceso</Link>
-                <Link to="/reports" className="text-sm block py-2" onClick={closeMobileMenu}>Reportes</Link>
-              </>
-            )}
-          </>
-        )}
+              ) : (
+                <>
+                  <Link to="/classes" className="text-sm block py-2" onClick={closeMobileMenu}>Clases</Link>
+                  {user.rol === 'cliente' && (
+                    <Link to="/profile" className="text-sm block py-2" onClick={closeMobileMenu}>Mi Perfil</Link>
+                  )}
+                  {user.rol === 'admin' && (
+                    <>
+                      <Link to="/socios" className="text-sm block py-2" onClick={closeMobileMenu}>Socios</Link>
+                      <Link to="/pagos" className="text-sm block py-2" onClick={closeMobileMenu}>Gestionar Pagos</Link>
+                      <Link to="/access" className="text-sm block py-2" onClick={closeMobileMenu}>Acceso</Link>
+                      <Link to="/reports" className="text-sm block py-2" onClick={closeMobileMenu}>Reportes</Link>
+                    </>
+                  )}
+                </>
+              )}
         <div className="border-t border-gray-200 my-2 pt-2">
           <span className="text-sm text-gray-600 block py-2">Rol: <b>{user.rol}</b></span>
           <button 
@@ -96,7 +95,6 @@ export default function Navbar() {
               ) : (
                 <>
                   <Link to="/classes" className="text-sm">Clases</Link>
-                  <Link to="/reservations" className="text-sm">Reservas</Link>
                   {user.rol === 'cliente' && (
                     <Link to="/profile" className="text-sm">Mi Perfil</Link>
                   )}

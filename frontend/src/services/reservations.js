@@ -12,6 +12,21 @@ export const listAll = () => {
   return api.get('/api/reservas').then(r => r.data);
 };
 
+export const listReservations = (filters = {}) => {
+  const params = new URLSearchParams();
+  if (filters.clase_id) {
+    params.append('clase_id', filters.clase_id);
+  }
+  if (filters.tipo_clase_id) {
+    params.append('tipo_clase_id', filters.tipo_clase_id);
+  }
+  if (filters.fecha) {
+    params.append('fecha', filters.fecha);
+  }
+  const queryString = params.toString();
+  return api.get(`/api/reservas${queryString ? '?' + queryString : ''}`).then(r => r.data);
+};
+
 export const createReservation = (data) => {
   return api.post('/api/reservas', data).then(r => r.data);
 };
