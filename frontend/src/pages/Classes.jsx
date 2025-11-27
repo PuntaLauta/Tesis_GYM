@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { listClasses, cancelClass } from '../services/classes';
+import { listTiposClase } from '../services/tipoClase';
 import ClassForm from '../components/ClassForm';
 import ReserveButton from '../components/ReserveButton';
 
@@ -10,27 +11,47 @@ export default function Classes() {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingClass, setEditingClass] = useState(null);
-  const [filters, setFilters] = useState({ puedoInscribirme: false });
+  const [filters, setFilters] = useState({ puedoInscribirme: false, tipo_clase_id: '' });
   const [allClases, setAllClases] = useState([]);
+  const [tiposClase, setTiposClase] = useState([]);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [showDropdown, setShowDropdown] = useState(false);
 
   const isAdmin = user?.rol === 'admin' || user?.rol === 'root';
 
   useEffect(() => {
     loadClasses();
+    loadTiposClase();
   }, []);
 
   useEffect(() => {
+    let filtered = allClases;
+
     if (filters.puedoInscribirme) {
       // Filtrar clases activas con cupo disponible
-      const clasesDisponibles = allClases.filter(clase => 
+      filtered = filtered.filter(clase => 
         clase.estado === 'activa' && (clase.ocupados || 0) < clase.cupo
       );
-      setClases(clasesDisponibles);
-    } else {
-      // Mostrar todas las clases
-      setClases(allClases);
     }
-  }, [filters.puedoInscribirme, allClases]);
+
+    if (filters.tipo_clase_id) {
+      // Filtrar por tipo de clase
+      filtered = filtered.filter(clase => 
+        clase.tipo_clase_id === parseInt(filters.tipo_clase_id)
+      );
+    }
+
+    setClases(filtered);
+  }, [filters, allClases]);
+
+  const loadTiposClase = async () => {
+    try {
+      const data = await listTiposClase();
+      setTiposClase(data.data || []);
+    } catch (error) {
+      console.error('Error al cargar tipos de clase:', error);
+    }
+  };
 
   const loadClasses = async () => {
     setLoading(true);
@@ -99,17 +120,72 @@ export default function Classes() {
       {!isAdmin && (
         <div className="bg-white p-4 rounded-lg shadow mb-4">
           <h3 className="font-semibold mb-3">Filtros</h3>
-          <div className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              id="puedoInscribirme"
-              checked={filters.puedoInscribirme}
-              onChange={(e) => setFilters({ ...filters, puedoInscribirme: e.target.checked })}
-              className="w-4 h-4"
-            />
-            <label htmlFor="puedoInscribirme" className="text-sm cursor-pointer">
-              Me puedo inscribir
-            </label>
+          <div className="space-y-3">
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="puedoInscribirme"
+                checked={filters.puedoInscribirme}
+                onChange={(e) => setFilters({ ...filters, puedoInscribirme: e.target.checked })}
+                className="w-4 h-4"
+              />
+              <label htmlFor="puedoInscribirme" className="text-sm cursor-pointer">
+                Me puedo inscribir
+              </label>
+            </div>
+            <div className="relative">
+              <label className="block text-sm font-medium mb-1">Tipo de Clase</label>
+              <div className="relative">
+                <input
+                  type="text"
+                  value={searchTerm || (tiposClase.find(t => t.id === parseInt(filters.tipo_clase_id))?.nombre || '')}
+                  onChange={(e) => {
+                    setSearchTerm(e.target.value);
+                    setShowDropdown(true);
+                  }}
+                  onFocus={() => setShowDropdown(true)}
+                  onBlur={() => {
+                    setTimeout(() => setShowDropdown(false), 200);
+                  }}
+                  placeholder="Buscar tipo de clase..."
+                  className="w-full border rounded px-3 py-2"
+                />
+                {showDropdown && tiposClase.filter(tipo =>
+                  tipo.nombre.toLowerCase().includes(searchTerm.toLowerCase())
+                ).length > 0 && (
+                  <div className="absolute z-10 w-full mt-1 bg-white border rounded shadow-lg max-h-48 overflow-y-auto">
+                    <div
+                      onClick={() => {
+                        setFilters({ ...filters, tipo_clase_id: '' });
+                        setSearchTerm('');
+                        setShowDropdown(false);
+                      }}
+                      className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
+                    >
+                      <div className="font-medium text-gray-500">Todos los tipos</div>
+                    </div>
+                    {tiposClase.filter(tipo =>
+                      tipo.nombre.toLowerCase().includes(searchTerm.toLowerCase())
+                    ).map((tipo) => (
+                      <div
+                        key={tipo.id}
+                        onClick={() => {
+                          setFilters({ ...filters, tipo_clase_id: tipo.id });
+                          setSearchTerm('');
+                          setShowDropdown(false);
+                        }}
+                        className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
+                      >
+                        <div className="font-medium">{tipo.nombre}</div>
+                        {tipo.descripcion && (
+                          <div className="text-sm text-gray-600">{tipo.descripcion}</div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         </div>
       )}

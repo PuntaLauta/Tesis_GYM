@@ -41,6 +41,7 @@ app.use('/api/socios', require('./routes/socios'));
 app.use('/api/planes', require('./routes/planes'));
 app.use('/api/pagos', require('./routes/pagos'));
 app.use('/api/clases', require('./routes/clases'));
+app.use('/api/tipo-clase', require('./routes/tipo_clase'));
 app.use('/api/reservas', require('./routes/reservas'));
 app.use('/api/accesos', require('./routes/accesos'));
 app.use('/api/access', require('./routes/accesos')); // Alias para rutas de acceso por token

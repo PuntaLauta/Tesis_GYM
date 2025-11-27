@@ -132,19 +132,22 @@ router.get('/ingresos', (req, res) => {
 router.get('/ocupacion_clases', (req, res) => {
   try {
     const { desde, hasta } = req.query;
-    let sql = 'SELECT * FROM clases WHERE 1=1';
+    let sql = `SELECT c.*, tc.nombre as nombre 
+               FROM clases c 
+               LEFT JOIN tipo_clase tc ON c.tipo_clase_id = tc.id 
+               WHERE 1=1`;
     const params = [];
 
     if (desde) {
-      sql += ' AND fecha >= ?';
+      sql += ' AND c.fecha >= ?';
       params.push(desde);
     }
     if (hasta) {
-      sql += ' AND fecha <= ?';
+      sql += ' AND c.fecha <= ?';
       params.push(hasta);
     }
 
-    sql += ' ORDER BY fecha';
+    sql += ' ORDER BY c.fecha';
 
     const clases = query(sql, params);
 
@@ -271,15 +274,16 @@ router.get('/clases_populares', (req, res) => {
   try {
     const clases = query(`
       SELECT 
-        c.nombre,
+        tc.nombre,
         COUNT(DISTINCT c.id) as total_clases,
         COUNT(DISTINCT r.id) as total_reservas,
         AVG(CASE WHEN r.estado = 'asistio' THEN 1 ELSE 0 END) * 100 as porcentaje_asistencia,
         SUM(c.cupo) as total_cupos,
         SUM((SELECT COUNT(*) FROM reservas r2 WHERE r2.clase_id = c.id AND r2.estado != 'cancelado')) as total_ocupados
       FROM clases c
+      LEFT JOIN tipo_clase tc ON c.tipo_clase_id = tc.id
       LEFT JOIN reservas r ON c.id = r.clase_id
-      GROUP BY c.nombre
+      GROUP BY c.tipo_clase_id, tc.nombre
       ORDER BY total_reservas DESC
     `);
 

@@ -9,10 +9,11 @@ router.get('/', requireAuth, requireRole('admin', 'root'), (req, res) => {
   try {
     const { clase_id } = req.query;
     let sql = `
-      SELECT r.*, s.nombre as socio_nombre, c.nombre as clase_nombre
+      SELECT r.*, s.nombre as socio_nombre, tc.nombre as clase_nombre
       FROM reservas r
       LEFT JOIN socios s ON r.socio_id = s.id
       LEFT JOIN clases c ON r.clase_id = c.id
+      LEFT JOIN tipo_clase tc ON c.tipo_clase_id = tc.id
       WHERE 1=1
     `;
     const params = [];
@@ -44,9 +45,10 @@ router.get('/mias', requireAuth, (req, res) => {
       }
       
       const reservas = query(`
-        SELECT r.*, c.nombre as clase_nombre, c.fecha, c.hora_inicio, c.hora_fin, c.instructor, c.estado as clase_estado
+        SELECT r.*, tc.nombre as clase_nombre, c.fecha, c.hora_inicio, c.hora_fin, c.instructor, c.estado as clase_estado
         FROM reservas r
         LEFT JOIN clases c ON r.clase_id = c.id
+        LEFT JOIN tipo_clase tc ON c.tipo_clase_id = tc.id
         WHERE r.socio_id = ? AND (r.estado != 'cancelado' OR c.estado = 'cancelada')
         ORDER BY c.fecha DESC, c.hora_inicio DESC
       `, [user.socio_id]);
@@ -56,9 +58,10 @@ router.get('/mias', requireAuth, (req, res) => {
     
     // Para admin/root, devolver todas (aunque no deberían usar este endpoint)
     const reservas = query(`
-      SELECT r.*, c.nombre as clase_nombre, c.fecha, c.hora_inicio, c.hora_fin, c.instructor, c.estado as clase_estado
+      SELECT r.*, tc.nombre as clase_nombre, c.fecha, c.hora_inicio, c.hora_fin, c.instructor, c.estado as clase_estado
       FROM reservas r
       LEFT JOIN clases c ON r.clase_id = c.id
+      LEFT JOIN tipo_clase tc ON c.tipo_clase_id = tc.id
       ORDER BY c.fecha DESC, c.hora_inicio DESC
     `);
     

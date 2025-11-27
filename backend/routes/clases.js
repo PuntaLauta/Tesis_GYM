@@ -7,24 +7,31 @@ const router = express.Router();
 // GET /api/clases - Listar (público para ver, pero mejor con auth)
 router.get('/', (req, res) => {
   try {
-    const { desde, hasta, estado } = req.query;
-    let sql = 'SELECT * FROM clases WHERE 1=1';
+    const { desde, hasta, estado, tipo_clase_id } = req.query;
+    let sql = `SELECT c.*, tc.nombre as nombre, tc.descripcion as tipo_descripcion 
+               FROM clases c 
+               LEFT JOIN tipo_clase tc ON c.tipo_clase_id = tc.id 
+               WHERE 1=1`;
     const params = [];
 
     if (desde) {
-      sql += ' AND fecha >= ?';
+      sql += ' AND c.fecha >= ?';
       params.push(desde);
     }
     if (hasta) {
-      sql += ' AND fecha <= ?';
+      sql += ' AND c.fecha <= ?';
       params.push(hasta);
     }
     if (estado) {
-      sql += ' AND estado = ?';
+      sql += ' AND c.estado = ?';
       params.push(estado);
     }
+    if (tipo_clase_id) {
+      sql += ' AND c.tipo_clase_id = ?';
+      params.push(tipo_clase_id);
+    }
 
-    sql += ' ORDER BY fecha, hora_inicio';
+    sql += ' ORDER BY c.fecha, c.hora_inicio';
 
     const clases = query(sql, params);
     
@@ -95,19 +102,25 @@ router.get('/:id', (req, res) => {
 // POST /api/clases - Crear (admin/root)
 router.post('/', requireAuth, requireRole('admin', 'root'), (req, res) => {
   try {
-    const { nombre, fecha, hora_inicio, hora_fin, cupo, instructor } = req.body;
+    const { tipo_clase_id, fecha, hora_inicio, hora_fin, cupo, instructor } = req.body;
 
-    if (!nombre || !fecha || !hora_inicio || !hora_fin || !cupo) {
+    if (!tipo_clase_id || !fecha || !hora_inicio || !hora_fin || !cupo) {
       return res.status(400).json({ error: 'Faltan campos requeridos' });
     }
 
     const result = insert(
-      `INSERT INTO clases (nombre, fecha, hora_inicio, hora_fin, cupo, instructor, estado)
+      `INSERT INTO clases (tipo_clase_id, fecha, hora_inicio, hora_fin, cupo, instructor, estado)
        VALUES (?, ?, ?, ?, ?, ?, 'activa')`,
-      [nombre, fecha, hora_inicio, hora_fin, cupo, instructor || null]
+      [tipo_clase_id, fecha, hora_inicio, hora_fin, cupo, instructor || null]
     );
 
-    const nuevaClase = get('SELECT * FROM clases WHERE id = ?', [result.lastInsertRowid]);
+    const nuevaClase = get(
+      `SELECT c.*, tc.nombre as nombre, tc.descripcion as tipo_descripcion 
+       FROM clases c 
+       LEFT JOIN tipo_clase tc ON c.tipo_clase_id = tc.id 
+       WHERE c.id = ?`,
+      [result.lastInsertRowid]
+    );
     res.status(201).json({ data: nuevaClase });
   } catch (error) {
     console.error('Error al crear clase:', error);
@@ -118,7 +131,7 @@ router.post('/', requireAuth, requireRole('admin', 'root'), (req, res) => {
 // PUT /api/clases/:id - Editar (admin/root)
 router.put('/:id', requireAuth, requireRole('admin', 'root'), (req, res) => {
   try {
-    const { nombre, fecha, hora_inicio, hora_fin, cupo, instructor, estado } = req.body;
+    const { tipo_clase_id, fecha, hora_inicio, hora_fin, cupo, instructor, estado } = req.body;
 
     const clase = get('SELECT * FROM clases WHERE id = ?', [req.params.id]);
     if (!clase) {
@@ -127,10 +140,10 @@ router.put('/:id', requireAuth, requireRole('admin', 'root'), (req, res) => {
 
     run(
       `UPDATE clases 
-       SET nombre = ?, fecha = ?, hora_inicio = ?, hora_fin = ?, cupo = ?, instructor = ?, estado = ?
+       SET tipo_clase_id = ?, fecha = ?, hora_inicio = ?, hora_fin = ?, cupo = ?, instructor = ?, estado = ?
        WHERE id = ?`,
       [
-        nombre || clase.nombre,
+        tipo_clase_id !== undefined ? tipo_clase_id : clase.tipo_clase_id,
         fecha || clase.fecha,
         hora_inicio || clase.hora_inicio,
         hora_fin || clase.hora_fin,
@@ -141,7 +154,13 @@ router.put('/:id', requireAuth, requireRole('admin', 'root'), (req, res) => {
       ]
     );
 
-    const claseActualizada = get('SELECT * FROM clases WHERE id = ?', [req.params.id]);
+    const claseActualizada = get(
+      `SELECT c.*, tc.nombre as nombre, tc.descripcion as tipo_descripcion 
+       FROM clases c 
+       LEFT JOIN tipo_clase tc ON c.tipo_clase_id = tc.id 
+       WHERE c.id = ?`,
+      [req.params.id]
+    );
     res.json({ data: claseActualizada });
   } catch (error) {
     console.error('Error al actualizar clase:', error);
