@@ -146,33 +146,33 @@ export default function DashboardAdmin() {
 
   return (
     <div className="max-w-6xl mx-auto p-6">
-      <h1 className="text-2xl font-bold mb-6">Dashboard Administrador</h1>
+      <h1 className="text-2xl font-bold mb-6 text-center md:text-left">Dashboard Administrador</h1>
 
       {/* Acciones Rapidas */}
       <div className="bg-white p-4 rounded-lg shadow mb-6">
-        <h2 className="font-bold mb-4">Acciones Rapidas</h2>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <h2 className="font-bold mb-4 text-center md:text-left">Acciones Rapidas</h2>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 justify-items-center md:justify-items-stretch">
           <Link
             to="/classes"
-            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-center text-sm"
+            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-center text-sm w-full md:w-auto"
           >
             Nueva Clase
           </Link>
           <Link
             to="/socios"
-            className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 text-center text-sm"
+            className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 text-center text-sm w-full md:w-auto"
           >
             Nuevo Socio
           </Link>
           <Link
             to="/pagos"
-            className="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 text-center text-sm"
+            className="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 text-center text-sm w-full md:w-auto"
           >
             Gestionar Pagos
           </Link>
           <Link
             to="/access"
-            className="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700 text-center text-sm"
+            className="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700 text-center text-sm w-full md:w-auto"
           >
             Verificar Acceso
           </Link>
@@ -274,12 +274,17 @@ export default function DashboardAdmin() {
                   >
                     Plan {sortConfig.key === 'plan_nombre' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
                   </th>
+                  <th className="text-left py-2" style={{ maxWidth: '200px', width: '200px' }}>
+                    Notas
+                  </th>
                 </tr>
               </thead>
               <tbody>
                 {getSortedSocios().map((socio) => (
                   <tr key={socio.id} className="border-b hover:bg-gray-50">
-                    <td className="py-2">{socio.documento || String(socio.id).padStart(4, '0')}</td>
+                    <td className="py-2">
+                      {socio.documento || String(socio.id).padStart(4, '0')}
+                    </td>
                     <td className="py-2">{socio.nombre}</td>
                     <td className="py-2">{socio.telefono || '-'}</td>
                     <td className="py-2">{socio.usuario_email || '-'}</td>
@@ -293,6 +298,15 @@ export default function DashboardAdmin() {
                       </span>
                     </td>
                     <td className="py-2">{socio.plan_nombre || 'Sin plan'}</td>
+                    <td className="py-2 max-w-xs">
+                      {socio.notas ? (
+                        <span className="text-xs text-gray-700 block truncate" title={socio.notas} style={{ maxWidth: '200px' }}>
+                          {socio.notas}
+                        </span>
+                      ) : (
+                        <span className="text-gray-400 text-xs">-</span>
+                      )}
+                    </td>
                   </tr>
                 ))}
               </tbody>

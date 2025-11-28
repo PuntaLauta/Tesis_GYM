@@ -48,6 +48,8 @@ app.use('/api/access', require('./routes/accesos')); // Alias para rutas de acce
 app.use('/api/reportes', require('./routes/reportes'));
 app.use('/api/configuracion', require('./routes/configuracion'));
 app.use('/api/usuarios', require('./routes/usuarios'));
+app.use('/api/instructores', require('./routes/instructores'));
+app.use('/api/backup', require('./routes/backup'));
 
 // 404
 app.use((req, res) => {
@@ -60,8 +62,74 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: 'Error interno del servidor' });
 });
 
+// Configurar tarea programada para backups automáticos
+let cronJob = null;
+
+async function configurarBackupsAutomaticos() {
+  try {
+    const cron = require('node-cron');
+    const { get } = require('./db/database');
+    const { crearBackup, limpiarBackupsAntiguos } = require('./db/backup');
+    
+    const config = get('SELECT * FROM backup_config WHERE id = 1');
+    
+    if (!config || !config.activo) {
+      console.log('⚠️ Backups automáticos desactivados');
+      return;
+    }
+    
+    // Detener tarea anterior si existe
+    if (cronJob) {
+      cronJob.stop();
+    }
+    
+    // Determinar cron schedule según frecuencia
+    let schedule = '';
+    const [hora, minuto] = (config.hora || '02:00').split(':');
+    
+    switch (config.frecuencia) {
+      case 'diario':
+        schedule = `${minuto} ${hora} * * *`; // Diario a la hora configurada
+        break;
+      case 'semanal':
+        schedule = `${minuto} ${hora} * * 0`; // Domingos a la hora configurada
+        break;
+      case 'mensual':
+        schedule = `${minuto} ${hora} 1 * *`; // Día 1 de cada mes
+        break;
+      default:
+        schedule = `${minuto} ${hora} * * *`; // Por defecto diario
+    }
+    
+    // Crear tarea programada
+    cronJob = cron.schedule(schedule, () => {
+      try {
+        console.log('🔄 Iniciando backup automático...');
+        crearBackup('automatic');
+        console.log('✅ Backup automático completado');
+        
+        // Limpiar backups antiguos
+        const eliminados = limpiarBackupsAntiguos(config.mantener_backups || 30);
+        if (eliminados > 0) {
+          console.log(`🗑️ Se eliminaron ${eliminados} backups antiguos`);
+        }
+      } catch (error) {
+        console.error('❌ Error en backup automático:', error);
+      }
+    });
+    
+    console.log(`✅ Backups automáticos configurados: ${config.frecuencia} a las ${config.hora}`);
+  } catch (error) {
+    console.error('⚠️ Error al configurar backups automáticos:', error.message);
+    console.log('   Asegúrate de tener node-cron instalado: npm install node-cron');
+  }
+}
+
 // Iniciar servidor después de inicializar la base de datos
 dbPromise.then(() => {
+  // Configurar backups automáticos
+  configurarBackupsAutomaticos();
+  
   app.listen(PORT, () => {
     console.log(`🚀 Servidor corriendo en http://localhost:${PORT}`);
     console.log(`📊 Health check: http://localhost:${PORT}/api/health`);

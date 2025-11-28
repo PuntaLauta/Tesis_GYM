@@ -1,6 +1,6 @@
 # Gestión GYM
 
-Sistema simple y funcional para gestión de gimnasio. Backend Express + SQLite (sql.js) con sesiones; Frontend React + Vite + Tailwind. Incluye login por roles, clases y reservas, control de acceso por QR, recuperación de contraseña con preguntas de seguridad y reportes básicos.
+Sistema simple y funcional para gestión de gimnasio. Backend Express + SQLite (sql.js) con sesiones; Frontend React + Vite + Tailwind. Incluye login por roles (cliente, admin, root, instructor), clases y reservas, control de acceso por QR, recuperación de contraseña con preguntas de seguridad, gestión de instructores y reportes básicos.
 
 ## 🧩 Clonar el repositorio
 
@@ -48,8 +48,11 @@ Una vez ejecutado `npm run seed` en el backend:
 | roberto@clientes.com | roberto123 | cliente | Roberto Díaz | ACTIVO | — |
 | carmen@clientes.com | carmen123 | cliente | Carmen López | ACTIVO | En 4 días |
 | miguel@clientes.com | miguel123 | cliente | Miguel Torres | INACTIVO | Vencido |
-| admin@demo.com | admin123 | admin | — | — | — |
-| root@demo.com | root123 | root | — | — | — |
+| admin@gym.com | admin123 | admin | — | — | — |
+| root@gym.com | root123 | root | — | — | — |
+| carlos@instructores.com | carlos123 | instructor | — | — | — |
+| sofia@instructores.com | sofia123 | instructor | — | — | — |
+| diego@instructores.com | diego123 | instructor | — | — | — |
 
 ### 🔐 Preguntas de Seguridad (Recuperación de Contraseña)
 Los usuarios demo tienen preguntas de seguridad configuradas para probar la recuperación de contraseña:
@@ -68,6 +71,25 @@ Los usuarios demo tienen preguntas de seguridad configuradas para probar la recu
 | miguel@clientes.com | ¿Nombre de tu mascota? | **toby** |
 
 **Nota:** Las respuestas son case-insensitive (no importan mayúsculas/minúsculas).
+
+---
+
+## 👨‍🏫 Instructores Demo
+Los instructores pueden ver solo sus clases asignadas y los socios inscriptos en ellas:
+
+| Email | Contraseña | Nombre | Clases asignadas |
+|-------|------------|--------|-----------------|
+| carlos@instructores.com | carlos123 | Carlos Mendoza | Crossfit |
+| sofia@instructores.com | sofia123 | Sofía Ramírez | Zumba |
+| diego@instructores.com | diego123 | Diego Torres | Funcional |
+
+**Funcionalidades para instructores:**
+- Dashboard personalizado con estadísticas de sus clases
+- Ver todas sus clases (pasadas, presentes y futuras)
+- Ver socios inscriptos en cada clase
+- Solo pueden ver información, no editar
+
+**Nota:** Los administradores pueden gestionar instructores desde `/admin/instructores` (crear, editar, eliminar y asignar a clases).
 
 ---
 
@@ -92,7 +114,11 @@ Todos los socios tienen credenciales para ingresar al sistema:
 ## ✅ Verificación rápida
 - Backend: `http://localhost:3001/api/health` → `{ "ok": true }`
 - Frontend: `http://localhost:5173` → página de inicio
-- Login: `http://localhost:5173/login` → redirección según rol
+- Login: `http://localhost:5173/login` → redirección según rol:
+  - Cliente → `/` (Home)
+  - Admin → `/admin` (Dashboard Admin)
+  - Root → `/root` (Dashboard Root)
+  - Instructor → `/instructor` (Dashboard Instructor)
 
 ---
 
@@ -131,7 +157,12 @@ El sistema incluye recuperación de contraseña mediante preguntas de seguridad:
 - La base se crea automáticamente en `backend/db/gym.db`.
 - Las sesiones persisten mientras el servidor esté activo.
 - Si reinicias el backend, deberás volver a iniciar sesión.
-- **Importante:** Si actualizas el código, reinicia el backend para que se cree la tabla `preguntas_seguridad` (migración automática).
+- **Importante:** Si actualizas el código o agregas nuevas funcionalidades (como instructores), reinicia el backend para que se ejecuten las migraciones automáticas:
+  - Tabla `preguntas_seguridad`
+  - Tabla `instructores`
+  - Columna `instructor_id` en `clases`
+  - Migración de datos existentes
+- **Después de actualizar:** Ejecuta `npm run seed` para crear/actualizar los datos demo incluyendo instructores.
 
 ---
 
@@ -145,12 +176,15 @@ El sistema incluye recuperación de contraseña mediante preguntas de seguridad:
 ```
 /               # raíz del repositorio
 ├─ backend/     # Express + sql.js + sesiones
-│  ├─ db/       # init.sql, gym.db, helpers
-│  ├─ routes/   # auth, socios, planes, pagos, clases, reservas, accesos, reportes
+│  ├─ db/       # init.sql, gym.db, helpers, migraciones
+│  ├─ routes/   # auth, socios, planes, pagos, clases, reservas, accesos, reportes, instructores
 │  └─ ...
 └─ frontend/    # React + Vite + Tailwind
    └─ src/
-      ├─ pages/ components/ services/ context/
+      ├─ pages/     # DashboardAdmin, DashboardInstructor, GestionInstructores, etc.
+      ├─ components/ # ClassForm, Navbar, etc.
+      ├─ services/  # API calls (socios, clases, instructores, etc.)
+      ├─ context/   # AuthContext
       └─ App.jsx, etc.
 ```
 

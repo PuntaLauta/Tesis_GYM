@@ -69,14 +69,14 @@ export default function AccessForm({ onSuccess }) {
 
       <form onSubmit={handleSubmit} className="space-y-3">
         <div>
-          <label className="block text-sm font-medium mb-1">ID del Socio</label>
+          <label className="block text-sm font-medium mb-1">DNI del Socio</label>
           <input
             type="number"
             required
             value={socioId}
             onChange={(e) => setSocioId(e.target.value)}
             className="w-full border rounded px-3 py-2"
-            placeholder="Ingrese el ID del socio"
+            placeholder="Ingrese el DNI del socio"
           />
         </div>
         <button

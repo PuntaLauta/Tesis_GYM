@@ -8,11 +8,19 @@ const router = express.Router();
 router.get('/', (req, res) => {
   try {
     const { desde, hasta, estado, tipo_clase_id } = req.query;
-    let sql = `SELECT c.*, tc.nombre as nombre, tc.descripcion as tipo_descripcion 
+    let sql = `SELECT c.*, tc.nombre as nombre, tc.descripcion as tipo_descripcion,
+                      i.nombre as instructor_nombre, i.id as instructor_id
                FROM clases c 
                LEFT JOIN tipo_clase tc ON c.tipo_clase_id = tc.id 
+               LEFT JOIN instructores i ON c.instructor_id = i.id
                WHERE 1=1`;
     const params = [];
+
+    // Si es instructor, solo mostrar sus clases
+    if (req.session && req.session.user && req.session.user.rol === 'instructor' && req.session.user.instructor_id) {
+      sql += ' AND c.instructor_id = ?';
+      params.push(req.session.user.instructor_id);
+    }
 
     if (desde) {
       sql += ' AND c.fecha >= ?';
@@ -102,22 +110,33 @@ router.get('/:id', (req, res) => {
 // POST /api/clases - Crear (admin/root)
 router.post('/', requireAuth, requireRole('admin', 'root'), (req, res) => {
   try {
-    const { tipo_clase_id, fecha, hora_inicio, hora_fin, cupo, instructor } = req.body;
+    const { tipo_clase_id, fecha, hora_inicio, hora_fin, cupo, instructor_id } = req.body;
 
     if (!tipo_clase_id || !fecha || !hora_inicio || !hora_fin || !cupo) {
       return res.status(400).json({ error: 'Faltan campos requeridos' });
     }
 
+    // Obtener nombre del instructor si se proporciona instructor_id
+    let instructorNombre = null;
+    if (instructor_id) {
+      const instructor = get('SELECT nombre FROM instructores WHERE id = ?', [instructor_id]);
+      if (instructor) {
+        instructorNombre = instructor.nombre;
+      }
+    }
+
     const result = insert(
-      `INSERT INTO clases (tipo_clase_id, fecha, hora_inicio, hora_fin, cupo, instructor, estado)
-       VALUES (?, ?, ?, ?, ?, ?, 'activa')`,
-      [tipo_clase_id, fecha, hora_inicio, hora_fin, cupo, instructor || null]
+      `INSERT INTO clases (tipo_clase_id, fecha, hora_inicio, hora_fin, cupo, instructor_id, instructor, estado)
+       VALUES (?, ?, ?, ?, ?, ?, ?, 'activa')`,
+      [tipo_clase_id, fecha, hora_inicio, hora_fin, cupo, instructor_id || null, instructorNombre]
     );
 
     const nuevaClase = get(
-      `SELECT c.*, tc.nombre as nombre, tc.descripcion as tipo_descripcion 
+      `SELECT c.*, tc.nombre as nombre, tc.descripcion as tipo_descripcion,
+              i.nombre as instructor_nombre, i.id as instructor_id
        FROM clases c 
        LEFT JOIN tipo_clase tc ON c.tipo_clase_id = tc.id 
+       LEFT JOIN instructores i ON c.instructor_id = i.id
        WHERE c.id = ?`,
       [result.lastInsertRowid]
     );
@@ -131,16 +150,32 @@ router.post('/', requireAuth, requireRole('admin', 'root'), (req, res) => {
 // PUT /api/clases/:id - Editar (admin/root)
 router.put('/:id', requireAuth, requireRole('admin', 'root'), (req, res) => {
   try {
-    const { tipo_clase_id, fecha, hora_inicio, hora_fin, cupo, instructor, estado } = req.body;
+    const { tipo_clase_id, fecha, hora_inicio, hora_fin, cupo, instructor_id, estado } = req.body;
 
     const clase = get('SELECT * FROM clases WHERE id = ?', [req.params.id]);
     if (!clase) {
       return res.status(404).json({ error: 'Clase no encontrada' });
     }
 
+    // Obtener nombre del instructor si se proporciona instructor_id
+    let instructorNombre = null;
+    if (instructor_id !== undefined) {
+      if (instructor_id) {
+        const instructor = get('SELECT nombre FROM instructores WHERE id = ?', [instructor_id]);
+        if (instructor) {
+          instructorNombre = instructor.nombre;
+        }
+      }
+    } else {
+      // Mantener el instructor actual si no se proporciona
+      instructorNombre = clase.instructor;
+    }
+
+    const finalInstructorId = instructor_id !== undefined ? instructor_id : clase.instructor_id;
+
     run(
       `UPDATE clases 
-       SET tipo_clase_id = ?, fecha = ?, hora_inicio = ?, hora_fin = ?, cupo = ?, instructor = ?, estado = ?
+       SET tipo_clase_id = ?, fecha = ?, hora_inicio = ?, hora_fin = ?, cupo = ?, instructor_id = ?, instructor = ?, estado = ?
        WHERE id = ?`,
       [
         tipo_clase_id !== undefined ? tipo_clase_id : clase.tipo_clase_id,
@@ -148,16 +183,19 @@ router.put('/:id', requireAuth, requireRole('admin', 'root'), (req, res) => {
         hora_inicio || clase.hora_inicio,
         hora_fin || clase.hora_fin,
         cupo || clase.cupo,
-        instructor !== undefined ? instructor : clase.instructor,
+        finalInstructorId,
+        instructorNombre,
         estado || clase.estado,
         req.params.id
       ]
     );
 
     const claseActualizada = get(
-      `SELECT c.*, tc.nombre as nombre, tc.descripcion as tipo_descripcion 
+      `SELECT c.*, tc.nombre as nombre, tc.descripcion as tipo_descripcion,
+              i.nombre as instructor_nombre, i.id as instructor_id
        FROM clases c 
        LEFT JOIN tipo_clase tc ON c.tipo_clase_id = tc.id 
+       LEFT JOIN instructores i ON c.instructor_id = i.id
        WHERE c.id = ?`,
       [req.params.id]
     );

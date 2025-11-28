@@ -4,23 +4,40 @@ const { requireAuth, requireRole } = require('../middleware/auth');
 const { getOcupacionClase } = require('../models/helpers');
 const router = express.Router();
 
-// GET /api/reservas?clase_id=ID (admin/root)
-router.get('/', requireAuth, requireRole('admin', 'root'), (req, res) => {
+// GET /api/reservas?clase_id=ID (admin/root/instructor)
+router.get('/', requireAuth, requireRole('admin', 'root', 'instructor'), (req, res) => {
   try {
     const { clase_id } = req.query;
+    const user = req.session.user;
     let sql = `
-      SELECT r.*, s.nombre as socio_nombre, tc.nombre as clase_nombre
+      SELECT r.*, s.nombre as socio_nombre, tc.nombre as clase_nombre,
+             c.instructor_id, i.nombre as instructor_nombre
       FROM reservas r
       LEFT JOIN socios s ON r.socio_id = s.id
       LEFT JOIN clases c ON r.clase_id = c.id
       LEFT JOIN tipo_clase tc ON c.tipo_clase_id = tc.id
+      LEFT JOIN instructores i ON c.instructor_id = i.id
       WHERE 1=1
     `;
     const params = [];
 
+    // Si es instructor, solo mostrar reservas de sus clases
+    if (user.rol === 'instructor' && user.instructor_id) {
+      sql += ' AND c.instructor_id = ?';
+      params.push(user.instructor_id);
+    }
+
     if (clase_id) {
       sql += ' AND r.clase_id = ?';
       params.push(clase_id);
+      
+      // Si es instructor, verificar que la clase sea suya
+      if (user.rol === 'instructor' && user.instructor_id) {
+        const clase = get('SELECT instructor_id FROM clases WHERE id = ?', [clase_id]);
+        if (!clase || clase.instructor_id !== user.instructor_id) {
+          return res.status(403).json({ error: 'No tienes permiso para ver reservas de esta clase' });
+        }
+      }
     }
 
     sql += ' ORDER BY r.ts DESC';

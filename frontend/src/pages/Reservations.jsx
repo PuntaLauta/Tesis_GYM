@@ -1,33 +1,55 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { listMine, listByClass, cancelReservation, markAttendance } from '../services/reservations';
-import { listClasses } from '../services/classes';
+import { listMine, listReservations, cancelReservation, markAttendance } from '../services/reservations';
+import { listTiposClase } from '../services/tipoClase';
 
 export default function Reservations() {
   const { user } = useAuth();
   const [reservas, setReservas] = useState([]);
-  const [clases, setClases] = useState([]);
+  const [tiposClase, setTiposClase] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [filtroClase, setFiltroClase] = useState('');
+  const [filtroTipoClase, setFiltroTipoClase] = useState('');
+  const [filtroFecha, setFiltroFecha] = useState('');
 
   const isAdmin = user?.rol === 'admin' || user?.rol === 'root';
 
   useEffect(() => {
+    if (isAdmin) {
+      loadTiposClase();
+    }
+  }, [isAdmin]);
+
+  useEffect(() => {
     loadData();
-  }, [filtroClase]);
+  }, [filtroTipoClase, filtroFecha]);
+
+  const loadTiposClase = async () => {
+    try {
+      const data = await listTiposClase();
+      setTiposClase(data.data || []);
+    } catch (error) {
+      console.error('Error al cargar tipos de clase:', error);
+    }
+  };
 
   const loadData = async () => {
     setLoading(true);
     try {
       if (isAdmin) {
-        if (filtroClase) {
-          const data = await listByClass(parseInt(filtroClase));
+        // Solo cargar reservas si hay al menos un filtro
+        if (filtroTipoClase || filtroFecha) {
+          const filters = {};
+          if (filtroTipoClase) {
+            filters.tipo_clase_id = filtroTipoClase;
+          }
+          if (filtroFecha) {
+            filters.fecha = filtroFecha;
+          }
+          const data = await listReservations(filters);
           setReservas(data.data || []);
         } else {
           setReservas([]);
         }
-        const clasesData = await listClasses();
-        setClases(clasesData.data || []);
       } else {
         const data = await listMine();
         setReservas(data.data || []);
@@ -67,19 +89,32 @@ export default function Reservations() {
 
       {isAdmin && (
         <div className="bg-white p-4 rounded-lg shadow mb-4">
-          <label className="block text-sm font-medium mb-2">Filtrar por clase</label>
-          <select
-            value={filtroClase}
-            onChange={(e) => setFiltroClase(e.target.value)}
-            className="border rounded px-3 py-2 w-full md:w-auto"
-          >
-            <option value="">Todas las clases</option>
-            {clases.map((clase) => (
-              <option key={clase.id} value={clase.id}>
-                {clase.nombre} - {clase.fecha}
-              </option>
-            ))}
-          </select>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium mb-2">Filtrar por tipo de clase</label>
+              <select
+                value={filtroTipoClase}
+                onChange={(e) => setFiltroTipoClase(e.target.value)}
+                className="border rounded px-3 py-2 w-full"
+              >
+                <option value="">Seleccionar tipo de clase</option>
+                {tiposClase.map((tipo) => (
+                  <option key={tipo.id} value={tipo.id}>
+                    {tipo.nombre}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-2">Filtrar por fecha</label>
+              <input
+                type="date"
+                value={filtroFecha}
+                onChange={(e) => setFiltroFecha(e.target.value)}
+                className="border rounded px-3 py-2 w-full"
+              />
+            </div>
+          </div>
         </div>
       )}
 
@@ -89,7 +124,11 @@ export default function Reservations() {
         <div className="space-y-3">
           {reservas.length === 0 ? (
             <div className="text-center py-8 text-gray-500">
-              {isAdmin ? 'Selecciona una clase para ver sus reservas' : 'No tienes reservas'}
+              {isAdmin 
+                ? (!filtroTipoClase && !filtroFecha 
+                    ? 'Selecciona al menos un filtro para comenzar' 
+                    : 'No se encontraron reservas con los filtros seleccionados')
+                : 'No tienes reservas'}
             </div>
           ) : (
             reservas.map((reserva) => (
@@ -98,7 +137,7 @@ export default function Reservations() {
                   <div>
                     <h3 className="font-bold">{reserva.clase_nombre || 'Clase'}</h3>
                     <div className="text-sm text-gray-600 mt-1">
-                      {reserva.fecha && `${reserva.fecha} • ${reserva.hora_inicio} - ${reserva.hora_fin}`}
+                      {reserva.clase_fecha && `${reserva.clase_fecha} • ${reserva.hora_inicio} - ${reserva.hora_fin}`}
                     </div>
                     {isAdmin && (
                       <div className="text-sm text-gray-600">Socio: {reserva.socio_nombre}</div>

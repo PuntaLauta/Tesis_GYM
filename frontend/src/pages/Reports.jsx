@@ -7,7 +7,8 @@ import {
   getAccesos,
   getSociosActivos,
   getClasesPopulares,
-  getMetodosPago
+  getMetodosPago,
+  exportReportToCSV
 } from '../services/reports';
 import StatCards from '../components/StatCards';
 
@@ -125,7 +126,15 @@ export default function Reports() {
             {/* Ingresos */}
             {ingresos && (
               <div className="bg-white p-4 rounded-lg shadow">
-                <h2 className="font-bold mb-4">Ingresos</h2>
+                <div className="flex justify-between items-center mb-4">
+                  <h2 className="font-bold">Ingresos</h2>
+                  <button
+                    onClick={() => exportReportToCSV('ingresos', filters)}
+                    className="px-3 py-1 bg-green-600 text-white rounded text-sm hover:bg-green-700"
+                  >
+                    Exportar CSV
+                  </button>
+                </div>
                 <div className="mb-2">
                   <div className="text-2xl font-bold text-green-600">
                     ${ingresos.total.toFixed(2)}
@@ -152,7 +161,15 @@ export default function Reports() {
           {/* Ocupación de clases */}
           {ocupacion && (
             <div className="bg-white p-4 rounded-lg shadow mt-6">
-              <h2 className="font-bold mb-4">Ocupación de Clases</h2>
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="font-bold">Ocupación de Clases</h2>
+                <button
+                  onClick={() => exportReportToCSV('ocupacion', filters)}
+                  className="px-3 py-1 bg-green-600 text-white rounded text-sm hover:bg-green-700"
+                >
+                  Exportar CSV
+                </button>
+              </div>
               <div className="mb-2">
                 <div className="text-lg font-semibold">Promedio: {ocupacion.promedio}%</div>
                 <div className="text-sm text-gray-600">Total de clases: {ocupacion.total}</div>
@@ -189,7 +206,15 @@ export default function Reports() {
           {/* Accesos */}
           {accesos && (
             <div className="bg-white p-4 rounded-lg shadow mt-6">
-              <h2 className="font-bold mb-4">Control de Accesos</h2>
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="font-bold">Control de Accesos</h2>
+                <button
+                  onClick={() => exportReportToCSV('accesos', filters)}
+                  className="px-3 py-1 bg-green-600 text-white rounded text-sm hover:bg-green-700"
+                >
+                  Exportar CSV
+                </button>
+              </div>
               <div className="grid grid-cols-3 gap-4 mb-4">
                 <div>
                   <div className="text-2xl font-bold text-blue-600">{accesos.total}</div>
@@ -224,7 +249,15 @@ export default function Reports() {
           {/* Métodos de Pago */}
           {metodosPago && (
             <div className="bg-white p-4 rounded-lg shadow mt-6">
-              <h2 className="font-bold mb-4">Métodos de Pago</h2>
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="font-bold">Métodos de Pago</h2>
+                <button
+                  onClick={() => exportReportToCSV('metodos_pago', filters)}
+                  className="px-3 py-1 bg-green-600 text-white rounded text-sm hover:bg-green-700"
+                >
+                  Exportar CSV
+                </button>
+              </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="border rounded p-3">
                   <div className="font-semibold text-green-600">Efectivo</div>
@@ -247,7 +280,15 @@ export default function Reports() {
           {/* Socios Más Activos */}
           {sociosActivos.length > 0 && (
             <div className="bg-white p-4 rounded-lg shadow mt-6">
-              <h2 className="font-bold mb-4">Socios Más Activos</h2>
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="font-bold">Socios Más Activos</h2>
+                <button
+                  onClick={() => exportReportToCSV('socios_activos', {})}
+                  className="px-3 py-1 bg-green-600 text-white rounded text-sm hover:bg-green-700"
+                >
+                  Exportar CSV
+                </button>
+              </div>
               <div className="max-h-64 overflow-y-auto">
                 <table className="w-full text-sm">
                   <thead>
@@ -278,7 +319,15 @@ export default function Reports() {
           {/* Clases Más Populares */}
           {clasesPopulares.length > 0 && (
             <div className="bg-white p-4 rounded-lg shadow mt-6">
-              <h2 className="font-bold mb-4">Clases Más Populares</h2>
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="font-bold">Clases Más Populares</h2>
+                <button
+                  onClick={() => exportReportToCSV('clases_populares', {})}
+                  className="px-3 py-1 bg-green-600 text-white rounded text-sm hover:bg-green-700"
+                >
+                  Exportar CSV
+                </button>
+              </div>
               <div className="max-h-64 overflow-y-auto">
                 <table className="w-full text-sm">
                   <thead>

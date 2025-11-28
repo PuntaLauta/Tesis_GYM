@@ -36,5 +36,20 @@ export const getMetodosPago = (params = {}) => {
   return api.get(`/api/reportes/metodos_pago?${queryParams}`).then(r => r.data);
 };
 
-
+export const exportReportToCSV = (tipo, params = {}) => {
+  const queryParams = new URLSearchParams(params).toString();
+  return api.get(`/api/reportes/export/${tipo}?${queryParams}`, {
+    responseType: 'blob'
+  }).then(response => {
+    const blob = new Blob([response.data], { type: 'text/csv;charset=utf-8;' });
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${tipo}_${new Date().toISOString().split('T')[0]}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
+  });
+};
 

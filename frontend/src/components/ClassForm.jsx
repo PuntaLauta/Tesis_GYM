@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { createClass, updateClass } from '../services/classes';
 import { listTiposClase } from '../services/tipoClase';
+import { listInstructores } from '../services/instructores';
 
 export default function ClassForm({ clase, onSuccess, onCancel }) {
   const [formData, setFormData] = useState({
@@ -9,9 +10,10 @@ export default function ClassForm({ clase, onSuccess, onCancel }) {
     hora_inicio: '',
     hora_fin: '',
     cupo: '',
-    instructor: '',
+    instructor_id: '',
   });
   const [tiposClase, setTiposClase] = useState([]);
+  const [instructores, setInstructores] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [showDropdown, setShowDropdown] = useState(false);
   const [error, setError] = useState('');
@@ -19,6 +21,7 @@ export default function ClassForm({ clase, onSuccess, onCancel }) {
 
   useEffect(() => {
     loadTiposClase();
+    loadInstructores();
   }, []);
 
   useEffect(() => {
@@ -29,7 +32,7 @@ export default function ClassForm({ clase, onSuccess, onCancel }) {
         hora_inicio: clase.hora_inicio || '',
         hora_fin: clase.hora_fin || '',
         cupo: clase.cupo || '',
-        instructor: clase.instructor || '',
+        instructor_id: clase.instructor_id || '',
       });
     }
   }, [clase]);
@@ -40,6 +43,15 @@ export default function ClassForm({ clase, onSuccess, onCancel }) {
       setTiposClase(data.data || []);
     } catch (error) {
       console.error('Error al cargar tipos de clase:', error);
+    }
+  };
+
+  const loadInstructores = async () => {
+    try {
+      const data = await listInstructores();
+      setInstructores(data.data || []);
+    } catch (error) {
+      console.error('Error al cargar instructores:', error);
     }
   };
 
@@ -167,12 +179,20 @@ export default function ClassForm({ clase, onSuccess, onCancel }) {
 
       <div>
         <label className="block text-sm font-medium mb-1">Instructor</label>
-        <input
-          type="text"
-          value={formData.instructor}
-          onChange={(e) => setFormData({ ...formData, instructor: e.target.value })}
+        <select
+          value={formData.instructor_id}
+          onChange={(e) => setFormData({ ...formData, instructor_id: e.target.value })}
           className="w-full border rounded px-3 py-2"
-        />
+        >
+          <option value="">Sin instructor</option>
+          {instructores
+            .filter(i => i.activo === 1)
+            .map((instructor) => (
+              <option key={instructor.id} value={instructor.id}>
+                {instructor.nombre}
+              </option>
+            ))}
+        </select>
       </div>
 
       <div className="flex gap-2">

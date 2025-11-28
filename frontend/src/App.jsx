@@ -10,7 +10,6 @@ import ForgotPassword from "./pages/ForgotPassword";
 import DashboardAdmin from "./pages/DashboardAdmin";
 import DashboardRoot from "./pages/DashboardRoot";
 import Classes from "./pages/Classes";
-import Reservations from "./pages/Reservations";
 import AccessControl from "./pages/AccessControl";
 import Reports from "./pages/Reports";
 import Socios from "./pages/Socios";
@@ -19,6 +18,10 @@ import GestionPagos from "./pages/GestionPagos";
 import GestionAdmins from "./pages/GestionAdmins";
 import ConfiguracionGym from "./pages/ConfiguracionGym";
 import GestionPlanes from "./pages/GestionPlanes";
+import Backup from "./pages/Backup";
+import DashboardInstructor from "./pages/DashboardInstructor";
+import GestionInstructores from "./pages/GestionInstructores";
+import ProfileInstructor from "./pages/ProfileInstructor";
 import NotFound from "./pages/NotFound";
 
 export default function App() {
@@ -55,15 +58,25 @@ export default function App() {
           </ProtectedRoute>
         }/>
 
-        <Route path="/classes" element={
+        <Route path="/instructor" element={
           <ProtectedRoute>
-            <Classes />
+            <RoleRoute roles={["instructor"]}>
+              <DashboardInstructor />
+            </RoleRoute>
           </ProtectedRoute>
         }/>
 
-        <Route path="/reservations" element={
+        <Route path="/instructor/profile" element={
           <ProtectedRoute>
-            <Reservations />
+            <RoleRoute roles={["instructor"]}>
+              <ProfileInstructor />
+            </RoleRoute>
+          </ProtectedRoute>
+        }/>
+
+        <Route path="/classes" element={
+          <ProtectedRoute>
+            <Classes />
           </ProtectedRoute>
         }/>
 
@@ -107,6 +120,13 @@ export default function App() {
               </ProtectedRoute>
             }/>
 
+            <Route path="/root/staff" element={
+              <ProtectedRoute>
+                <RoleRoute roles={["root"]}>
+                  <GestionAdmins />
+                </RoleRoute>
+              </ProtectedRoute>
+            }/>
             <Route path="/root/admins" element={
               <ProtectedRoute>
                 <RoleRoute roles={["root"]}>
@@ -127,6 +147,22 @@ export default function App() {
               <ProtectedRoute>
                 <RoleRoute roles={["root"]}>
                   <GestionPlanes />
+                </RoleRoute>
+              </ProtectedRoute>
+            }/>
+
+            <Route path="/root/backup" element={
+              <ProtectedRoute>
+                <RoleRoute roles={["root"]}>
+                  <Backup />
+                </RoleRoute>
+              </ProtectedRoute>
+            }/>
+
+            <Route path="/admin/instructores" element={
+              <ProtectedRoute>
+                <RoleRoute roles={["admin", "root"]}>
+                  <GestionInstructores />
                 </RoleRoute>
               </ProtectedRoute>
             }/>

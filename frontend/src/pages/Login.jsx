@@ -18,6 +18,7 @@ export default function Login() {
       if (u.rol === "cliente") nav("/");
       else if (u.rol === "admin") nav("/admin");
       else if (u.rol === "root") nav("/root");
+      else if (u.rol === "instructor") nav("/instructor");
       else nav("/");
     } catch (e) {
       setErr("Credenciales inválidas");
@@ -25,7 +26,7 @@ export default function Login() {
   };
 
   return (
-    <div className="max-w-md mx-auto p-6">
+    <div className="max-w-md mx-auto p-6 pb-12">
       <h1 className="text-xl font-bold mb-4">Ingresar</h1>
       <form onSubmit={onSubmit} className="space-y-3">
         <input 

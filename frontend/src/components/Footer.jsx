@@ -74,6 +74,28 @@ export default function Footer() {
       );
     }
 
+    // FAQ para instructores
+    if (user.rol === 'instructor') {
+      return (
+        <div className="space-y-2 text-sm text-gray-300">
+          <p><strong>¿Como veo mis clases?</strong></p>
+          <p className="ml-4">En tu dashboard principal puedes ver todas tus clases asignadas.</p>
+          
+          <p className="mt-3"><strong>¿Como veo los socios inscriptos?</strong></p>
+          <p className="ml-4">Haz clic en "Ver Socios" en cualquier clase para ver la lista de socios inscriptos.</p>
+          
+          <p className="mt-3"><strong>¿Como cancelo una clase?</strong></p>
+          <p className="ml-4">Haz clic en "Cancelar Clase" en la clase que deseas cancelar. Se cancelarán todas las reservas activas.</p>
+          
+          <p className="mt-3"><strong>¿Como cambio mi contraseña?</strong></p>
+          <p className="ml-4">Ve a "Mi Perfil" y usa la opcion "Cambiar Contraseña".</p>
+          
+          <p className="mt-3"><strong>¿Puedo editar mi perfil?</strong></p>
+          <p className="ml-4">Si, desde "Mi Perfil" puedes actualizar tu email y telefono.</p>
+        </div>
+      );
+    }
+
     // FAQ para administradores
     if (user.rol === 'admin' || user.rol === 'root') {
       return (
@@ -101,11 +123,11 @@ export default function Footer() {
 
   return (
     <footer className="bg-gray-800 text-white mt-auto">
-      <div className="max-w-6xl mx-auto px-4 py-8">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+      <div className="max-w-6xl mx-auto px-4 py-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           {/* Sección: Información de Contacto */}
           <div>
-            <h3 className="font-semibold text-lg mb-4">Contacto</h3>
+            <h3 className="font-semibold text-lg mb-2">Contacto</h3>
             <div className="space-y-2 text-sm text-gray-300">
               {config.telefono && (
                 <p>
@@ -140,7 +162,7 @@ export default function Footer() {
 
           {/* Sección: Redes Sociales */}
           <div>
-            <h3 className="font-semibold text-lg mb-4">Siguenos</h3>
+            <h3 className="font-semibold text-lg mb-2">Siguenos</h3>
             <div className="space-y-2 text-sm text-gray-300">
               <p>
                 <a 
@@ -157,13 +179,13 @@ export default function Footer() {
 
           {/* Sección: Ayuda Rápida (Contextual) */}
           <div>
-            <h3 className="font-semibold text-lg mb-4">Ayuda Rapida</h3>
+            <h3 className="font-semibold text-lg mb-2">Ayuda Rapida</h3>
             {renderFAQ()}
           </div>
 
           {/* Sección: Enlaces Rápidos */}
           <div>
-            <h3 className="font-semibold text-lg mb-4">Enlaces</h3>
+            <h3 className="font-semibold text-lg mb-2">Enlaces</h3>
             <div className="space-y-2 text-sm text-gray-300">
               {user && user.rol === 'cliente' && (
                 <>
@@ -175,6 +197,24 @@ export default function Footer() {
                   </p>
                   <p>
                     <a href="/classes" className="hover:text-white underline">Clases</a>
+                  </p>
+                  <p>
+                    <button onClick={handleLogout} className="hover:text-white underline text-left">
+                      Cerrar Sesion
+                    </button>
+                  </p>
+                </>
+              )}
+              {user && user.rol === 'instructor' && (
+                <>
+                  <p>
+                    <a href="/instructor" className="hover:text-white underline">Inicio</a>
+                  </p>
+                  <p>
+                    <a href="/instructor/profile" className="hover:text-white underline">Mi Perfil</a>
+                  </p>
+                  <p>
+                    <a href="/classes" className="hover:text-white underline">Mis Clases</a>
                   </p>
                   <p>
                     <button onClick={handleLogout} className="hover:text-white underline text-left">
@@ -215,7 +255,7 @@ export default function Footer() {
           </div>
         </div>
 
-        <div className="mt-8 pt-6 border-t border-gray-700 text-center text-sm text-gray-400">
+        <div className="mt-4 pt-4 border-t border-gray-700 text-center text-sm text-gray-400">
           <p>© 2025 Gestión GYM. Todos los derechos reservados.</p>
         </div>
       </div>

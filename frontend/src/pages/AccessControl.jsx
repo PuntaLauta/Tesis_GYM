@@ -99,9 +99,9 @@ export default function AccessControl() {
         </div>
       </div>
 
-      {/* Acceso por ID de Socio (método anterior) */}
+      {/* Acceso por DNI de Socio */}
       <div className="bg-white p-6 rounded-lg shadow">
-        <h2 className="text-lg font-semibold mb-4">Acceso por ID de Socio</h2>
+        <h2 className="text-lg font-semibold mb-4">Acceso por DNI de Socio</h2>
         <AccessForm />
       </div>
     </div>
