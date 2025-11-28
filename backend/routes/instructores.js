@@ -298,7 +298,7 @@ router.get('/:id/clases/:clase_id/socios', requireAuth, (req, res) => {
         s.estado as socio_estado
       FROM reservas r
       JOIN socios s ON r.socio_id = s.id
-      WHERE r.clase_id = ?
+      WHERE r.clase_id = ? AND r.estado != 'cancelado'
       ORDER BY s.nombre
     `, [claseId]);
 

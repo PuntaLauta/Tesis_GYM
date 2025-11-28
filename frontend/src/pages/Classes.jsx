@@ -126,7 +126,8 @@ export default function Classes() {
     setLoadingSocios(true);
     try {
       const data = await listReservations({ clase_id: clase.id });
-      setSociosInscriptos(data.data || []);
+      const activos = (data.data || []).filter(reserva => reserva.estado !== 'cancelado');
+      setSociosInscriptos(activos);
     } catch (error) {
       console.error('Error al cargar socios:', error);
       alert('Error al cargar socios inscriptos');
@@ -145,7 +146,8 @@ export default function Classes() {
       // Recargar la lista de socios
       if (selectedClaseForSocios) {
         const data = await listReservations({ clase_id: selectedClaseForSocios.id });
-        setSociosInscriptos(data.data || []);
+        const activos = (data.data || []).filter(reserva => reserva.estado !== 'cancelado');
+        setSociosInscriptos(activos);
       }
       // Recargar clases para actualizar ocupación
       loadClasses();
@@ -404,8 +406,8 @@ export default function Classes() {
                   {sociosInscriptos.map((reserva) => (
                     <div key={reserva.id} className="flex justify-between items-center p-3 border rounded-lg">
                       <div>
-                        <div className="font-medium">{reserva.socio_nombre}</div>
-                        <div className="text-sm text-gray-600">
+                        <div className="font-medium mb-1">{reserva.socio_nombre}</div>
+                        <div className="text-sm text-gray-600 mb-2">
                           Documento: {reserva.socio_documento || 'N/A'}
                         </div>
                         <div className="text-xs text-gray-500 mt-1">
