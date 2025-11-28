@@ -74,6 +74,28 @@ export default function Footer() {
       );
     }
 
+    // FAQ para instructores
+    if (user.rol === 'instructor') {
+      return (
+        <div className="space-y-2 text-sm text-gray-300">
+          <p><strong>¿Como veo mis clases?</strong></p>
+          <p className="ml-4">En tu dashboard principal puedes ver todas tus clases asignadas.</p>
+          
+          <p className="mt-3"><strong>¿Como veo los socios inscriptos?</strong></p>
+          <p className="ml-4">Haz clic en "Ver Socios" en cualquier clase para ver la lista de socios inscriptos.</p>
+          
+          <p className="mt-3"><strong>¿Como cancelo una clase?</strong></p>
+          <p className="ml-4">Haz clic en "Cancelar Clase" en la clase que deseas cancelar. Se cancelarán todas las reservas activas.</p>
+          
+          <p className="mt-3"><strong>¿Como cambio mi contraseña?</strong></p>
+          <p className="ml-4">Ve a "Mi Perfil" y usa la opcion "Cambiar Contraseña".</p>
+          
+          <p className="mt-3"><strong>¿Puedo editar mi perfil?</strong></p>
+          <p className="ml-4">Si, desde "Mi Perfil" puedes actualizar tu email y telefono.</p>
+        </div>
+      );
+    }
+
     // FAQ para administradores
     if (user.rol === 'admin' || user.rol === 'root') {
       return (
@@ -175,6 +197,24 @@ export default function Footer() {
                   </p>
                   <p>
                     <a href="/classes" className="hover:text-white underline">Clases</a>
+                  </p>
+                  <p>
+                    <button onClick={handleLogout} className="hover:text-white underline text-left">
+                      Cerrar Sesion
+                    </button>
+                  </p>
+                </>
+              )}
+              {user && user.rol === 'instructor' && (
+                <>
+                  <p>
+                    <a href="/instructor" className="hover:text-white underline">Inicio</a>
+                  </p>
+                  <p>
+                    <a href="/instructor/profile" className="hover:text-white underline">Mi Perfil</a>
+                  </p>
+                  <p>
+                    <a href="/classes" className="hover:text-white underline">Mis Clases</a>
                   </p>
                   <p>
                     <button onClick={handleLogout} className="hover:text-white underline text-left">

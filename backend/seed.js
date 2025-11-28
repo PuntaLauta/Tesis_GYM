@@ -1,5 +1,5 @@
 const bcrypt = require('bcrypt');
-const { dbPromise, run, insert, query } = require('./db/database');
+const { dbPromise, run, insert, query, getDatabase } = require('./db/database');
 
 // Función para generar token de 6 dígitos único
 function generarToken6Digitos() {
@@ -128,12 +128,66 @@ async function seed() {
 
   insert(
     `INSERT INTO usuarios (nombre, email, pass_hash, rol) VALUES (?, ?, ?, ?)`,
-    ['Admin Demo', 'admin@demo.com', adminHash, 'admin']
+    ['Admin Demo', 'admin@gym.com', adminHash, 'admin']
   );
 
   insert(
     `INSERT INTO usuarios (nombre, email, pass_hash, rol) VALUES (?, ?, ?, ?)`,
-    ['Root Demo', 'root@demo.com', rootHash, 'root']
+    ['Root Demo', 'root@gym.com', rootHash, 'root']
+  );
+
+  // Eliminar instructores demo anteriores
+  // Primero eliminar clases asociadas a instructores demo
+  run(`
+    UPDATE clases 
+    SET instructor_id = NULL 
+    WHERE instructor_id IN (
+      SELECT id FROM instructores 
+      WHERE email LIKE '%@instructores.com' OR email = 'carlos' OR email = 'sofia' OR email = 'diego'
+    )
+  `);
+  
+  // Eliminar usuarios instructores demo
+  run("DELETE FROM usuarios WHERE email LIKE '%@instructores.com' OR (rol = 'instructor' AND email IN ('carlos', 'sofia', 'diego'))");
+  
+  // Eliminar instructores demo
+  run("DELETE FROM instructores WHERE email LIKE '%@instructores.com' OR email IN ('carlos', 'sofia', 'diego')");
+
+  // Crear instructores y usuarios de instructores
+  const carlosMendozaHash = await bcrypt.hash('carlos123', 10);
+  const sofiaRamirezHash = await bcrypt.hash('sofia123', 10);
+  const diegoTorresHash = await bcrypt.hash('diego123', 10);
+
+  // Crear instructores en tabla instructores
+  const carlosMendozaInstructor = insert(
+    'INSERT INTO instructores (nombre, email, telefono, activo) VALUES (?, ?, ?, ?)',
+    ['Carlos Mendoza', 'carlos@instructores.com', '3811234567', 1]
+  );
+
+  const sofiaRamirezInstructor = insert(
+    'INSERT INTO instructores (nombre, email, telefono, activo) VALUES (?, ?, ?, ?)',
+    ['Sofía Ramírez', 'sofia@instructores.com', '3812345678', 1]
+  );
+
+  const diegoTorresInstructor = insert(
+    'INSERT INTO instructores (nombre, email, telefono, activo) VALUES (?, ?, ?, ?)',
+    ['Diego Torres', 'diego@instructores.com', '3813456789', 1]
+  );
+
+  // Crear usuarios para instructores
+  const carlosUsuarioInstructor = insert(
+    `INSERT INTO usuarios (nombre, email, pass_hash, rol) VALUES (?, ?, ?, ?)`,
+    ['Carlos Mendoza', 'carlos@instructores.com', carlosMendozaHash, 'instructor']
+  );
+
+  const sofiaUsuarioInstructor = insert(
+    `INSERT INTO usuarios (nombre, email, pass_hash, rol) VALUES (?, ?, ?, ?)`,
+    ['Sofía Ramírez', 'sofia@instructores.com', sofiaRamirezHash, 'instructor']
+  );
+
+  const diegoUsuarioInstructor = insert(
+    `INSERT INTO usuarios (nombre, email, pass_hash, rol) VALUES (?, ?, ?, ?)`,
+    ['Diego Torres', 'diego@instructores.com', diegoTorresHash, 'instructor']
   );
 
   // Crear preguntas de seguridad para usuarios demo
@@ -148,6 +202,11 @@ async function seed() {
   const robertoRespuestaHash = await bcrypt.hash('perez', 10);
   const carmenRespuestaHash = await bcrypt.hash('sanmartin', 10);
   const miguelRespuestaHash = await bcrypt.hash('toby', 10);
+
+  // Hashear respuestas para instructores
+  const carlosInstructorRespuestaHash = await bcrypt.hash('river', 10);
+  const sofiaInstructorRespuestaHash = await bcrypt.hash('milanesa', 10);
+  const diegoInstructorRespuestaHash = await bcrypt.hash('tucuman', 10);
 
   // Insertar preguntas de seguridad
   insert(
@@ -198,6 +257,22 @@ async function seed() {
   insert(
     `INSERT INTO preguntas_seguridad (usuario_id, pregunta, respuesta_hash) VALUES (?, ?, ?)`,
     [miguelUsuario.lastInsertRowid, '¿Nombre de tu mascota?', miguelRespuestaHash]
+  );
+
+  // Insertar preguntas de seguridad para instructores
+  insert(
+    `INSERT INTO preguntas_seguridad (usuario_id, pregunta, respuesta_hash) VALUES (?, ?, ?)`,
+    [carlosUsuarioInstructor.lastInsertRowid, '¿Equipo de fútbol que seguís?', carlosInstructorRespuestaHash]
+  );
+
+  insert(
+    `INSERT INTO preguntas_seguridad (usuario_id, pregunta, respuesta_hash) VALUES (?, ?, ?)`,
+    [sofiaUsuarioInstructor.lastInsertRowid, '¿Comida favorita?', sofiaInstructorRespuestaHash]
+  );
+
+  insert(
+    `INSERT INTO preguntas_seguridad (usuario_id, pregunta, respuesta_hash) VALUES (?, ?, ?)`,
+    [diegoUsuarioInstructor.lastInsertRowid, '¿Ciudad donde naciste?', diegoInstructorRespuestaHash]
   );
 
   // Crear algunas clases de ejemplo
@@ -392,56 +467,133 @@ async function seed() {
   run('DELETE FROM accesos');
   run('DELETE FROM clases');
   
-  // Crear clases variadas (pasadas, hoy, futuras)
+  // Obtener o crear tipos de clase
+  let tipoCrossfit = query('SELECT id FROM tipo_clase WHERE nombre = ?', ['Crossfit']);
+  if (tipoCrossfit.length === 0) {
+    const result = insert('INSERT INTO tipo_clase (nombre, descripcion) VALUES (?, ?)', ['Crossfit', null]);
+    tipoCrossfit = [{ id: result.lastInsertRowid }];
+  }
+  
+  let tipoZumba = query('SELECT id FROM tipo_clase WHERE nombre = ?', ['Zumba']);
+  if (tipoZumba.length === 0) {
+    const result = insert('INSERT INTO tipo_clase (nombre, descripcion) VALUES (?, ?)', ['Zumba', null]);
+    tipoZumba = [{ id: result.lastInsertRowid }];
+  }
+  
+  let tipoFuncional = query('SELECT id FROM tipo_clase WHERE nombre = ?', ['Funcional']);
+  if (tipoFuncional.length === 0) {
+    const result = insert('INSERT INTO tipo_clase (nombre, descripcion) VALUES (?, ?)', ['Funcional', null]);
+    tipoFuncional = [{ id: result.lastInsertRowid }];
+  }
+  
+  let tipoBoxeo = query('SELECT id FROM tipo_clase WHERE nombre = ?', ['Boxeo']);
+  if (tipoBoxeo.length === 0) {
+    const result = insert('INSERT INTO tipo_clase (nombre, descripcion) VALUES (?, ?)', ['Boxeo', null]);
+    tipoBoxeo = [{ id: result.lastInsertRowid }];
+  }
+
+  // Mapear instructores por nombre a ID
+  const instructorMap = {
+    'Carlos Mendoza': carlosMendozaInstructor.lastInsertRowid,
+    'Sofía Ramírez': sofiaRamirezInstructor.lastInsertRowid,
+    'Diego Torres': diegoTorresInstructor.lastInsertRowid
+  };
+
+  const tipoClaseMap = {
+    'Crossfit': tipoCrossfit[0].id,
+    'Zumba': tipoZumba[0].id,
+    'Funcional': tipoFuncional[0].id,
+    'Boxeo': tipoBoxeo[0].id
+  };
+  
+  // Crear clases variadas (reducidas: 3-4 por semana por tipo)
+  // Redistribución: Carlos → Funcional y Boxeo, Diego → Crossfit, Sofía → Zumba
   const clasesData = [
-    // Clases pasadas (últimos 15 días)
-    { nombre: 'Crossfit', fecha: -10, hora: '08:00', fin: '09:00', cupo: 20, instructor: 'Carlos Mendoza', estado: 'activa' },
-    { nombre: 'Zumba', fecha: -8, hora: '18:00', fin: '19:00', cupo: 15, instructor: 'Sofía Ramírez', estado: 'activa' },
-    { nombre: 'Funcional', fecha: -7, hora: '19:00', fin: '20:00', cupo: 25, instructor: 'Diego Torres', estado: 'activa' },
-    { nombre: 'Crossfit', fecha: -5, hora: '08:00', fin: '09:00', cupo: 20, instructor: 'Carlos Mendoza', estado: 'activa' },
-    { nombre: 'Zumba', fecha: -4, hora: '18:00', fin: '19:00', cupo: 15, instructor: 'Sofía Ramírez', estado: 'cancelada' },
-    { nombre: 'Funcional', fecha: -3, hora: '19:00', fin: '20:00', cupo: 25, instructor: 'Diego Torres', estado: 'activa' },
-    { nombre: 'Crossfit', fecha: -2, hora: '08:00', fin: '09:00', cupo: 20, instructor: 'Carlos Mendoza', estado: 'activa' },
-    { nombre: 'Zumba', fecha: -1, hora: '18:00', fin: '19:00', cupo: 15, instructor: 'Sofía Ramírez', estado: 'activa' },
+    // Clases pasadas (últimos días)
+    { nombre: 'Crossfit', fecha: -7, hora: '08:00', fin: '09:00', cupo: 20, instructor: 'Diego Torres', estado: 'activa' },
+    { nombre: 'Zumba', fecha: -5, hora: '18:00', fin: '19:00', cupo: 15, instructor: 'Sofía Ramírez', estado: 'activa' },
+    { nombre: 'Funcional', fecha: -3, hora: '19:00', fin: '20:00', cupo: 25, instructor: 'Carlos Mendoza', estado: 'activa' },
+    { nombre: 'Boxeo', fecha: -2, hora: '20:00', fin: '21:00', cupo: 15, instructor: 'Carlos Mendoza', estado: 'activa' },
     
     // Clases de hoy
-    { nombre: 'Crossfit', fecha: 0, hora: '08:00', fin: '09:00', cupo: 20, instructor: 'Carlos Mendoza', estado: 'activa' },
+    { nombre: 'Crossfit', fecha: 0, hora: '08:00', fin: '09:00', cupo: 20, instructor: 'Diego Torres', estado: 'activa' },
     { nombre: 'Zumba', fecha: 0, hora: '18:00', fin: '19:00', cupo: 15, instructor: 'Sofía Ramírez', estado: 'activa' },
     
-    // Clases futuras (próximos 10 días)
-    { nombre: 'Funcional', fecha: 1, hora: '19:00', fin: '20:00', cupo: 25, instructor: 'Diego Torres', estado: 'activa' },
-    { nombre: 'Crossfit', fecha: 2, hora: '08:00', fin: '09:00', cupo: 20, instructor: 'Carlos Mendoza', estado: 'activa' },
-    { nombre: 'Zumba', fecha: 3, hora: '18:00', fin: '19:00', cupo: 15, instructor: 'Sofía Ramírez', estado: 'activa' },
-    { nombre: 'Funcional', fecha: 4, hora: '19:00', fin: '20:00', cupo: 25, instructor: 'Diego Torres', estado: 'activa' },
-    { nombre: 'Crossfit', fecha: 5, hora: '08:00', fin: '09:00', cupo: 20, instructor: 'Carlos Mendoza', estado: 'activa' },
-    { nombre: 'Zumba', fecha: 7, hora: '18:00', fin: '19:00', cupo: 15, instructor: 'Sofía Ramírez', estado: 'activa' },
-    { nombre: 'Funcional', fecha: 8, hora: '19:00', fin: '20:00', cupo: 25, instructor: 'Diego Torres', estado: 'activa' },
-    { nombre: 'Crossfit', fecha: 9, hora: '08:00', fin: '09:00', cupo: 20, instructor: 'Carlos Mendoza', estado: 'activa' },
+    // Clases futuras (distribuidas en 2 semanas, 3-4 por tipo)
+    // Semana 1
+    { nombre: 'Funcional', fecha: 1, hora: '19:00', fin: '20:00', cupo: 25, instructor: 'Carlos Mendoza', estado: 'activa' },
+    { nombre: 'Boxeo', fecha: 2, hora: '20:00', fin: '21:00', cupo: 15, instructor: 'Carlos Mendoza', estado: 'activa' },
+    { nombre: 'Crossfit', fecha: 3, hora: '08:00', fin: '09:00', cupo: 20, instructor: 'Diego Torres', estado: 'activa' },
+    { nombre: 'Zumba', fecha: 4, hora: '18:00', fin: '19:00', cupo: 15, instructor: 'Sofía Ramírez', estado: 'activa' },
+    { nombre: 'Funcional', fecha: 5, hora: '19:00', fin: '20:00', cupo: 25, instructor: 'Carlos Mendoza', estado: 'activa' },
+    
+    // Semana 2
+    { nombre: 'Crossfit', fecha: 8, hora: '08:00', fin: '09:00', cupo: 20, instructor: 'Diego Torres', estado: 'activa' },
+    { nombre: 'Boxeo', fecha: 9, hora: '20:00', fin: '21:00', cupo: 15, instructor: 'Carlos Mendoza', estado: 'activa' },
+    { nombre: 'Zumba', fecha: 11, hora: '18:00', fin: '19:00', cupo: 15, instructor: 'Sofía Ramírez', estado: 'activa' },
+    { nombre: 'Funcional', fecha: 12, hora: '19:00', fin: '20:00', cupo: 25, instructor: 'Carlos Mendoza', estado: 'activa' },
+    { nombre: 'Crossfit', fecha: 13, hora: '08:00', fin: '09:00', cupo: 20, instructor: 'Diego Torres', estado: 'activa' },
   ];
+
+  // Verificar si la columna nombre existe en clases (para compatibilidad con migraciones anteriores)
+  let tieneColumnaNombre = false;
+  try {
+    const db = getDatabase();
+    const tableInfo = db.exec("PRAGMA table_info(clases)");
+    if (tableInfo && tableInfo[0] && tableInfo[0].values) {
+      tieneColumnaNombre = tableInfo[0].values.some(row => row[1] === 'nombre');
+    }
+  } catch (e) {
+    // Error al verificar, asumir que no existe
+  }
 
   const clasesCreadas = [];
   clasesData.forEach(claseData => {
     const fechaClase = new Date();
     fechaClase.setDate(fechaClase.getDate() + claseData.fecha);
-    const clase = insert(
-      `INSERT INTO clases (nombre, fecha, hora_inicio, hora_fin, cupo, instructor, estado)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [
+    const tipoClaseId = tipoClaseMap[claseData.nombre];
+    const instructorId = instructorMap[claseData.instructor];
+    
+    // Construir query según si existe la columna nombre
+    let sql, params;
+    if (tieneColumnaNombre) {
+      sql = `INSERT INTO clases (nombre, tipo_clase_id, fecha, hora_inicio, hora_fin, cupo, instructor_id, instructor, estado)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+      params = [
         claseData.nombre,
+        tipoClaseId,
         fechaClase.toISOString().split('T')[0],
         claseData.hora,
         claseData.fin,
         claseData.cupo,
+        instructorId,
         claseData.instructor,
         claseData.estado
-      ]
-    );
+      ];
+    } else {
+      sql = `INSERT INTO clases (tipo_clase_id, fecha, hora_inicio, hora_fin, cupo, instructor_id, instructor, estado)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?)`;
+      params = [
+        tipoClaseId,
+        fechaClase.toISOString().split('T')[0],
+        claseData.hora,
+        claseData.fin,
+        claseData.cupo,
+        instructorId,
+        claseData.instructor,
+        claseData.estado
+      ];
+    }
+    
+    const clase = insert(sql, params);
     clasesCreadas.push({ id: clase.lastInsertRowid, ...claseData });
   });
 
   // Crear reservas para al menos 6 socios activos
+  // Limitar a 1 reserva por día por socio
   const sociosParaReservar = sociosActivos.slice(0, 6); // Primeros 6 socios activos
   const reservasCreadas = [];
+  const reservasPorSocioPorDia = {}; // { 'socio_id-fecha': true }
 
   clasesCreadas.forEach((clase, idx) => {
     // Para cada clase, asignar reservas aleatorias
@@ -450,6 +602,18 @@ async function seed() {
     
     for (let i = 0; i < Math.min(numReservas, sociosAleatorios.length); i++) {
       const socio = sociosAleatorios[i];
+      
+      // Verificar que el socio no tenga ya una reserva en este día
+      const fechaClase = new Date();
+      fechaClase.setDate(fechaClase.getDate() + clase.fecha);
+      const fechaClaseStr = fechaClase.toISOString().split('T')[0];
+      const keyReserva = `${socio.id}-${fechaClaseStr}`;
+      
+      if (reservasPorSocioPorDia[keyReserva]) {
+        // Este socio ya tiene una reserva en este día, saltar
+        continue;
+      }
+      
       const estadoReserva = Math.random() > 0.1 ? 'reservado' : (Math.random() > 0.5 ? 'asistio' : 'cancelado');
       
       try {
@@ -463,6 +627,7 @@ async function seed() {
           [clase.id, socio.id, estadoReserva, fechaReservaStr]
         );
         reservasCreadas.push({ id: reserva.lastInsertRowid, clase_id: clase.id, socio_id: socio.id });
+        reservasPorSocioPorDia[keyReserva] = true; // Marcar que este socio ya tiene reserva en este día
       } catch (e) {
         // Ignorar errores de duplicados (ya reservado)
       }
@@ -533,8 +698,14 @@ async function seed() {
   console.log('     Pregunta: ¿Nombre de tu colegio primario? → Respuesta: sanmartin');
   console.log('   - miguel@clientes.com / miguel123 → cliente (Miguel Torres) - INACTIVO');
   console.log('     Pregunta: ¿Nombre de tu mascota? → Respuesta: toby');
-  console.log('   - admin@demo.com / admin123 → admin');
-  console.log('   - root@demo.com / root123 → root');
+  console.log('   - admin@gym.com / admin123 → admin');
+  console.log('   - root@gym.com / root123 → root');
+  console.log('   - carlos@instructores.com / carlos123 → instructor (Carlos Mendoza)');
+  console.log('     Pregunta: ¿Equipo de fútbol que seguís? → Respuesta: river');
+  console.log('   - sofia@instructores.com / sofia123 → instructor (Sofía Ramírez)');
+  console.log('     Pregunta: ¿Comida favorita? → Respuesta: milanesa');
+  console.log('   - diego@instructores.com / diego123 → instructor (Diego Torres)');
+  console.log('     Pregunta: ¿Ciudad donde naciste? → Respuesta: tucuman');
   console.log('\n📋 Socios creados (todos con credenciales):');
   sociosFinales.forEach(socio => {
     const tieneUsuario = socio.usuario_id ? '✅ Con credenciales' : '❌ Sin credenciales';

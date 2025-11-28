@@ -62,11 +62,11 @@ export default function DashboardRoot() {
         <h2 className="font-bold mb-4 text-center md:text-left">Gestion del Sistema</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 justify-items-center md:justify-items-stretch">
           <Link
-            to="/root/admins"
+            to="/root/staff"
             className="p-4 border rounded-lg hover:bg-gray-50 transition w-full md:w-auto text-center md:text-left"
           >
-            <div className="font-semibold mb-1">Gestionar Admins</div>
-            <div className="text-sm text-gray-600">Crear y editar usuarios administradores</div>
+            <div className="font-semibold mb-1">Gestionar Staff</div>
+            <div className="text-sm text-gray-600">Gestionar administradores e instructores</div>
           </Link>
           <Link
             to="/socios"

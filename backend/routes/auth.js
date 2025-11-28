@@ -44,6 +44,15 @@ router.post('/login', async (req, res) => {
       // No asignar automáticamente socios sin usuario - deben estar correctamente asociados desde el seed
     }
 
+    // Si es instructor, obtener su instructor_id
+    let instructorId = null;
+    if (user.rol === 'instructor') {
+      const instructorExistente = get('SELECT id FROM instructores WHERE email = ?', [user.email]);
+      if (instructorExistente) {
+        instructorId = instructorExistente.id;
+      }
+    }
+
     // Guardar en sesión
     req.session.user = {
       id: user.id,
@@ -51,6 +60,7 @@ router.post('/login', async (req, res) => {
       email: user.email,
       rol: user.rol,
       socio_id: socioId,
+      instructor_id: instructorId,
     };
 
     res.json({
@@ -60,6 +70,7 @@ router.post('/login', async (req, res) => {
         email: user.email,
         rol: user.rol,
         socio_id: socioId,
+        instructor_id: instructorId,
       },
     });
   } catch (error) {

@@ -19,6 +19,9 @@ import GestionAdmins from "./pages/GestionAdmins";
 import ConfiguracionGym from "./pages/ConfiguracionGym";
 import GestionPlanes from "./pages/GestionPlanes";
 import Backup from "./pages/Backup";
+import DashboardInstructor from "./pages/DashboardInstructor";
+import GestionInstructores from "./pages/GestionInstructores";
+import ProfileInstructor from "./pages/ProfileInstructor";
 import NotFound from "./pages/NotFound";
 
 export default function App() {
@@ -51,6 +54,22 @@ export default function App() {
           <ProtectedRoute>
             <RoleRoute roles={["root"]}>
               <DashboardRoot />
+            </RoleRoute>
+          </ProtectedRoute>
+        }/>
+
+        <Route path="/instructor" element={
+          <ProtectedRoute>
+            <RoleRoute roles={["instructor"]}>
+              <DashboardInstructor />
+            </RoleRoute>
+          </ProtectedRoute>
+        }/>
+
+        <Route path="/instructor/profile" element={
+          <ProtectedRoute>
+            <RoleRoute roles={["instructor"]}>
+              <ProfileInstructor />
             </RoleRoute>
           </ProtectedRoute>
         }/>
@@ -101,6 +120,13 @@ export default function App() {
               </ProtectedRoute>
             }/>
 
+            <Route path="/root/staff" element={
+              <ProtectedRoute>
+                <RoleRoute roles={["root"]}>
+                  <GestionAdmins />
+                </RoleRoute>
+              </ProtectedRoute>
+            }/>
             <Route path="/root/admins" element={
               <ProtectedRoute>
                 <RoleRoute roles={["root"]}>
@@ -129,6 +155,14 @@ export default function App() {
               <ProtectedRoute>
                 <RoleRoute roles={["root"]}>
                   <Backup />
+                </RoleRoute>
+              </ProtectedRoute>
+            }/>
+
+            <Route path="/admin/instructores" element={
+              <ProtectedRoute>
+                <RoleRoute roles={["admin", "root"]}>
+                  <GestionInstructores />
                 </RoleRoute>
               </ProtectedRoute>
             }/>

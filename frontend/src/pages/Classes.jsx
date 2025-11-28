@@ -3,6 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { listClasses, cancelClass } from '../services/classes';
 import { listTiposClase } from '../services/tipoClase';
 import { listReservations, cancelReservation } from '../services/reservations';
+import { listInstructores } from '../services/instructores';
 import ClassForm from '../components/ClassForm';
 import ReserveButton from '../components/ReserveButton';
 
@@ -12,9 +13,10 @@ export default function Classes() {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingClass, setEditingClass] = useState(null);
-  const [filters, setFilters] = useState({ puedoInscribirme: false, tipo_clase_id: '', fecha: '' });
+  const [filters, setFilters] = useState({ puedoInscribirme: false, tipo_clase_id: '', fecha: '', instructor_id: '' });
   const [allClases, setAllClases] = useState([]);
   const [tiposClase, setTiposClase] = useState([]);
+  const [instructores, setInstructores] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [showDropdown, setShowDropdown] = useState(false);
   const [selectedClaseForSocios, setSelectedClaseForSocios] = useState(null);
@@ -23,10 +25,14 @@ export default function Classes() {
   const [cardsToShow, setCardsToShow] = useState(10);
 
   const isAdmin = user?.rol === 'admin' || user?.rol === 'root';
+  const isInstructor = user?.rol === 'instructor';
 
   useEffect(() => {
     loadClasses();
     loadTiposClase();
+    if (isAdmin) {
+      loadInstructores();
+    }
   }, []);
 
   useEffect(() => {
@@ -53,6 +59,13 @@ export default function Classes() {
       );
     }
 
+    if (filters.instructor_id) {
+      // Filtrar por instructor
+      filtered = filtered.filter(clase => 
+        clase.instructor_id === parseInt(filters.instructor_id)
+      );
+    }
+
     setClases(filtered);
     setCardsToShow(10); // Resetear paginación cuando cambian los filtros
   }, [filters, allClases]);
@@ -63,6 +76,15 @@ export default function Classes() {
       setTiposClase(data.data || []);
     } catch (error) {
       console.error('Error al cargar tipos de clase:', error);
+    }
+  };
+
+  const loadInstructores = async () => {
+    try {
+      const data = await listInstructores();
+      setInstructores(data.data || []);
+    } catch (error) {
+      console.error('Error al cargar instructores:', error);
     }
   };
 
@@ -247,6 +269,23 @@ export default function Classes() {
               />
             </div>
           </div>
+          {isAdmin && (
+            <div>
+              <label className="block text-sm font-medium mb-1">Filtrar por Instructor</label>
+              <select
+                value={filters.instructor_id}
+                onChange={(e) => setFilters({ ...filters, instructor_id: e.target.value })}
+                className="w-full border rounded px-3 py-2"
+              >
+                <option value="">Todos los instructores</option>
+                {instructores.map((instructor) => (
+                  <option key={instructor.id} value={instructor.id}>
+                    {instructor.nombre}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
         </div>
       </div>
 
@@ -265,8 +304,8 @@ export default function Classes() {
                     <div className="text-sm text-gray-600 mt-1">
                       {clase.fecha} • {clase.hora_inicio} - {clase.hora_fin}
                     </div>
-                    {clase.instructor && (
-                      <div className="text-sm text-gray-600">Instructor: {clase.instructor}</div>
+                    {(clase.instructor_nombre || clase.instructor) && (
+                      <div className="text-sm text-gray-600">Instructor: {clase.instructor_nombre || clase.instructor}</div>
                     )}
                     <div className="mt-2">
                       <span className={`px-2 py-1 rounded text-xs ${

@@ -4,7 +4,7 @@ CREATE TABLE IF NOT EXISTS usuarios (
   nombre TEXT NOT NULL,
   email TEXT UNIQUE NOT NULL,
   pass_hash TEXT NOT NULL,
-  rol TEXT NOT NULL CHECK(rol IN ('cliente', 'admin', 'root'))
+  rol TEXT NOT NULL CHECK(rol IN ('cliente', 'admin', 'root', 'instructor'))
 );
 
 -- Tabla de planes
@@ -48,6 +48,15 @@ CREATE TABLE IF NOT EXISTS tipo_clase (
   descripcion TEXT
 );
 
+-- Tabla de instructores
+CREATE TABLE IF NOT EXISTS instructores (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  nombre TEXT NOT NULL,
+  email TEXT UNIQUE NOT NULL,
+  telefono TEXT,
+  activo INTEGER DEFAULT 1 CHECK(activo IN (0, 1))
+);
+
 -- Tabla de clases
 CREATE TABLE IF NOT EXISTS clases (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -57,8 +66,10 @@ CREATE TABLE IF NOT EXISTS clases (
   hora_fin TEXT NOT NULL,
   cupo INTEGER NOT NULL,
   instructor TEXT,
+  instructor_id INTEGER,
   estado TEXT DEFAULT 'activa' CHECK(estado IN ('activa', 'cancelada')),
-  FOREIGN KEY (tipo_clase_id) REFERENCES tipo_clase(id)
+  FOREIGN KEY (tipo_clase_id) REFERENCES tipo_clase(id),
+  FOREIGN KEY (instructor_id) REFERENCES instructores(id)
 );
 
 -- Tabla de reservas

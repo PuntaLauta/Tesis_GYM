@@ -30,7 +30,7 @@ export default function Navbar() {
     return (
       <>
         <Link 
-          to={user.rol === 'cliente' ? '/' : user.rol === 'admin' ? '/admin' : '/root'} 
+          to={user.rol === 'cliente' ? '/' : user.rol === 'admin' ? '/admin' : user.rol === 'instructor' ? '/instructor' : '/root'} 
           className="text-sm block py-2" 
           onClick={closeMobileMenu}
         >
@@ -39,25 +39,31 @@ export default function Navbar() {
         {user.rol === 'root' ? (
           <>
             <Link to="/socios" className="text-sm block py-2" onClick={closeMobileMenu}>Socios</Link>
+            <Link to="/root/staff" className="text-sm block py-2" onClick={closeMobileMenu}>Staff</Link>
             <Link to="/root/configuracion" className="text-sm block py-2" onClick={closeMobileMenu}>Configuracion</Link>
             <Link to="/root/backup" className="text-sm block py-2" onClick={closeMobileMenu}>Backup</Link>
           </>
-              ) : (
-                <>
-                  <Link to="/classes" className="text-sm block py-2" onClick={closeMobileMenu}>Clases</Link>
-                  {user.rol === 'cliente' && (
-                    <Link to="/profile" className="text-sm block py-2" onClick={closeMobileMenu}>Mi Perfil</Link>
-                  )}
-                  {user.rol === 'admin' && (
-                    <>
-                      <Link to="/socios" className="text-sm block py-2" onClick={closeMobileMenu}>Socios</Link>
-                      <Link to="/pagos" className="text-sm block py-2" onClick={closeMobileMenu}>Gestionar Pagos</Link>
-                      <Link to="/access" className="text-sm block py-2" onClick={closeMobileMenu}>Acceso</Link>
-                      <Link to="/reports" className="text-sm block py-2" onClick={closeMobileMenu}>Reportes</Link>
-                    </>
-                  )}
-                </>
-              )}
+        ) : user.rol === 'instructor' ? (
+          <>
+            <Link to="/instructor/profile" className="text-sm block py-2" onClick={closeMobileMenu}>Mi Perfil</Link>
+          </>
+        ) : (
+          <>
+            <Link to="/classes" className="text-sm block py-2" onClick={closeMobileMenu}>Clases</Link>
+            {user.rol === 'cliente' && (
+              <Link to="/profile" className="text-sm block py-2" onClick={closeMobileMenu}>Mi Perfil</Link>
+            )}
+            {user.rol === 'admin' && (
+              <>
+                <Link to="/socios" className="text-sm block py-2" onClick={closeMobileMenu}>Socios</Link>
+                <Link to="/pagos" className="text-sm block py-2" onClick={closeMobileMenu}>Gestionar Pagos</Link>
+                <Link to="/access" className="text-sm block py-2" onClick={closeMobileMenu}>Acceso</Link>
+                <Link to="/reports" className="text-sm block py-2" onClick={closeMobileMenu}>Reportes</Link>
+                <Link to="/admin/instructores" className="text-sm block py-2" onClick={closeMobileMenu}>Instructores</Link>
+              </>
+            )}
+          </>
+        )}
         <div className="border-t border-gray-200 my-2 pt-2">
           <span className="text-sm text-gray-600 block py-2">Rol: <b>{user.rol}</b></span>
           <button 
@@ -85,12 +91,17 @@ export default function Navbar() {
             </>
           ) : (
             <>
-              <Link to={user.rol === 'cliente' ? '/' : user.rol === 'admin' ? '/admin' : '/root'} className="text-sm">Inicio</Link>
+              <Link to={user.rol === 'cliente' ? '/' : user.rol === 'admin' ? '/admin' : user.rol === 'instructor' ? '/instructor' : '/root'} className="text-sm">Inicio</Link>
               {user.rol === 'root' ? (
                 <>
                   <Link to="/socios" className="text-sm">Socios</Link>
+                  <Link to="/root/staff" className="text-sm">Staff</Link>
                   <Link to="/root/configuracion" className="text-sm">Configuracion</Link>
                   <Link to="/root/backup" className="text-sm">Backup</Link>
+                </>
+              ) : user.rol === 'instructor' ? (
+                <>
+                  <Link to="/instructor/profile" className="text-sm">Mi Perfil</Link>
                 </>
               ) : (
                 <>
@@ -104,6 +115,7 @@ export default function Navbar() {
                       <Link to="/pagos" className="text-sm">Gestionar Pagos</Link>
                       <Link to="/access" className="text-sm">Acceso</Link>
                       <Link to="/reports" className="text-sm">Reportes</Link>
+                      <Link to="/admin/instructores" className="text-sm">Instructores</Link>
                     </>
                   )}
                 </>

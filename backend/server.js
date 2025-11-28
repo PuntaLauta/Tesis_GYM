@@ -48,6 +48,7 @@ app.use('/api/access', require('./routes/accesos')); // Alias para rutas de acce
 app.use('/api/reportes', require('./routes/reportes'));
 app.use('/api/configuracion', require('./routes/configuracion'));
 app.use('/api/usuarios', require('./routes/usuarios'));
+app.use('/api/instructores', require('./routes/instructores'));
 app.use('/api/backup', require('./routes/backup'));
 
 // 404

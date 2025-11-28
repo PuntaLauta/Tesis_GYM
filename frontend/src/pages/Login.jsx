@@ -18,6 +18,7 @@ export default function Login() {
       if (u.rol === "cliente") nav("/");
       else if (u.rol === "admin") nav("/admin");
       else if (u.rol === "root") nav("/root");
+      else if (u.rol === "instructor") nav("/instructor");
       else nav("/");
     } catch (e) {
       setErr("Credenciales inválidas");

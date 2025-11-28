@@ -14,7 +14,7 @@ router.get('/', (req, res) => {
     const usuarios = query(`
       SELECT id, nombre, email, rol 
       FROM usuarios 
-      WHERE rol IN ('admin', 'root')
+      WHERE rol IN ('admin', 'root', 'instructor')
       ORDER BY rol DESC, nombre ASC
     `);
     res.json({ data: usuarios });
@@ -33,9 +33,9 @@ router.get('/:id', (req, res) => {
       return res.status(404).json({ error: 'Usuario no encontrado' });
     }
 
-    // Solo permitir ver usuarios admin/root
-    if (usuario.rol !== 'admin' && usuario.rol !== 'root') {
-      return res.status(403).json({ error: 'Solo se pueden gestionar usuarios admin y root' });
+    // Solo permitir ver usuarios admin/root/instructor
+    if (usuario.rol !== 'admin' && usuario.rol !== 'root' && usuario.rol !== 'instructor') {
+      return res.status(403).json({ error: 'Solo se pueden gestionar usuarios admin, root e instructor' });
     }
 
     res.json({ data: usuario });
@@ -59,7 +59,7 @@ router.post('/', async (req, res) => {
     }
 
     // Validar rol
-    const rolFinal = rol === 'root' ? 'root' : 'admin';
+    const rolFinal = rol === 'root' ? 'root' : (rol === 'instructor' ? 'instructor' : 'admin');
     
     // Verificar que el email no exista
     const usuarioExistente = get('SELECT id FROM usuarios WHERE email = ?', [email]);
@@ -101,9 +101,9 @@ router.put('/:id', async (req, res) => {
       return res.status(404).json({ error: 'Usuario no encontrado' });
     }
 
-    // Solo permitir editar usuarios admin/root
-    if (usuario.rol !== 'admin' && usuario.rol !== 'root') {
-      return res.status(403).json({ error: 'Solo se pueden gestionar usuarios admin y root' });
+    // Solo permitir editar usuarios admin/root/instructor
+    if (usuario.rol !== 'admin' && usuario.rol !== 'root' && usuario.rol !== 'instructor') {
+      return res.status(403).json({ error: 'Solo se pueden gestionar usuarios admin, root e instructor' });
     }
 
     // Verificar email único si se está cambiando
@@ -115,7 +115,7 @@ router.put('/:id', async (req, res) => {
     }
 
     // Validar rol
-    const rolFinal = rol === 'root' ? 'root' : (rol === 'admin' ? 'admin' : usuario.rol);
+    const rolFinal = rol === 'root' ? 'root' : (rol === 'instructor' ? 'instructor' : (rol === 'admin' ? 'admin' : usuario.rol));
 
     // Actualizar usuario
     run(
@@ -150,9 +150,9 @@ router.put('/:id/password', async (req, res) => {
       return res.status(404).json({ error: 'Usuario no encontrado' });
     }
 
-    // Solo permitir cambiar contraseña de usuarios admin/root
-    if (usuario.rol !== 'admin' && usuario.rol !== 'root') {
-      return res.status(403).json({ error: 'Solo se pueden gestionar usuarios admin y root' });
+    // Solo permitir cambiar contraseña de usuarios admin/root/instructor
+    if (usuario.rol !== 'admin' && usuario.rol !== 'root' && usuario.rol !== 'instructor') {
+      return res.status(403).json({ error: 'Solo se pueden gestionar usuarios admin, root e instructor' });
     }
 
     // Hashear nueva contraseña
@@ -184,9 +184,9 @@ router.delete('/:id', (req, res) => {
       return res.status(404).json({ error: 'Usuario no encontrado' });
     }
 
-    // Solo permitir eliminar usuarios admin/root
-    if (usuario.rol !== 'admin' && usuario.rol !== 'root') {
-      return res.status(403).json({ error: 'Solo se pueden gestionar usuarios admin y root' });
+    // Solo permitir eliminar usuarios admin/root/instructor
+    if (usuario.rol !== 'admin' && usuario.rol !== 'root' && usuario.rol !== 'instructor') {
+      return res.status(403).json({ error: 'Solo se pueden gestionar usuarios admin, root e instructor' });
     }
 
     // Verificar que no sea el último root

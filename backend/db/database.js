@@ -309,6 +309,178 @@ async function initDatabase() {
     console.log('Advertencia: No se pudo ejecutar migración tipo_clase:', e.message);
   }
 
+  // Migrar constraint de rol en tabla usuarios para incluir 'instructor'
+  try {
+    // Verificar si la tabla usuarios existe
+    const tables = db.exec("SELECT name FROM sqlite_master WHERE type='table' AND name='usuarios'");
+    if (tables && tables[0] && tables[0].values && tables[0].values.length > 0) {
+      // Intentar insertar un registro temporal con rol 'instructor' para verificar el constraint
+      try {
+        db.run("INSERT INTO usuarios (nombre, email, pass_hash, rol) VALUES ('test', 'test@test.com', 'test', 'instructor')");
+        // Si llegamos aquí, el constraint ya permite 'instructor', eliminar el registro de prueba
+        db.run("DELETE FROM usuarios WHERE email = 'test@test.com'");
+        saveDatabase();
+      } catch (e) {
+        // Si falla, el constraint no incluye 'instructor', necesitamos migrar
+        if (e.message.includes('CHECK constraint')) {
+          console.log('🔄 Migrando constraint de rol en tabla usuarios...');
+          
+          // Deshabilitar foreign keys temporalmente
+          db.run('PRAGMA foreign_keys = OFF');
+          
+          // Crear nueva tabla con constraint actualizado
+          db.run(`
+            CREATE TABLE usuarios_new (
+              id INTEGER PRIMARY KEY AUTOINCREMENT,
+              nombre TEXT NOT NULL,
+              email TEXT UNIQUE NOT NULL,
+              pass_hash TEXT NOT NULL,
+              rol TEXT NOT NULL CHECK(rol IN ('cliente', 'admin', 'root', 'instructor'))
+            )
+          `);
+          
+          // Copiar datos
+          db.run(`
+            INSERT INTO usuarios_new (id, nombre, email, pass_hash, rol)
+            SELECT id, nombre, email, pass_hash, rol FROM usuarios
+          `);
+          
+          // Eliminar tabla antigua
+          db.run('DROP TABLE usuarios');
+          
+          // Renombrar nueva tabla
+          db.run('ALTER TABLE usuarios_new RENAME TO usuarios');
+          
+          // Recrear índices si existen
+          try {
+            db.run('CREATE UNIQUE INDEX IF NOT EXISTS idx_usuarios_email ON usuarios(email)');
+          } catch (idxError) {
+            // Índice ya existe o no se puede crear
+          }
+          
+          // Rehabilitar foreign keys
+          db.run('PRAGMA foreign_keys = ON');
+          
+          saveDatabase();
+          console.log('✅ Constraint de rol actualizado para incluir instructor');
+        }
+      }
+    }
+  } catch (e) {
+    console.log('Advertencia: No se pudo migrar constraint de rol:', e.message);
+  }
+
+  // Verificar si existe la tabla instructores
+  let tablaInstructoresExiste = false;
+  try {
+    const tables = db.exec("SELECT name FROM sqlite_master WHERE type='table' AND name='instructores'");
+    tablaInstructoresExiste = tables && tables[0] && tables[0].values && tables[0].values.length > 0;
+  } catch (e) {
+    // Error al verificar, asumir que no existe
+  }
+
+  // Crear tabla instructores si no existe (migración)
+  if (!tablaInstructoresExiste) {
+    try {
+      db.run(`
+        CREATE TABLE IF NOT EXISTS instructores (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          nombre TEXT NOT NULL,
+          email TEXT UNIQUE NOT NULL,
+          telefono TEXT,
+          activo INTEGER DEFAULT 1 CHECK(activo IN (0, 1))
+        )
+      `);
+      saveDatabase();
+      console.log('✅ Tabla instructores creada');
+    } catch (e) {
+      console.log('Advertencia: No se pudo crear tabla instructores:', e.message);
+    }
+  }
+
+  // Verificar si existe la columna instructor_id en la tabla clases
+  let columnaInstructorIdExiste = false;
+  try {
+    const tableInfo = db.exec("PRAGMA table_info(clases)");
+    if (tableInfo && tableInfo[0] && tableInfo[0].values) {
+      columnaInstructorIdExiste = tableInfo[0].values.some(row => row[1] === 'instructor_id');
+    }
+  } catch (e) {
+    // Error al verificar, asumir que no existe
+  }
+
+  // Agregar columna instructor_id si no existe (migración)
+  if (!columnaInstructorIdExiste) {
+    try {
+      db.run('ALTER TABLE clases ADD COLUMN instructor_id INTEGER REFERENCES instructores(id)');
+      saveDatabase();
+      console.log('✅ Columna instructor_id agregada a la tabla clases');
+    } catch (e) {
+      console.log('Advertencia: No se pudo agregar columna instructor_id:', e.message);
+    }
+  }
+
+  // Migrar datos de instructor TEXT a instructores e instructor_id
+  if (columnaInstructorIdExiste || tablaInstructoresExiste) {
+    try {
+      // Obtener todas las clases con instructor TEXT pero sin instructor_id
+      const clasesConInstructor = db.exec(`
+        SELECT DISTINCT instructor 
+        FROM clases 
+        WHERE instructor IS NOT NULL 
+        AND instructor != '' 
+        AND (instructor_id IS NULL OR instructor_id = 0)
+      `);
+      
+      if (clasesConInstructor && clasesConInstructor[0] && clasesConInstructor[0].values) {
+        const stmtInsert = db.prepare(`
+          INSERT OR IGNORE INTO instructores (nombre, email, activo) 
+          VALUES (?, ?, 1)
+        `);
+        const stmtUpdate = db.prepare(`
+          UPDATE clases 
+          SET instructor_id = ? 
+          WHERE instructor = ? 
+          AND (instructor_id IS NULL OR instructor_id = 0)
+        `);
+        
+        clasesConInstructor[0].values.forEach(([nombreInstructor]) => {
+          if (nombreInstructor && nombreInstructor.trim()) {
+            // Crear email basado solo en el primer nombre (primera palabra) con dominio @instructores.com
+            const primerNombre = nombreInstructor.trim().split(/\s+/)[0];
+            const emailBase = primerNombre.toLowerCase()
+              .normalize('NFD')
+              .replace(/[\u0300-\u036f]/g, '')
+              .replace(/[^a-z]/g, '');
+            const email = `${emailBase}@instructores.com`;
+            
+            // Insertar instructor si no existe
+            try {
+              stmtInsert.run([nombreInstructor, email]);
+            } catch (e) {
+              // Si el email ya existe, obtener el ID existente
+            }
+            
+            // Obtener el ID del instructor
+            const instructorResult = db.exec(`SELECT id FROM instructores WHERE nombre = ? OR email = ?`, [nombreInstructor, email]);
+            if (instructorResult && instructorResult[0] && instructorResult[0].values && instructorResult[0].values.length > 0) {
+              const instructorId = instructorResult[0].values[0][0];
+              // Actualizar clases con el instructor_id
+              stmtUpdate.run([instructorId, nombreInstructor]);
+            }
+          }
+        });
+        
+        stmtInsert.free();
+        stmtUpdate.free();
+        saveDatabase();
+        console.log('✅ Datos de instructores migrados');
+      }
+    } catch (e) {
+      console.log('Advertencia: No se pudieron migrar datos de instructores:', e.message);
+    }
+  }
+
   
   return db;
 }
