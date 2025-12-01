@@ -1,11 +1,29 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import Logo from "./Logo";
 
 export default function Navbar() {
   const { user, logout } = useAuth();
   const nav = useNavigate();
+  const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  // Hide Navbar on Login and Forgot Password if user is not logged in
+  // But show it on /home with CTAs
+  const hideNavbarRoutes = ['/login', '/forgot-password'];
+  if (!user && (location.pathname === '/' || hideNavbarRoutes.includes(location.pathname))) {
+    return null;
+  }
+
+  // Handle scroll to contact section
+  const handleContactClick = (e) => {
+    e.preventDefault();
+    const contactSection = document.getElementById('contactar-ventas');
+    if (contactSection) {
+      contactSection.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
 
   const handleLogout = async () => {
     await logout();
@@ -21,7 +39,7 @@ export default function Navbar() {
     if (!user) {
       return (
         <>
-          <Link to="/" className="text-sm block py-2" onClick={closeMobileMenu}>Home</Link>
+          <Link to="/home" className="text-sm block py-2" onClick={closeMobileMenu}>Home</Link>
           <Link to="/login" className="text-sm block py-2" onClick={closeMobileMenu}>Login</Link>
         </>
       );
@@ -59,8 +77,8 @@ export default function Navbar() {
           </>
         )}
         <div className="border-t border-gray-200 my-2 pt-2">
-          <button 
-            onClick={handleLogout} 
+          <button
+            onClick={handleLogout}
             className="text-sm px-3 py-2 bg-gray-900 text-white rounded w-full text-left"
           >
             Cerrar sesión
@@ -71,20 +89,39 @@ export default function Navbar() {
   };
 
   return (
-    <nav className="bg-white border-b shadow-sm relative">
-      <div className="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between">
-        <Link to="/" className="font-bold">Gestión GYM</Link>
-        
+    <nav className="bg-white border-b shadow-sm relative w-full">
+      <div className="w-full px-4 py-3 flex items-center justify-between">
+        <Logo size="md" className="items-start" />
+
         {/* Menú Desktop */}
         <div className="hidden md:flex items-center gap-4">
           {!user ? (
             <>
-              <Link to="/" className="text-sm">Home</Link>
-              <Link to="/login" className="text-sm">Login</Link>
+              {location.pathname === '/home' ? (
+                <>
+                  <button
+                    onClick={handleContactClick}
+                    className="px-6 py-2.5 border border-transparent text-base font-medium rounded-md text-white bg-green-600 hover:bg-green-700 transition-colors shadow-lg hover:shadow-xl"
+                  >
+                    Contactar
+                  </button>
+                  <Link
+                    to="/login"
+                    className="px-6 py-2.5 border border-transparent text-base font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 transition-transform transform hover:scale-105"
+                  >
+                    Ingresar
+                  </Link>
+                </>
+              ) : (
+                <>
+                  <Link to="/home" className="text-sm">Home</Link>
+                  <Link to="/login" className="text-sm">Login</Link>
+                </>
+              )}
             </>
           ) : (
             <>
-              <Link to={user.rol === 'cliente' ? '/' : user.rol === 'admin' ? '/admin' : user.rol === 'instructor' ? '/instructor' : '/root'} className="text-sm">Inicio</Link>
+              <Link to="/" className="text-sm">Inicio</Link>
               {user.rol === 'root' ? (
                 <>
                   <Link to="/socios" className="text-sm">Socios</Link>
@@ -125,12 +162,27 @@ export default function Navbar() {
 
         {/* Botones y menú hamburguesa en mobile */}
         <div className="flex items-center gap-2 md:hidden">
-          {user && (
+          {!user && location.pathname === '/home' ? (
+            <>
+              <button
+                onClick={handleContactClick}
+                className="px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 transition-colors shadow-lg"
+              >
+                Contactar
+              </button>
+              <Link
+                to="/login"
+                className="px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 transition-transform transform hover:scale-105"
+              >
+                Ingresar
+              </Link>
+            </>
+          ) : user && (
             <>
               {/* Para admin, root e instructores: solo botón Inicio */}
               {(user.rol === 'admin' || user.rol === 'root' || user.rol === 'instructor') && (
-                <Link 
-                  to={user.rol === 'admin' ? '/admin' : user.rol === 'instructor' ? '/instructor' : '/root'} 
+                <Link
+                  to="/"
                   className="text-sm px-3 py-1.5 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
                   onClick={closeMobileMenu}
                 >
@@ -140,15 +192,15 @@ export default function Navbar() {
               {/* Para clientes: ambos botones */}
               {user.rol === 'cliente' && (
                 <>
-                  <Link 
-                    to="/" 
+                  <Link
+                    to="/"
                     className="text-sm px-3 py-1.5 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
                     onClick={closeMobileMenu}
                   >
                     Inicio
                   </Link>
-                  <Link 
-                    to="/asistente" 
+                  <Link
+                    to="/asistente"
                     className="text-sm px-3 py-1.5 bg-black text-white rounded font-semibold"
                     onClick={closeMobileMenu}
                   >

@@ -5,8 +5,15 @@
 
 const Anthropic = require('@anthropic-ai/sdk');
 
+// Verificar que la API key esté configurada
+const apiKey = process.env.ANTHROPIC_API_KEY || '';
+
+if (!apiKey) {
+  console.warn('⚠️  ADVERTENCIA: ANTHROPIC_API_KEY no está configurada en las variables de entorno');
+}
+
 const client = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY || ''
+  apiKey: apiKey
 });
 
 /**
@@ -18,6 +25,15 @@ const client = new Anthropic({
  */
 async function chatWithGPT(mensaje, tipo = 'general', contexto = {}) {
   try {
+    // Verificar que la API key esté configurada antes de hacer la llamada
+    if (!apiKey || apiKey.trim() === '') {
+      console.error('Error: ANTHROPIC_API_KEY no está configurada');
+      return {
+        texto: 'Error de configuración: La API key de Claude no está configurada. Por favor, contacta al administrador.',
+        rutinaData: null
+      };
+    }
+
     // Construir el prompt del sistema según el tipo de consulta
     let systemPrompt = "Eres un asistente virtual de entrenamiento para un gimnasio. Ayudas a los usuarios con rutinas de ejercicio, información sobre ejercicios y consejos de entrenamiento. Siempre responde en español.";
     
@@ -62,18 +78,44 @@ async function chatWithGPT(mensaje, tipo = 'general', contexto = {}) {
     };
   } catch (error) {
     console.error('Error al llamar a Claude:', error);
+    console.error('Error details:', {
+      status: error.status,
+      statusCode: error.statusCode,
+      message: error.message,
+      type: error.constructor.name,
+      error: error.error ? JSON.stringify(error.error) : 'N/A'
+    });
     
-    // Manejar errores específicos
-    if (error.status === 429) {
+    // Manejar errores específicos de Anthropic
+    const errorStatus = error.status || error.statusCode;
+    const errorMessage = (error.message || '').toLowerCase();
+    
+    // Error 429: Rate limit
+    if (errorStatus === 429) {
       return {
         texto: 'Lo siento, se ha excedido el límite de solicitudes. Por favor, intenta nuevamente en unos momentos.',
         rutinaData: null
       };
     }
     
-    if (error.status === 401 || error.status === 403) {
+    // Error 401/403: Authentication
+    if (errorStatus === 401 || errorStatus === 403) {
+      if (errorMessage.includes('api key') || errorMessage.includes('authentication') || errorMessage.includes('invalid') || errorMessage.includes('unauthorized')) {
+        return {
+          texto: 'Error de autenticación con Claude: La API key no es válida o ha expirado. Por favor, contacta al administrador para verificar la configuración.',
+          rutinaData: null
+        };
+      }
       return {
         texto: 'Error de autenticación con Claude. Por favor, contacta al administrador.',
+        rutinaData: null
+      };
+    }
+
+    // Verificar si el error menciona API key o autenticación en el mensaje
+    if (errorMessage.includes('api key') || errorMessage.includes('authentication') || errorMessage.includes('unauthorized') || errorMessage.includes('invalid api key')) {
+      return {
+        texto: 'Error de autenticación con Claude: La API key no está configurada correctamente o no es válida. Por favor, contacta al administrador.',
         rutinaData: null
       };
     }
