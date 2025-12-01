@@ -25,6 +25,7 @@ import GestionInstructores from "./pages/GestionInstructores";
 import ProfileInstructor from "./pages/ProfileInstructor";
 import Asistente from "./pages/Asistente";
 import MisRutinas from "./pages/MisRutinas";
+import DetalleRutina from "./pages/DetalleRutina";
 import NotFound from "./pages/NotFound";
 
 function DashboardRouter() {
@@ -154,6 +155,14 @@ export default function App() {
               <ProtectedRoute>
                 <RoleRoute roles={["cliente"]}>
                   <MisRutinas />
+                </RoleRoute>
+              </ProtectedRoute>
+            }/>
+
+            <Route path="/rutinas/:id" element={
+              <ProtectedRoute>
+                <RoleRoute roles={["cliente"]}>
+                  <DetalleRutina />
                 </RoleRoute>
               </ProtectedRoute>
             }/>
