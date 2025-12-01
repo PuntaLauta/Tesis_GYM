@@ -16,13 +16,11 @@ export default function Navbar() {
     return null;
   }
 
-  // Handle scroll to contact section
+  // Handle open contact modal (same as "Contactar Ventas" button)
   const handleContactClick = (e) => {
     e.preventDefault();
-    const contactSection = document.getElementById('contactar-ventas');
-    if (contactSection) {
-      contactSection.scrollIntoView({ behavior: 'smooth' });
-    }
+    // Disparar evento personalizado para abrir el modal de contacto
+    window.dispatchEvent(new CustomEvent('openContactModal'));
   };
 
   const handleLogout = async () => {

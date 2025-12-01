@@ -56,6 +56,17 @@ export default function LandingPage() {
         return () => window.removeEventListener('resize', handleResize);
     }, []);
 
+    // Escuchar evento personalizado para abrir el modal desde el Navbar
+    useEffect(() => {
+        const handleOpenContactModal = () => {
+            setIsContactModalOpen(true);
+            setContactSent(false);
+        };
+
+        window.addEventListener('openContactModal', handleOpenContactModal);
+        return () => window.removeEventListener('openContactModal', handleOpenContactModal);
+    }, []);
+
     // Duplicar imágenes para efecto infinito (3 copias)
     const duplicatedImages = [...CAROUSEL_IMAGES, ...CAROUSEL_IMAGES, ...CAROUSEL_IMAGES];
 
