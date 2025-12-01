@@ -1,11 +1,29 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import Logo from "./Logo";
 
 export default function Navbar() {
   const { user, logout } = useAuth();
   const nav = useNavigate();
+  const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  // Hide Navbar on Login and Forgot Password if user is not logged in
+  // But show it on /home with CTAs
+  const hideNavbarRoutes = ['/login', '/forgot-password'];
+  if (!user && (location.pathname === '/' || hideNavbarRoutes.includes(location.pathname))) {
+    return null;
+  }
+
+  // Handle scroll to contact section
+  const handleContactClick = (e) => {
+    e.preventDefault();
+    const contactSection = document.getElementById('contactar-ventas');
+    if (contactSection) {
+      contactSection.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
 
   const handleLogout = async () => {
     await logout();
@@ -21,7 +39,7 @@ export default function Navbar() {
     if (!user) {
       return (
         <>
-          <Link to="/" className="text-sm block py-2" onClick={closeMobileMenu}>Home</Link>
+          <Link to="/home" className="text-sm block py-2" onClick={closeMobileMenu}>Home</Link>
           <Link to="/login" className="text-sm block py-2" onClick={closeMobileMenu}>Login</Link>
         </>
       );
@@ -29,13 +47,7 @@ export default function Navbar() {
 
     return (
       <>
-        <Link 
-          to={user.rol === 'cliente' ? '/' : user.rol === 'admin' ? '/admin' : user.rol === 'instructor' ? '/instructor' : '/root'} 
-          className="text-sm block py-2" 
-          onClick={closeMobileMenu}
-        >
-          Inicio
-        </Link>
+        {/* Inicio y Asistente ya están fuera del menú en mobile, solo mostrar otros enlaces */}
         {user.rol === 'root' ? (
           <>
             <Link to="/socios" className="text-sm block py-2" onClick={closeMobileMenu}>Socios</Link>
@@ -65,9 +77,8 @@ export default function Navbar() {
           </>
         )}
         <div className="border-t border-gray-200 my-2 pt-2">
-          <span className="text-sm text-gray-600 block py-2">Rol: <b>{user.rol}</b></span>
-          <button 
-            onClick={handleLogout} 
+          <button
+            onClick={handleLogout}
             className="text-sm px-3 py-2 bg-gray-900 text-white rounded w-full text-left"
           >
             Cerrar sesión
@@ -78,20 +89,39 @@ export default function Navbar() {
   };
 
   return (
-    <nav className="bg-white border-b shadow-sm relative">
-      <div className="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between">
-        <Link to="/" className="font-bold">Gestión GYM</Link>
-        
+    <nav className="bg-white border-b shadow-sm relative w-full">
+      <div className="w-full px-4 py-3 flex items-center justify-between">
+        <Logo size="md" className="items-start" />
+
         {/* Menú Desktop */}
         <div className="hidden md:flex items-center gap-4">
           {!user ? (
             <>
-              <Link to="/" className="text-sm">Home</Link>
-              <Link to="/login" className="text-sm">Login</Link>
+              {location.pathname === '/home' ? (
+                <>
+                  <button
+                    onClick={handleContactClick}
+                    className="px-6 py-2.5 border border-transparent text-base font-medium rounded-md text-white bg-green-600 hover:bg-green-700 transition-colors shadow-lg hover:shadow-xl"
+                  >
+                    Contactar
+                  </button>
+                  <Link
+                    to="/login"
+                    className="px-6 py-2.5 border border-transparent text-base font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 transition-transform transform hover:scale-105"
+                  >
+                    Ingresar
+                  </Link>
+                </>
+              ) : (
+                <>
+                  <Link to="/home" className="text-sm">Home</Link>
+                  <Link to="/login" className="text-sm">Login</Link>
+                </>
+              )}
             </>
           ) : (
             <>
-              <Link to={user.rol === 'cliente' ? '/' : user.rol === 'admin' ? '/admin' : user.rol === 'instructor' ? '/instructor' : '/root'} className="text-sm">Inicio</Link>
+              <Link to="/" className="text-sm">Inicio</Link>
               {user.rol === 'root' ? (
                 <>
                   <Link to="/socios" className="text-sm">Socios</Link>
@@ -105,6 +135,9 @@ export default function Navbar() {
                 </>
               ) : (
                 <>
+                  {user.rol === 'cliente' && (
+                    <Link to="/asistente" className="text-sm px-3 py-1.5 bg-black text-white rounded font-semibold">🏋🏻‍♂️ Asistente</Link>
+                  )}
                   <Link to="/classes" className="text-sm">Clases</Link>
                   {user.rol === 'cliente' && (
                     <Link to="/profile" className="text-sm">Mi Perfil</Link>
@@ -120,7 +153,6 @@ export default function Navbar() {
                   )}
                 </>
               )}
-              <span className="text-sm text-gray-600">Rol: <b>{user.rol}</b></span>
               <button onClick={handleLogout} className="text-sm px-3 py-1 bg-gray-900 text-white rounded">
                 Cerrar sesión
               </button>
@@ -128,28 +160,79 @@ export default function Navbar() {
           )}
         </div>
 
-        {/* Botón Hamburguesa Mobile */}
-        <button
-          className="md:hidden p-2"
-          onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-          aria-label="Toggle menu"
-        >
-          <svg
-            className="w-6 h-6"
-            fill="none"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth="2"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
+        {/* Botones y menú hamburguesa en mobile */}
+        <div className="flex items-center gap-2 md:hidden">
+          {!user && location.pathname === '/home' ? (
+            <>
+              <button
+                onClick={handleContactClick}
+                className="px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 transition-colors shadow-lg"
+              >
+                Contactar
+              </button>
+              <Link
+                to="/login"
+                className="px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 transition-transform transform hover:scale-105"
+              >
+                Ingresar
+              </Link>
+            </>
+          ) : user && (
+            <>
+              {/* Para admin, root e instructores: solo botón Inicio */}
+              {(user.rol === 'admin' || user.rol === 'root' || user.rol === 'instructor') && (
+                <Link
+                  to="/"
+                  className="text-sm px-3 py-1.5 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+                  onClick={closeMobileMenu}
+                >
+                  Inicio
+                </Link>
+              )}
+              {/* Para clientes: ambos botones */}
+              {user.rol === 'cliente' && (
+                <>
+                  <Link
+                    to="/"
+                    className="text-sm px-3 py-1.5 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+                    onClick={closeMobileMenu}
+                  >
+                    Inicio
+                  </Link>
+                  <Link
+                    to="/asistente"
+                    className="text-sm px-3 py-1.5 bg-black text-white rounded font-semibold"
+                    onClick={closeMobileMenu}
+                  >
+                    🏋🏻‍♂️ Asistente
+                  </Link>
+                </>
+              )}
+            </>
+          )}
+          {/* Botón Hamburguesa Mobile */}
+          <button
+            className="p-2"
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            aria-label="Toggle menu"
           >
-            {mobileMenuOpen ? (
-              <path d="M6 18L18 6M6 6l12 12" />
-            ) : (
-              <path d="M4 6h16M4 12h16M4 18h16" />
-            )}
-          </svg>
-        </button>
+            <svg
+              className="w-6 h-6"
+              fill="none"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth="2"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              {mobileMenuOpen ? (
+                <path d="M6 18L18 6M6 6l12 12" />
+              ) : (
+                <path d="M4 6h16M4 12h16M4 18h16" />
+              )}
+            </svg>
+          </button>
+        </div>
       </div>
 
       {/* Menú Mobile Overlay */}

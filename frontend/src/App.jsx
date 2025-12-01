@@ -1,8 +1,9 @@
-import { Routes, Route } from "react-router-dom";
+import { Routes, Route, Navigate } from "react-router-dom";
 import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
 import ProtectedRoute from "./components/ProtectedRoute";
 import RoleRoute from "./components/RoleRoute";
+import { useAuth } from "./context/AuthContext";
 
 import Home from "./pages/Home";
 import Login from "./pages/Login";
@@ -22,7 +23,35 @@ import Backup from "./pages/Backup";
 import DashboardInstructor from "./pages/DashboardInstructor";
 import GestionInstructores from "./pages/GestionInstructores";
 import ProfileInstructor from "./pages/ProfileInstructor";
+import Asistente from "./pages/Asistente";
+import MisRutinas from "./pages/MisRutinas";
 import NotFound from "./pages/NotFound";
+
+function DashboardRouter() {
+  const { user } = useAuth();
+  
+  if (!user) {
+    return <Navigate to="/home" replace />;
+  }
+  
+  if (user.rol === 'admin') {
+    return <DashboardAdmin />;
+  }
+  
+  if (user.rol === 'root') {
+    return <DashboardRoot />;
+  }
+  
+  if (user.rol === 'instructor') {
+    return <DashboardInstructor />;
+  }
+  
+  if (user.rol === 'cliente') {
+    return <Home />;
+  }
+  
+  return <Navigate to="/home" replace />;
+}
 
 export default function App() {
   return (
@@ -30,7 +59,12 @@ export default function App() {
       <Navbar />
       <div className="flex-grow">
         <Routes>
-        <Route path="/" element={<Home />} />
+        <Route path="/" element={
+          <ProtectedRoute>
+            <DashboardRouter />
+          </ProtectedRoute>
+        } />
+        <Route path="/home" element={<Home />} />
         <Route path="/login" element={<Login />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
 
@@ -43,27 +77,15 @@ export default function App() {
         }/>
 
         <Route path="/admin" element={
-          <ProtectedRoute>
-            <RoleRoute roles={["admin","root"]}>
-              <DashboardAdmin />
-            </RoleRoute>
-          </ProtectedRoute>
+          <Navigate to="/" replace />
         }/>
 
         <Route path="/root" element={
-          <ProtectedRoute>
-            <RoleRoute roles={["root"]}>
-              <DashboardRoot />
-            </RoleRoute>
-          </ProtectedRoute>
+          <Navigate to="/" replace />
         }/>
 
         <Route path="/instructor" element={
-          <ProtectedRoute>
-            <RoleRoute roles={["instructor"]}>
-              <DashboardInstructor />
-            </RoleRoute>
-          </ProtectedRoute>
+          <Navigate to="/" replace />
         }/>
 
         <Route path="/instructor/profile" element={
@@ -116,6 +138,22 @@ export default function App() {
               <ProtectedRoute>
                 <RoleRoute roles={["cliente"]}>
                   <Profile />
+                </RoleRoute>
+              </ProtectedRoute>
+            }/>
+
+            <Route path="/asistente" element={
+              <ProtectedRoute>
+                <RoleRoute roles={["cliente"]}>
+                  <Asistente />
+                </RoleRoute>
+              </ProtectedRoute>
+            }/>
+
+            <Route path="/rutinas" element={
+              <ProtectedRoute>
+                <RoleRoute roles={["cliente"]}>
+                  <MisRutinas />
                 </RoleRoute>
               </ProtectedRoute>
             }/>

@@ -24,3 +24,5 @@ export const deleteUsuario = (id) => {
   return api.delete(`/api/usuarios/${id}`).then(r => r.data);
 };
 
+
+

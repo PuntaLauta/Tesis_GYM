@@ -121,3 +121,41 @@ CREATE TABLE IF NOT EXISTS backup_config (
   mantener_backups INTEGER DEFAULT 30,
   activo INTEGER DEFAULT 1
 );
+
+-- Tabla para almacenar rutinas generadas
+CREATE TABLE IF NOT EXISTS rutinas (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  socio_id INTEGER NOT NULL,
+  nombre TEXT NOT NULL,
+  descripcion TEXT,
+  ejercicios TEXT NOT NULL, -- JSON con array de ejercicios
+  fecha_creacion TEXT DEFAULT (datetime('now')),
+  fecha_inicio TEXT,
+  fecha_fin TEXT,
+  activa INTEGER DEFAULT 1 CHECK(activa IN (0, 1)),
+  FOREIGN KEY (socio_id) REFERENCES socios(id)
+);
+
+-- Tabla para historial de conversaciones con el asistente
+CREATE TABLE IF NOT EXISTS conversaciones_asistente (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  socio_id INTEGER NOT NULL,
+  tipo TEXT NOT NULL CHECK(tipo IN ('rutina', 'ejercicio', 'asistencia', 'general')),
+  mensaje_usuario TEXT NOT NULL,
+  respuesta_asistente TEXT NOT NULL,
+  metadata TEXT, -- JSON con info adicional
+  fecha TEXT DEFAULT (datetime('now')),
+  FOREIGN KEY (socio_id) REFERENCES socios(id)
+);
+
+-- Tabla para ejercicios favoritos/guardados
+CREATE TABLE IF NOT EXISTS ejercicios_favoritos (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  socio_id INTEGER NOT NULL,
+  nombre_ejercicio TEXT NOT NULL,
+  descripcion TEXT,
+  musculos TEXT, -- JSON array de músculos trabajados
+  fecha_guardado TEXT DEFAULT (datetime('now')),
+  FOREIGN KEY (socio_id) REFERENCES socios(id),
+  UNIQUE(socio_id, nombre_ejercicio)
+);

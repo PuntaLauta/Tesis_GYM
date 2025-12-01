@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import Logo from "../components/Logo";
 
 export default function Login() {
   const { login } = useAuth();
@@ -14,12 +15,8 @@ export default function Login() {
     setErr("");
     try {
       const u = await login(email, password);
-      // Redirección por rol
-      if (u.rol === "cliente") nav("/");
-      else if (u.rol === "admin") nav("/admin");
-      else if (u.rol === "root") nav("/root");
-      else if (u.rol === "instructor") nav("/instructor");
-      else nav("/");
+      // Redirección a la ruta raíz (cada rol tiene su dashboard en /)
+      nav("/");
     } catch (e) {
       setErr("Credenciales inválidas");
     }
@@ -27,6 +24,9 @@ export default function Login() {
 
   return (
     <div className="max-w-md mx-auto p-6 pb-12">
+      <div className="flex justify-center mb-6">
+        <Logo size="xl" />
+      </div>
       <h1 className="text-xl font-bold mb-4">Ingresar</h1>
       <form onSubmit={onSubmit} className="space-y-3">
         <input 

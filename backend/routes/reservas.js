@@ -10,14 +10,15 @@ router.get('/', requireAuth, requireRole('admin', 'root', 'instructor'), (req, r
     const { clase_id } = req.query;
     const user = req.session.user;
     let sql = `
-      SELECT r.*, s.nombre as socio_nombre, tc.nombre as clase_nombre,
+      SELECT r.*, s.nombre as socio_nombre, s.documento as socio_documento,
+             s.telefono as socio_telefono, tc.nombre as clase_nombre,
              c.instructor_id, i.nombre as instructor_nombre
       FROM reservas r
       LEFT JOIN socios s ON r.socio_id = s.id
       LEFT JOIN clases c ON r.clase_id = c.id
       LEFT JOIN tipo_clase tc ON c.tipo_clase_id = tc.id
       LEFT JOIN instructores i ON c.instructor_id = i.id
-      WHERE 1=1
+      WHERE 1=1 AND r.estado != 'cancelado'
     `;
     const params = [];
 
