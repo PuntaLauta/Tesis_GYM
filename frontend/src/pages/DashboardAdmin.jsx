@@ -146,7 +146,20 @@ export default function DashboardAdmin() {
 
   return (
     <div className="max-w-6xl mx-auto p-6">
-      <h1 className="text-2xl font-bold mb-6 text-center md:text-left">Dashboard Administrador</h1>
+      <div className="text-center mb-8 animate-fade-in-up">
+        <p className="text-sm font-semibold text-blue-600 uppercase tracking-wide">
+          Panel administrativo
+        </p>
+        <h1 className="mt-2 text-3xl sm:text-4xl font-extrabold text-gray-900">
+          Bienvenido a <span className="text-blue-600">FitSense</span>
+        </h1>
+        <p className="mt-3 text-base sm:text-lg text-gray-600 max-w-2xl mx-auto">
+          Supervisá socios, pagos, accesos y reportes desde un solo lugar. Este panel te ayuda a tener
+          el gimnasio bajo control día a día.
+        </p>
+      </div>
+
+      <h2 className="text-xl font-semibold mb-4 text-center md:text-left">Dashboard Administrador</h2>
 
       {/* Acciones Rapidas */}
       <div className="bg-white p-4 rounded-lg shadow mb-6">

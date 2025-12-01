@@ -7,11 +7,11 @@ export default function Footer() {
   const { user, logout } = useAuth();
   const nav = useNavigate();
   const [config, setConfig] = useState({
-    nombre: 'Gimnasio',
-    telefono: '381 000000',
-    email: 'soporte.am@gmail.com',
-    horarios_lunes_viernes: 'Lunes a viernes: 7:00 a 23:00',
-    horarios_sabado: 'Sabados: 8:00 a 20:00'
+  nombre: 'Gimnasio',
+  telefono: '381 000000',
+  email: 'fitsense@gmail.com',
+  horarios_lunes_viernes: 'Lunes a viernes: 7:00 a 23:00',
+  horarios_sabado: 'Sabados: 8:00 a 20:00'
   });
 
   useEffect(() => {
@@ -122,7 +122,7 @@ export default function Footer() {
   };
 
   return (
-    <footer className="bg-gray-800 text-white mt-auto">
+  <footer className="bg-[#003366] text-white mt-auto">
       <div className="max-w-6xl mx-auto px-4 py-4">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           {/* Sección: Información de Contacto */}
@@ -135,15 +135,18 @@ export default function Footer() {
                   <a href={`tel:${config.telefono.replace(/\s/g, '')}`} className="hover:text-white">{config.telefono}</a>
                 </p>
               )}
-              {config.email && (
-                <p>
-                  <strong>Email:</strong><br />
-                  <a href={`mailto:${config.email}`} className="hover:text-white break-all">{config.email}</a>
-                </p>
-              )}
+              <p>
+                <strong>Email:</strong><br />
+                <a
+                  href={`mailto:${config.email || 'fitsense@gmail.com'}`}
+                  className="hover:text-white break-all"
+                >
+                  {config.email || 'fitsense@gmail.com'}
+                </a>
+              </p>
               <p>
                 <strong>Direccion:</strong><br />
-                Maipu 490
+                Av. Salta 790
               </p>
               {config.horarios_lunes_viernes && (
                 <p>
@@ -165,9 +168,9 @@ export default function Footer() {
             <h3 className="font-semibold text-lg mb-2">Siguenos</h3>
             <div className="space-y-2 text-sm text-gray-300">
               <p>
-                <a 
-                  href="https://www.instagram.com/am_gym_69/" 
-                  target="_blank" 
+                <a
+                  href="https://instagram.com"
+                  target="_blank"
                   rel="noopener noreferrer"
                   className="hover:text-white underline"
                 >
@@ -255,11 +258,8 @@ export default function Footer() {
           </div>
         </div>
 
-        <div className="mt-4 pt-4 border-t border-gray-700 text-center text-sm text-gray-400">
-          <p>
-            © 2025 Gestión GYM. Todos los derechos reservados.
-            {user && ` - Rol: ${user.rol}`}
-          </p>
+        <div className="mt-4 pt-4 border-t border-gray-700 text-center text-sm text-gray-300">
+          <p>© 2025 FitSense. Todos los derechos reservados.</p>
         </div>
       </div>
     </footer>

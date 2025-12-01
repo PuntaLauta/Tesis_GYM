@@ -235,7 +235,7 @@ async function initDatabase() {
       if (!configExistente || !configExistente[0] || !configExistente[0].values || configExistente[0].values.length === 0) {
         db.run(`
           INSERT INTO configuracion_gym (id, nombre, telefono, email, horarios_lunes_viernes, horarios_sabado)
-          VALUES (1, 'Gimnasio', '381 000000', 'soporte.am@gmail.com', 'Lunes a viernes: 7:00 a 23:00', 'Sabados: 8:00 a 20:00')
+          VALUES (1, 'Gimnasio', '381 000000', 'fitsense@gmail.com', 'Lunes a viernes: 7:00 a 23:00', 'Sabados: 8:00 a 20:00')
         `);
       }
       saveDatabase();
