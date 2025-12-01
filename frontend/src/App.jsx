@@ -66,7 +66,7 @@ export default function App() {
             <DashboardRouter />
           </ProtectedRoute>
         } />
-        <Route path="/home" element={<Home />} />
+        <Route path="/home" element={<Navigate to="/" replace />} />
         <Route path="/login" element={<Login />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
 

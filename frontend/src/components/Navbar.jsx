@@ -10,9 +10,9 @@ export default function Navbar() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   // Hide Navbar on Login and Forgot Password if user is not logged in
-  // But show it on /home with CTAs
+  // Show Navbar on / (landing page) with CTAs
   const hideNavbarRoutes = ['/login', '/forgot-password'];
-  if (!user && (location.pathname === '/' || hideNavbarRoutes.includes(location.pathname))) {
+  if (!user && hideNavbarRoutes.includes(location.pathname)) {
     return null;
   }
 
@@ -37,7 +37,7 @@ export default function Navbar() {
     if (!user) {
       return (
         <>
-          <Link to="/home" className="text-sm block py-2" onClick={closeMobileMenu}>Home</Link>
+          <Link to="/" className="text-sm block py-2" onClick={closeMobileMenu}>Home</Link>
           <Link to="/login" className="text-sm block py-2" onClick={closeMobileMenu}>Login</Link>
         </>
       );
@@ -97,7 +97,7 @@ export default function Navbar() {
         <div className="hidden md:flex items-center gap-4">
           {!user ? (
             <>
-              {location.pathname === '/home' ? (
+              {location.pathname === '/' ? (
                 <>
                   <button
                     onClick={handleContactClick}
@@ -114,7 +114,7 @@ export default function Navbar() {
                 </>
               ) : (
                 <>
-                  <Link to="/home" className="text-sm">Home</Link>
+                  <Link to="/" className="text-sm">Home</Link>
                   <Link to="/login" className="text-sm">Login</Link>
                 </>
               )}
@@ -170,7 +170,7 @@ export default function Navbar() {
 
         {/* Botones y menú hamburguesa en mobile */}
         <div className="flex items-center gap-2 md:hidden">
-          {!user && location.pathname === '/home' ? (
+          {!user && location.pathname === '/' ? (
             <>
               <button
                 onClick={handleContactClick}
