@@ -3,14 +3,20 @@ import { Link } from 'react-router-dom';
 import amGym from '../assets/am_gym.jpg';
 import rcGym from '../assets/rc_gym.jpg';
 import titaniumGym from '../assets/titanium_gym.jpg';
+import adminImg from '../assets/admin.png';
+import chatboxImg from '../assets/chatbox.png';
+import clienteImg from '../assets/cliente.png';
+import instructorImg from '../assets/instructor.png';
+import pagosImg from '../assets/pagos.png';
+import sociosImg from '../assets/socios.png';
 
 const CAROUSEL_IMAGES = [
-    "https://images.unsplash.com/photo-1534438327276-14e5300c3a48?q=80&w=1920&auto=format&fit=crop",
-    "https://images.unsplash.com/photo-1517836357463-d25dfeac3438?q=80&w=1920&auto=format&fit=crop",
-    "https://images.unsplash.com/photo-1571902943202-507ec2618e8f?q=80&w=1920&auto=format&fit=crop",
-    "https://images.unsplash.com/photo-1593079831268-3381b0db4a77?q=80&w=1920&auto=format&fit=crop",
-    "https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?q=80&w=1920&auto=format&fit=crop",
-    "https://images.unsplash.com/photo-1576678927484-cc907957088c?q=80&w=1920&auto=format&fit=crop"
+    { src: adminImg, alt: 'Panel Administrador' },
+    { src: chatboxImg, alt: 'Chat flotante' },
+    { src: clienteImg, alt: 'Dashboard Cliente' },
+    { src: instructorImg, alt: 'Panel Instructor' },
+    { src: pagosImg, alt: 'Gestión de Pagos' },
+    { src: sociosImg, alt: 'Gestión de Socios' }
 ];
 
 export default function LandingPage() {
@@ -197,7 +203,7 @@ export default function LandingPage() {
                     <div className="text-center mb-12">
                         <h2 className="text-base font-semibold text-blue-600 tracking-wide uppercase">Galería</h2>
                         <p className="mt-1 text-3xl font-extrabold text-gray-900 sm:text-4xl">
-                            Nuestras Instalaciones
+                            Nuetra interfaz
                         </p>
                     </div>
                     <div className="relative">
@@ -234,16 +240,20 @@ export default function LandingPage() {
                                 {duplicatedImages.map((img, index) => (
                                     <div
                                         key={`carousel-img-${index}`}
-                                        className="flex-shrink-0 h-64 sm:h-80 rounded-lg overflow-hidden shadow-md"
+                                        className="relative group flex-shrink-0 h-64 sm:h-80 rounded-lg overflow-hidden shadow-md"
                                         style={{
                                             width: `${itemWidth}px`
                                         }}
                                     >
                                         <img
-                                            src={img}
-                                            alt="Gym facility"
-                                            className="w-full h-full object-cover hover:scale-110 transition-transform duration-700"
+                                            src={img.src}
+                                            alt={img.alt}
+                                            className="w-full h-full object-cover filter brightness-50 group-hover:brightness-100 transition duration-500"
                                         />
+                                        <div className="absolute inset-0 bg-black/30 opacity-100 group-hover:opacity-0 transition duration-500" />
+                                        <span className="absolute left-4 bottom-4 text-white text-sm font-semibold drop-shadow">
+                                            {img.alt}
+                                        </span>
                                     </div>
                                 ))}
                             </div>
