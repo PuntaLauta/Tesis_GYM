@@ -15,8 +15,12 @@ export default function Login() {
     setErr("");
     try {
       const u = await login(email, password);
-      // Redirección a la ruta raíz (cada rol tiene su dashboard en /)
-      nav("/");
+      // Redirección según rol: clientes van a /, otros roles a /dashboard
+      if (u.rol === 'cliente') {
+        nav("/");
+      } else {
+        nav("/dashboard");
+      }
     } catch (e) {
       setErr("Credenciales inválidas");
     }
