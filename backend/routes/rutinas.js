@@ -1,6 +1,7 @@
 const express = require('express');
 const { query, get, insert, run } = require('../db/database');
 const { requireAuth, requireRole } = require('../middleware/auth');
+const { generarRutinaPersonalizada } = require('../services/openai');
 const router = express.Router();
 
 // GET /api/rutinas - Listar rutinas del socio actual
@@ -39,6 +40,88 @@ router.get('/', requireAuth, requireRole('cliente'), (req, res) => {
   }
 });
 
+// POST /api/rutinas/generar - Generar rutina usando Claude
+router.post('/generar', requireAuth, requireRole('cliente'), async (req, res) => {
+  try {
+    const user = req.session.user;
+    const { tipo_rutina_id, sexo, edad, peso, notas } = req.body;
+
+    // Validar campos requeridos
+    if (!tipo_rutina_id) {
+      return res.status(400).json({ error: 'El tipo de rutina es requerido' });
+    }
+    if (!sexo || (sexo !== 'hombre' && sexo !== 'mujer')) {
+      return res.status(400).json({ error: 'El sexo debe ser "hombre" o "mujer"' });
+    }
+    if (!edad || edad < 12 || edad > 99) {
+      return res.status(400).json({ error: 'La edad debe estar entre 12 y 99 años' });
+    }
+    if (!peso || peso < 20 || peso > 300) {
+      return res.status(400).json({ error: 'El peso debe estar entre 20 y 300 kg' });
+    }
+
+    // Obtener socio_id del usuario
+    const socio = get('SELECT id FROM socios WHERE usuario_id = ?', [user.id]);
+    if (!socio) {
+      return res.status(404).json({ error: 'No tienes un socio asociado' });
+    }
+
+    // Obtener el nombre del tipo de rutina
+    const tipoRutina = get('SELECT nombre FROM tipo_rutina WHERE id = ?', [tipo_rutina_id]);
+    if (!tipoRutina) {
+      return res.status(404).json({ error: 'Tipo de rutina no encontrado' });
+    }
+
+    // Generar rutina con Claude
+    const rutinaData = await generarRutinaPersonalizada(
+      tipoRutina.nombre,
+      sexo,
+      parseInt(edad),
+      parseFloat(peso),
+      notas || ''
+    );
+
+    // Validar que la rutina generada tenga los campos necesarios
+    if (!rutinaData.nombre || !rutinaData.ejercicios || !Array.isArray(rutinaData.ejercicios)) {
+      return res.status(500).json({ error: 'Error: La rutina generada no tiene el formato correcto' });
+    }
+
+    // Convertir ejercicios a JSON string
+    const ejerciciosJson = JSON.stringify(rutinaData.ejercicios);
+
+    // Crear la rutina en la base de datos
+    const result = insert(
+      `INSERT INTO rutinas (socio_id, tipo_rutina_id, nombre, descripcion, ejercicios, fecha_creacion, activa)
+       VALUES (?, ?, ?, ?, ?, datetime('now'), 1)`,
+      [
+        socio.id,
+        tipo_rutina_id,
+        rutinaData.nombre,
+        rutinaData.descripcion || null,
+        ejerciciosJson,
+      ]
+    );
+
+    // Obtener la rutina creada
+    const nuevaRutina = get('SELECT * FROM rutinas WHERE id = ?', [result.lastInsertRowid]);
+
+    res.status(201).json({ data: nuevaRutina });
+  } catch (error) {
+    console.error('Error al generar rutina:', error);
+    
+    // Manejar errores específicos
+    if (error.message.includes('API key')) {
+      return res.status(500).json({ error: 'Error de configuración del servidor. Por favor, contacta al administrador.' });
+    }
+    
+    if (error.message.includes('JSON')) {
+      return res.status(500).json({ error: 'Error al procesar la respuesta del asistente. Por favor, intenta nuevamente.' });
+    }
+
+    res.status(500).json({ error: error.message || 'Error interno del servidor' });
+  }
+});
+
 // GET /api/rutinas/:id - Obtener rutina específica
 router.get('/:id', requireAuth, requireRole('cliente'), (req, res) => {
   try {
@@ -71,7 +154,7 @@ router.get('/:id', requireAuth, requireRole('cliente'), (req, res) => {
 router.post('/', requireAuth, requireRole('cliente'), (req, res) => {
   try {
     const user = req.session.user;
-    const { nombre, descripcion, ejercicios, fecha_inicio, fecha_fin } = req.body;
+    const { nombre, descripcion, ejercicios, fecha_inicio, fecha_fin, tipo_rutina_id } = req.body;
 
     if (!nombre || !nombre.trim()) {
       return res.status(400).json({ error: 'El nombre es requerido' });
@@ -97,10 +180,11 @@ router.post('/', requireAuth, requireRole('cliente'), (req, res) => {
     }
 
     const result = insert(
-      `INSERT INTO rutinas (socio_id, nombre, descripcion, ejercicios, fecha_inicio, fecha_fin, activa)
-       VALUES (?, ?, ?, ?, ?, ?, 1)`,
+      `INSERT INTO rutinas (socio_id, tipo_rutina_id, nombre, descripcion, ejercicios, fecha_inicio, fecha_fin, activa)
+       VALUES (?, ?, ?, ?, ?, ?, ?, 1)`,
       [
         socio.id,
+        tipo_rutina_id || null,
         nombre.trim(),
         descripcion || null,
         ejerciciosJson,
