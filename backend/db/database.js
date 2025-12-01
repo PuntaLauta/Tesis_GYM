@@ -481,6 +481,98 @@ async function initDatabase() {
     }
   }
 
+  // Verificar y crear tabla rutinas
+  let tablaRutinasExiste = false;
+  try {
+    const tables = db.exec("SELECT name FROM sqlite_master WHERE type='table' AND name='rutinas'");
+    tablaRutinasExiste = tables && tables[0] && tables[0].values && tables[0].values.length > 0;
+  } catch (e) {
+    // Error al verificar, asumir que no existe
+  }
+
+  if (!tablaRutinasExiste) {
+    try {
+      db.run(`
+        CREATE TABLE IF NOT EXISTS rutinas (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          socio_id INTEGER NOT NULL,
+          nombre TEXT NOT NULL,
+          descripcion TEXT,
+          ejercicios TEXT NOT NULL,
+          fecha_creacion TEXT DEFAULT (datetime('now')),
+          fecha_inicio TEXT,
+          fecha_fin TEXT,
+          activa INTEGER DEFAULT 1 CHECK(activa IN (0, 1)),
+          FOREIGN KEY (socio_id) REFERENCES socios(id)
+        )
+      `);
+      saveDatabase();
+      console.log('✅ Tabla rutinas creada');
+    } catch (e) {
+      console.log('Advertencia: No se pudo crear tabla rutinas:', e.message);
+    }
+  }
+
+  // Verificar y crear tabla conversaciones_asistente
+  let tablaConversacionesExiste = false;
+  try {
+    const tables = db.exec("SELECT name FROM sqlite_master WHERE type='table' AND name='conversaciones_asistente'");
+    tablaConversacionesExiste = tables && tables[0] && tables[0].values && tables[0].values.length > 0;
+  } catch (e) {
+    // Error al verificar, asumir que no existe
+  }
+
+  if (!tablaConversacionesExiste) {
+    try {
+      db.run(`
+        CREATE TABLE IF NOT EXISTS conversaciones_asistente (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          socio_id INTEGER NOT NULL,
+          tipo TEXT NOT NULL CHECK(tipo IN ('rutina', 'ejercicio', 'asistencia', 'general')),
+          mensaje_usuario TEXT NOT NULL,
+          respuesta_asistente TEXT NOT NULL,
+          metadata TEXT,
+          fecha TEXT DEFAULT (datetime('now')),
+          FOREIGN KEY (socio_id) REFERENCES socios(id)
+        )
+      `);
+      saveDatabase();
+      console.log('✅ Tabla conversaciones_asistente creada');
+    } catch (e) {
+      console.log('Advertencia: No se pudo crear tabla conversaciones_asistente:', e.message);
+    }
+  }
+
+  // Verificar y crear tabla ejercicios_favoritos
+  let tablaEjerciciosFavExiste = false;
+  try {
+    const tables = db.exec("SELECT name FROM sqlite_master WHERE type='table' AND name='ejercicios_favoritos'");
+    tablaEjerciciosFavExiste = tables && tables[0] && tables[0].values && tables[0].values.length > 0;
+  } catch (e) {
+    // Error al verificar, asumir que no existe
+  }
+
+  if (!tablaEjerciciosFavExiste) {
+    try {
+      db.run(`
+        CREATE TABLE IF NOT EXISTS ejercicios_favoritos (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          socio_id INTEGER NOT NULL,
+          nombre_ejercicio TEXT NOT NULL,
+          descripcion TEXT,
+          musculos TEXT,
+          fecha_guardado TEXT DEFAULT (datetime('now')),
+          FOREIGN KEY (socio_id) REFERENCES socios(id),
+          UNIQUE(socio_id, nombre_ejercicio)
+        )
+      `);
+      saveDatabase();
+      console.log('✅ Tabla ejercicios_favoritos creada');
+    } catch (e) {
+      console.log('Advertencia: No se pudo crear tabla ejercicios_favoritos:', e.message);
+    }
+  }
+
   
   return db;
 }

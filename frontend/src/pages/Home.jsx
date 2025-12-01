@@ -4,6 +4,7 @@ import { useAuth } from "../context/AuthContext";
 import { listMine, cancelReservation } from "../services/reservations";
 import { getMySocio, downloadQr } from '../services/socios';
 import { listMyPayments } from '../services/pagos';
+import Chatbox from '../components/Chatbox';
 
 export default function Home() {
   const { user } = useAuth();
@@ -560,6 +561,8 @@ export default function Home() {
               )}
             </>
           )}
+          {/* Chatbox flotante solo para clientes */}
+          {user && user.rol === 'cliente' && <Chatbox />}
         </div>
       ) : (
         <div className="space-y-2">

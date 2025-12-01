@@ -256,7 +256,10 @@ export default function Footer() {
         </div>
 
         <div className="mt-4 pt-4 border-t border-gray-700 text-center text-sm text-gray-400">
-          <p>© 2025 Gestión GYM. Todos los derechos reservados.</p>
+          <p>
+            © 2025 Gestión GYM. Todos los derechos reservados.
+            {user && ` - Rol: ${user.rol}`}
+          </p>
         </div>
       </div>
     </footer>

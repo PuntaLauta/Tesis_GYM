@@ -8,3 +8,5 @@ export const updateConfiguracion = (config) => {
   return api.put('/api/configuracion', config).then(r => r.data);
 };
 
+
+

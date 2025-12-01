@@ -50,6 +50,9 @@ app.use('/api/configuracion', require('./routes/configuracion'));
 app.use('/api/usuarios', require('./routes/usuarios'));
 app.use('/api/instructores', require('./routes/instructores'));
 app.use('/api/backup', require('./routes/backup'));
+app.use('/api/asistente', require('./routes/asistente'));
+app.use('/api/rutinas', require('./routes/rutinas'));
+app.use('/api/ejercicios', require('./routes/ejercicios'));
 
 // 404
 app.use((req, res) => {

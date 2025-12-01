@@ -22,6 +22,8 @@ import Backup from "./pages/Backup";
 import DashboardInstructor from "./pages/DashboardInstructor";
 import GestionInstructores from "./pages/GestionInstructores";
 import ProfileInstructor from "./pages/ProfileInstructor";
+import Asistente from "./pages/Asistente";
+import MisRutinas from "./pages/MisRutinas";
 import NotFound from "./pages/NotFound";
 
 export default function App() {
@@ -116,6 +118,22 @@ export default function App() {
               <ProtectedRoute>
                 <RoleRoute roles={["cliente"]}>
                   <Profile />
+                </RoleRoute>
+              </ProtectedRoute>
+            }/>
+
+            <Route path="/asistente" element={
+              <ProtectedRoute>
+                <RoleRoute roles={["cliente"]}>
+                  <Asistente />
+                </RoleRoute>
+              </ProtectedRoute>
+            }/>
+
+            <Route path="/rutinas" element={
+              <ProtectedRoute>
+                <RoleRoute roles={["cliente"]}>
+                  <MisRutinas />
                 </RoleRoute>
               </ProtectedRoute>
             }/>
