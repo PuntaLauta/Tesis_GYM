@@ -34,7 +34,7 @@ export default function Logo({ size = "md", showLink = true, className = "" }) {
   }
   
   const getLogoLink = () => {
-    if (!user) return "/home";
+    if (!user) return "/";
     if (user.rol === 'cliente') return "/";
     return "/dashboard";
   };
