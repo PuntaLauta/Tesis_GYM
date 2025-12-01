@@ -121,7 +121,7 @@ export default function Navbar() {
             </>
           ) : (
             <>
-              <Link to="/" className="text-sm">Inicio</Link>
+              <Link to={user.rol === 'cliente' ? "/" : "/dashboard"} className="text-sm">Inicio</Link>
               {user.rol === 'root' ? (
                 <>
                   <Link to="/socios" className="text-sm">Socios</Link>
@@ -190,7 +190,7 @@ export default function Navbar() {
               {/* Para admin, root e instructores: solo botón Inicio */}
               {(user.rol === 'admin' || user.rol === 'root' || user.rol === 'instructor') && (
                 <Link
-                  to="/"
+                  to="/dashboard"
                   className="text-sm px-3 py-1.5 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
                   onClick={closeMobileMenu}
                 >

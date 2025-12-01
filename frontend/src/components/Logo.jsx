@@ -33,8 +33,14 @@ export default function Logo({ size = "md", showLink = true, className = "" }) {
     return logoContent;
   }
   
+  const getLogoLink = () => {
+    if (!user) return "/home";
+    if (user.rol === 'cliente') return "/";
+    return "/dashboard";
+  };
+
   return (
-    <Link to={user ? "/" : "/home"} className={`flex flex-col ${finalClassName} hover:opacity-80 transition-opacity`}>
+    <Link to={getLogoLink()} className={`flex flex-col ${finalClassName} hover:opacity-80 transition-opacity`}>
       {logoContent}
     </Link>
   );

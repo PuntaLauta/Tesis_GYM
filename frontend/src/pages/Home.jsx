@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { Link, Navigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { listMine, cancelReservation } from "../services/reservations";
 import { getMySocio, downloadQr } from '../services/socios';
@@ -148,6 +148,11 @@ export default function Home() {
 
   if (!user) {
     return <LandingPage />;
+  }
+
+  // Si el usuario está autenticado pero no es cliente, redirigir a dashboard
+  if (user && user.rol !== 'cliente') {
+    return <Navigate to="/dashboard" replace />;
   }
 
   return (

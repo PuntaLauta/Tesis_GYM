@@ -32,7 +32,7 @@ function DashboardRouter() {
   const { user } = useAuth();
   
   if (!user) {
-    return <Navigate to="/home" replace />;
+    return <Navigate to="/" replace />;
   }
   
   if (user.rol === 'admin') {
@@ -51,7 +51,7 @@ function DashboardRouter() {
     return <Home />;
   }
   
-  return <Navigate to="/home" replace />;
+  return <Navigate to="/" replace />;
 }
 
 export default function App() {
@@ -60,7 +60,8 @@ export default function App() {
       <Navbar />
       <div className="flex-grow">
         <Routes>
-        <Route path="/" element={
+        <Route path="/" element={<Home />} />
+        <Route path="/dashboard" element={
           <ProtectedRoute>
             <DashboardRouter />
           </ProtectedRoute>
