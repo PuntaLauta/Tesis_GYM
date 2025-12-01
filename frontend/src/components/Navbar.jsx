@@ -79,7 +79,7 @@ export default function Navbar() {
         <div className="border-t border-gray-200 my-2 pt-2">
           <button
             onClick={handleLogout}
-            className="text-sm px-3 py-2 bg-gray-900 text-white rounded w-full text-left"
+            className="w-full text-sm px-3 py-2 bg-blue-600 text-white rounded text-left hover:bg-blue-700 transition-colors"
           >
             Cerrar sesión
           </button>
@@ -89,9 +89,11 @@ export default function Navbar() {
   };
 
   return (
-    <nav className="bg-white border-b shadow-sm relative w-full">
-      <div className="w-full px-4 py-3 flex items-center justify-between">
-        <Logo size="md" className="items-start" />
+    <nav className="bg-white border-b border-gray-400 shadow-sm relative w-full">
+      <div className="w-full px-6 py-3 flex items-center justify-between">
+        <div className="flex-shrink-0 mr-4">
+          <Logo size="md" className="items-start" />
+        </div>
 
         {/* Menú Desktop */}
         <div className="hidden md:flex items-center gap-4">
@@ -136,7 +138,12 @@ export default function Navbar() {
               ) : (
                 <>
                   {user.rol === 'cliente' && (
-                    <Link to="/asistente" className="text-sm px-3 py-1.5 bg-black text-white rounded font-semibold">🏋🏻‍♂️ Asistente</Link>
+                    <Link
+                      to="/asistente"
+                      className="px-5 py-2.5 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 shadow-sm transition-colors"
+                    >
+                      🏋🏻‍♂️ Asistente
+                    </Link>
                   )}
                   <Link to="/classes" className="text-sm">Clases</Link>
                   {user.rol === 'cliente' && (
@@ -153,7 +160,10 @@ export default function Navbar() {
                   )}
                 </>
               )}
-              <button onClick={handleLogout} className="text-sm px-3 py-1 bg-gray-900 text-white rounded">
+              <button
+                onClick={handleLogout}
+                className="px-5 py-2.5 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 shadow-sm transition-colors"
+              >
                 Cerrar sesión
               </button>
             </>
@@ -201,7 +211,7 @@ export default function Navbar() {
                   </Link>
                   <Link
                     to="/asistente"
-                    className="text-sm px-3 py-1.5 bg-black text-white rounded font-semibold"
+                    className="text-sm px-3 py-1.5 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
                     onClick={closeMobileMenu}
                   >
                     🏋🏻‍♂️ Asistente
@@ -242,7 +252,7 @@ export default function Navbar() {
             className="fixed inset-0 bg-black bg-opacity-50 z-40 md:hidden"
             onClick={closeMobileMenu}
           />
-          <div className="absolute top-full left-0 right-0 bg-white border-b shadow-lg z-50 md:hidden">
+          <div className="absolute top-full left-0 right-0 bg-white border-b border-gray-400 shadow-lg z-50 md:hidden">
             <div className="px-4 py-4 space-y-1">
               {renderMenuItems()}
             </div>

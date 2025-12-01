@@ -14,7 +14,7 @@ router.get('/', (req, res) => {
         data: {
           nombre: 'Gimnasio',
           telefono: '381 000000',
-          email: 'soporte.am@gmail.com',
+          email: 'fitsense@gmail.com',
           horarios_lunes_viernes: 'Lunes a viernes: 7:00 a 23:00',
           horarios_sabado: 'Sabados: 8:00 a 20:00'
         }

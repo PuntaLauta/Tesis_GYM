@@ -43,7 +43,20 @@ export default function DashboardRoot() {
 
   return (
     <div className="max-w-6xl mx-auto p-6">
-      <h1 className="text-2xl font-bold mb-6 text-center md:text-left">Panel Root</h1>
+      <div className="text-center mb-8 animate-fade-in-up">
+        <p className="text-sm font-semibold text-blue-600 uppercase tracking-wide">
+          Panel principal
+        </p>
+        <h1 className="mt-2 text-3xl sm:text-4xl font-extrabold text-gray-900">
+          Bienvenido a <span className="text-blue-600">FitSense</span>
+        </h1>
+        <p className="mt-3 text-base sm:text-lg text-gray-600 max-w-2xl mx-auto">
+          Controlá la configuración global del sistema, usuarios y planes. Este panel concentra las
+          decisiones estratégicas de tu gimnasio.
+        </p>
+      </div>
+
+      <h2 className="text-xl font-semibold mb-6 text-center md:text-left">Panel Root</h2>
 
       {/* Estadísticas */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6 justify-items-center md:justify-items-stretch">

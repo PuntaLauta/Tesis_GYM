@@ -1,5 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
+import amGym from '../assets/am_gym.jpg';
+import rcGym from '../assets/rc_gym.jpg';
+import titaniumGym from '../assets/titanium_gym.jpg';
 
 const CAROUSEL_IMAGES = [
     "https://images.unsplash.com/photo-1534438327276-14e5300c3a48?q=80&w=1920&auto=format&fit=crop",
@@ -16,6 +19,17 @@ export default function LandingPage() {
     const [isTransitioning, setIsTransitioning] = useState(false);
     const carouselRef = useRef(null);
     const [containerWidth, setContainerWidth] = useState(0);
+
+    const [isContactModalOpen, setIsContactModalOpen] = useState(false);
+    const [isSendingContact, setIsSendingContact] = useState(false);
+    const [contactSent, setContactSent] = useState(false);
+    const [contactForm, setContactForm] = useState({
+        gymName: '',
+        city: '',
+        whatsapp: '',
+        email: '',
+        comment: '',
+    });
 
     useEffect(() => {
         const handleResize = () => {
@@ -38,6 +52,48 @@ export default function LandingPage() {
 
     // Duplicar imágenes para efecto infinito (3 copias)
     const duplicatedImages = [...CAROUSEL_IMAGES, ...CAROUSEL_IMAGES, ...CAROUSEL_IMAGES];
+
+    const gymLogos = [
+        { src: amGym, alt: 'AM Gym' },
+        { src: rcGym, alt: 'RC Gym' },
+        { src: titaniumGym, alt: 'Titanium Salud & Deporte' }
+    ];
+
+    const openContactModal = () => {
+        setIsContactModalOpen(true);
+        setContactSent(false);
+    };
+
+    const closeContactModal = () => {
+        if (isSendingContact) return;
+        setIsContactModalOpen(false);
+    };
+
+    const handleContactChange = (e) => {
+        const { name, value } = e.target;
+        setContactForm((prev) => ({ ...prev, [name]: value }));
+    };
+
+    const handleContactSubmit = (e) => {
+        e.preventDefault();
+        if (isSendingContact) return;
+
+        setIsSendingContact(true);
+
+        // Simular envío \"tonto\" para que parezca que llega a los desarrolladores
+        setTimeout(() => {
+            setIsSendingContact(false);
+            setContactSent(true);
+            // Opcional: limpiar el formulario
+            setContactForm({
+                gymName: '',
+                city: '',
+                whatsapp: '',
+                email: '',
+                comment: '',
+            });
+        }, 1000);
+    };
 
     const nextSlide = () => {
         if (isTransitioning) return;
@@ -209,7 +265,31 @@ export default function LandingPage() {
                         </p>
                     </div>
 
-                    <div className="mt-16">
+                    <div className="mt-16 space-y-10">
+                        {/* Feature destacada: Asistente Virtual con IA */}
+                        <div className="bg-blue-50 border border-blue-200 rounded-2xl shadow-md hover:shadow-xl transition-shadow duration-300 p-8 md:p-10 flex flex-col md:flex-row md:items-center gap-6 animate-fade-in-up delay-150">
+                            <div className="flex items-center justify-center h-16 w-16 rounded-xl bg-blue-600 text-white flex-shrink-0">
+                                <svg className="h-9 w-9" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        strokeWidth={2}
+                                        d="M12 4a4 4 0 014 4v1h1a3 3 0 013 3v2a3 3 0 01-3 3h-1l-2 3-2-3H9a3 3 0 01-3-3v-2a3 3 0 013-3h1V8a4 4 0 014-4z"
+                                    />
+                                </svg>
+                            </div>
+                            <div className="text-left">
+                                <h3 className="text-xl md:text-2xl font-semibold text-gray-900">
+                                    Asistente Virtual con IA
+                                </h3>
+                                <p className="mt-3 text-base md:text-lg text-gray-700 max-w-3xl">
+                                    Chat integrado en el sistema que responde dudas sobre ejercicios, corrige técnica, sugiere rutinas
+                                    y acompaña a tus socios 24/7 usando inteligencia artificial de última generación.
+                                </p>
+                            </div>
+                        </div>
+
+                        {/* Grid de características principales */}
                         <div className="grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-3">
                             {/* Feature 1: Gestión de Socios */}
                             <div className="bg-white rounded-lg shadow-sm hover:shadow-lg transition-shadow duration-300 p-8 animate-fade-in-up delay-100">
@@ -293,46 +373,181 @@ export default function LandingPage() {
                 </div>
             </section>
 
-            {/* Contact Section */}
-            <section id="contactar-ventas" className="bg-white py-16 border-t border-gray-200">
+            {/* Contact Section - Trabajan con nosotros */}
+            <section id="contactar-ventas" className="bg-blue-600 py-16">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-                    <h2 className="text-3xl font-extrabold text-gray-900 sm:text-4xl mb-4">
-                        ¿Te gusta lo que ves?
-                    </h2>
-                    <p className="text-xl text-gray-500 mb-8 max-w-2xl mx-auto">
-                        Pongámonos en contacto para implementar esta solución en tu gimnasio.
-                        Personalizamos la experiencia para adaptarnos a tus necesidades.
-                    </p>
-                    <div className="flex justify-center">
-                        <a
-                            href="mailto:ventas@gestiongym.com"
-                            className="inline-flex items-center justify-center px-8 py-3 border border-transparent text-base font-medium rounded-md text-white bg-green-600 hover:bg-green-700 md:py-4 md:text-lg transition-colors shadow-lg hover:shadow-xl"
-                        >
-                            Contactar Ventas
-                        </a>
+                    {/* Bloque de gimnasios que usan el sistema */}
+                    <div className="mt-4">
+                        <h3 className="text-2xl md:text-3xl font-extrabold text-white text-center">
+                            Trabajan con nosotros
+                        </h3>
+                        <p className="mt-3 max-w-3xl mx-auto text-base md:text-lg text-blue-100 text-center">
+                            Marcas que ya confían en FitSense para gestionar sus socios, pagos y entrenamientos de forma inteligente.
+                            Nuestro sistema se adapta al tamaño de tu gimnasio y a todas tus necesidades
+                        </p>
+
+                        <div className="mt-8 flex flex-wrap justify-center gap-8 md:gap-12">
+                            {gymLogos.map((logo, index) => (
+                                <img
+                                    key={logo.alt + index}
+                                    src={logo.src}
+                                    alt={logo.alt}
+                                    className="h-12 md:h-16 opacity-60 grayscale hover:opacity-100 hover:grayscale-0 hover:scale-105 transition-all duration-200"
+                                />
+                            ))}
+                        </div>
+
+                        <p className="mt-4 text-sm text-blue-100 text-center">
+                            Y otros gimnasios independientes.
+                        </p>
                     </div>
                 </div>
             </section>
 
-            {/* CTA Section */}
-            <section className="bg-blue-700">
-                <div className="max-w-7xl mx-auto py-12 px-4 sm:px-6 lg:py-16 lg:px-8 lg:flex lg:items-center lg:justify-between">
-                    <h2 className="text-3xl font-extrabold tracking-tight text-white sm:text-4xl">
-                        <span className="block">¿Listo para empezar?</span>
-                        <span className="block text-blue-200">Únete a la comunidad hoy mismo.</span>
-                    </h2>
+            {/* CTA Section - último bloque antes del footer */}
+            <section className="bg-white py-16">
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 lg:flex lg:items-center lg:justify-between">
+                    <div>
+                        <h2 className="text-3xl font-extrabold tracking-tight text-gray-900 sm:text-4xl">
+                            <span className="block">¿Listo para empezar?</span>
+                            <span className="block text-blue-600">Únete a la comunidad hoy mismo.</span>
+                        </h2>
+                        <p className="mt-4 max-w-xl text-base sm:text-lg md:text-xl text-gray-600">
+                            Pongámonos en contacto para implementar esta solución en tu gimnasio. Personalizamos la experiencia
+                            para adaptarnos a tus necesidades.
+                        </p>
+                    </div>
                     <div className="mt-8 flex lg:mt-0 lg:flex-shrink-0">
                         <div className="inline-flex rounded-md shadow">
-                            <Link
-                                to="/login"
-                                className="inline-flex items-center justify-center px-5 py-3 border border-transparent text-base font-medium rounded-md text-blue-600 bg-white hover:bg-blue-50 transition-colors"
+                            <button
+                                type="button"
+                                onClick={openContactModal}
+                                className="inline-flex items-center justify-center px-5 py-3 border border-transparent text-base font-medium rounded-md bg-blue-600 text-white hover:bg-blue-700 transition-colors"
                             >
-                                Iniciar Sesión
-                            </Link>
+                                Contactar Ventas
+                            </button>
                         </div>
                     </div>
                 </div>
             </section>
+
+            {/* Modal de contacto \"tonto\" para desarrolladores */}
+            {isContactModalOpen && (
+                <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/50 px-4">
+                    <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6 relative">
+                        <button
+                            type="button"
+                            onClick={closeContactModal}
+                            className="absolute top-3 right-3 text-gray-400 hover:text-gray-600"
+                            aria-label="Cerrar"
+                        >
+                            ×
+                        </button>
+
+                        {!contactSent ? (
+                            <>
+                                <h3 className="text-xl font-bold text-gray-900 mb-1">
+                                    Contactar Ventas
+                                </h3>
+                                <p className="text-sm text-gray-500 mb-4">
+                                    Completá tus datos y serás contactado por nosotros a la brevedad.
+                                </p>
+
+                                <form onSubmit={handleContactSubmit} className="space-y-3">
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                                            Nombre del gimnasio
+                                        </label>
+                                        <input
+                                            type="text"
+                                            name="gymName"
+                                            value={contactForm.gymName}
+                                            onChange={handleContactChange}
+                                            className="w-full border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                            required
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                                            Ciudad
+                                        </label>
+                                        <input
+                                            type="text"
+                                            name="city"
+                                            value={contactForm.city}
+                                            onChange={handleContactChange}
+                                            className="w-full border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                            required
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                                            WhatsApp
+                                        </label>
+                                        <input
+                                            type="text"
+                                            name="whatsapp"
+                                            value={contactForm.whatsapp}
+                                            onChange={handleContactChange}
+                                            className="w-full border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                            required
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                                            Email
+                                        </label>
+                                        <input
+                                            type="email"
+                                            name="email"
+                                            value={contactForm.email}
+                                            onChange={handleContactChange}
+                                            className="w-full border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                                            Comentario
+                                        </label>
+                                        <textarea
+                                            name="comment"
+                                            value={contactForm.comment}
+                                            onChange={handleContactChange}
+                                            rows={3}
+                                            className="w-full border rounded-md px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                        />
+                                    </div>
+
+                                    <button
+                                        type="submit"
+                                        disabled={isSendingContact}
+                                        className="mt-2 w-full inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
+                                    >
+                                        {isSendingContact ? 'Enviando...' : 'Enviar consulta'}
+                                    </button>
+                                </form>
+                            </>
+                        ) : (
+                            <div className="text-center py-4">
+                                <h3 className="text-xl font-bold text-gray-900 mb-2">
+                                    ¡Consulta enviada!
+                                </h3>
+                                <p className="text-sm text-gray-600 mb-4">
+                                    Gracias por tu interés. Tu mensaje se ha registrado y fue enviado al equipo.
+                                    Serás contactado en breve.
+                                </p>
+                                <button
+                                    type="button"
+                                    onClick={closeContactModal}
+                                    className="inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md bg-blue-600 text-white hover:bg-blue-700 transition-colors"
+                                >
+                                    Cerrar
+                                </button>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

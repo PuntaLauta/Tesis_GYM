@@ -14,14 +14,14 @@ export default function ChatMessage({ mensaje, esUsuario, fecha }) {
         className={`max-w-[80%] rounded-lg p-3 ${
           esUsuario
             ? 'bg-blue-600 text-white'
-            : 'bg-gray-200 text-gray-800'
+            : 'bg-[#0b1533] text-blue-50'
         }`}
       >
         <div className="whitespace-pre-wrap break-words">{mensaje}</div>
         {fecha && (
           <div
             className={`text-xs mt-1 ${
-              esUsuario ? 'text-blue-100' : 'text-gray-500'
+              esUsuario ? 'text-blue-100' : 'text-blue-200'
             }`}
           >
             {formatFecha(fecha)}

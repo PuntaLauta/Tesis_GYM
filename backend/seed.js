@@ -74,6 +74,9 @@ async function seed() {
   // Luego eliminar usuarios demo
   run("DELETE FROM usuarios WHERE email LIKE '%@demo.com' OR email LIKE '%@clientes.com'");
 
+  // Asegurar que los usuarios especiales (admin/root) no se dupliquen si el seed se ejecuta varias veces
+  run("DELETE FROM usuarios WHERE email IN ('admin@gym.com', 'root@gym.com')");
+
   // Insertar usuarios demo y obtener sus IDs
   const juanUsuario = insert(
     `INSERT INTO usuarios (nombre, email, pass_hash, rol) VALUES (?, ?, ?, ?)`,
@@ -288,7 +291,7 @@ async function seed() {
   if (configExistente.length === 0) {
     insert(
       'INSERT INTO configuracion_gym (id, nombre, telefono, email, horarios_lunes_viernes, horarios_sabado) VALUES (?, ?, ?, ?, ?, ?)',
-      [1, 'Gimnasio', '381 000000', 'soporte.am@gmail.com', 'Lunes a viernes: 7:00 a 23:00', 'Sabados: 8:00 a 20:00']
+      [1, 'Gimnasio', '381 000000', 'fitsense@gmail.com', 'Lunes a viernes: 7:00 a 23:00', 'Sabados: 8:00 a 20:00']
     );
   }
 

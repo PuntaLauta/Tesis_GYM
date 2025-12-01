@@ -152,7 +152,18 @@ export default function Home() {
 
   return (
     <div className="max-w-4xl mx-auto p-6">
-      <h1 className="text-2xl font-bold mb-4">Bienvenido a Gestión GYM</h1>
+      {user.rol === 'cliente' && (
+        <div className="text-center mb-8 animate-fade-in-up">
+          <p className="text-sm font-semibold text-blue-600 uppercase tracking-wide">Tu panel personal</p>
+          <h1 className="mt-2 text-3xl sm:text-4xl font-extrabold text-gray-900">
+            Bienvenido a <span className="text-blue-600">FitSense</span>
+          </h1>
+          <p className="mt-3 text-base sm:text-lg text-gray-600 max-w-2xl mx-auto">
+            Gestioná tus reservas, pagos y rutinas desde un solo lugar. Mantente al día con tu membresía
+            y accedé a tu asistente virtual cuando lo necesites.
+          </p>
+        </div>
+      )}
       {user.rol === 'cliente' ? (
         <div className="space-y-6">
           {loadingSocio ? (

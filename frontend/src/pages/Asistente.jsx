@@ -216,14 +216,14 @@ export default function Asistente() {
       </div>
 
       {/* Área de chat */}
-      <div className="bg-white border rounded-lg shadow-sm mb-4" style={{ height: '500px' }}>
-        <div className="p-4 h-full overflow-y-auto" style={{ scrollBehavior: 'smooth' }}>
+      <div className="bg-[#b9b9b9] border border-gray-400 rounded-lg shadow-sm mb-4" style={{ height: '500px' }}>
+        <div className="p-4 h-full overflow-y-auto text-gray-900" style={{ scrollBehavior: 'smooth' }}>
           {mensajes.length === 0 ? (
-            <div className="text-center text-gray-500 mt-8">
+            <div className="text-center text-gray-700 mt-8">
               <p className="text-lg mb-2">¡Hola! 👋</p>
               <p>Soy tu asistente virtual de entrenamiento.</p>
               <p className="mt-2">Puedo ayudarte a crear rutinas, consultar ejercicios o resolver dudas.</p>
-              <p className="mt-4 text-sm">Usa los botones de arriba o escribe tu pregunta directamente.</p>
+              <p className="mt-4 text-sm text-gray-600">Usa los botones de arriba o escribe tu pregunta directamente.</p>
             </div>
           ) : (
             mensajes.map((msg, index) => (
@@ -255,7 +255,7 @@ export default function Asistente() {
           )}
           {loading && (
             <div className="flex justify-start mb-4">
-              <div className="bg-gray-200 rounded-lg p-3">
+              <div className="bg-white rounded-lg p-3">
                 <div className="flex gap-1">
                   <div className="w-2 h-2 bg-gray-500 rounded-full animate-bounce"></div>
                   <div className="w-2 h-2 bg-gray-500 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>

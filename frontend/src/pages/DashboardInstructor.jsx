@@ -150,7 +150,20 @@ export default function DashboardInstructor() {
 
   return (
     <div className="max-w-6xl mx-auto p-6">
-      <h1 className="text-2xl font-bold mb-6">Dashboard Instructor</h1>
+      <div className="text-center mb-8 animate-fade-in-up">
+        <p className="text-sm font-semibold text-blue-600 uppercase tracking-wide">
+          Panel de instructor
+        </p>
+        <h1 className="mt-2 text-3xl sm:text-4xl font-extrabold text-gray-900">
+          Bienvenido a <span className="text-blue-600">FitSense</span>
+        </h1>
+        <p className="mt-3 text-base sm:text-lg text-gray-600 max-w-2xl mx-auto">
+          Organizá tus clases, revisá la ocupación y acompañá a tus alumnos desde un solo panel,
+          manteniendo tus horarios y grupos siempre claros.
+        </p>
+      </div>
+
+      <h2 className="text-xl font-bold mb-6">Dashboard Instructor</h2>
 
       {/* Información del Instructor */}
       {instructor && (

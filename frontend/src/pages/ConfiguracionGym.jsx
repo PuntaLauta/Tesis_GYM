@@ -128,7 +128,7 @@ export default function ConfiguracionGym() {
               value={formData.email}
               onChange={(e) => setFormData({ ...formData, email: e.target.value })}
               className="w-full border rounded px-3 py-2"
-              placeholder="soporte.am@gmail.com"
+              placeholder="fitsense@gmail.com"
             />
           </div>
 
