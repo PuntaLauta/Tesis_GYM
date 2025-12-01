@@ -1,187 +1,183 @@
-import { useState, useEffect, useRef } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { sendMessage, getConversaciones, deleteAllConversaciones } from '../services/asistente';
-import { createRutina } from '../services/rutinas';
-import ChatMessage from '../components/ChatMessage';
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { listRutinas, generarRutina } from '../services/rutinas';
+import { listTipoRutinas } from '../services/tipoRutina';
 
 export default function Asistente() {
-  const [mensajes, setMensajes] = useState([]);
-  const [inputMensaje, setInputMensaje] = useState('');
-  const [tipo, setTipo] = useState('general');
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-  const chatEndRef = useRef(null);
   const navigate = useNavigate();
-
-  const [isInitialLoad, setIsInitialLoad] = useState(true);
-  const [rutinaDataActual, setRutinaDataActual] = useState(null);
-  const [mostrarModalRutina, setMostrarModalRutina] = useState(false);
-  const [guardandoRutina, setGuardandoRutina] = useState(false);
-  const [rutinaForm, setRutinaForm] = useState({ nombre: '', descripcion: '' });
-  const [mostrarModalLimpiar, setMostrarModalLimpiar] = useState(false);
-  const [limpiandoChat, setLimpiandoChat] = useState(false);
+  const [rutinas, setRutinas] = useState([]);
+  const [loadingRutinas, setLoadingRutinas] = useState(true);
+  const [mostrarModalCrearRutina, setMostrarModalCrearRutina] = useState(false);
+  const [tipoRutinas, setTipoRutinas] = useState([]);
+  const [loadingTipoRutinas, setLoadingTipoRutinas] = useState(false);
+  const [formData, setFormData] = useState({
+    tipo_rutina_id: '',
+    sexo: '',
+    edad: '',
+    peso: '',
+    notas: ''
+  });
+  const [error, setError] = useState('');
+  const [errorModal, setErrorModal] = useState('');
+  const [generandoRutina, setGenerandoRutina] = useState(false);
 
   useEffect(() => {
-    loadConversaciones();
+    loadRutinas();
+    loadTipoRutinas();
   }, []);
 
-  useEffect(() => {
-    // Solo hacer scroll automático si no es la carga inicial y hay mensajes nuevos
-    if (!isInitialLoad && mensajes.length > 0) {
-      // Pequeño delay para asegurar que el DOM se actualizó
-      setTimeout(() => {
-        scrollToBottom();
-      }, 100);
-    }
-  }, [mensajes, isInitialLoad]);
-
-  const scrollToBottom = () => {
-    if (chatEndRef.current) {
-      chatEndRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  const loadRutinas = async () => {
+    setLoadingRutinas(true);
+    setError('');
+    try {
+      // Solo cargar rutinas activas
+      const data = await listRutinas({ activa: true });
+      setRutinas(data.data || []);
+    } catch (err) {
+      console.error('Error al cargar rutinas:', err);
+      setError(err.response?.data?.error || 'Error al cargar rutinas');
+    } finally {
+      setLoadingRutinas(false);
     }
   };
 
-  const loadConversaciones = async () => {
+  const loadTipoRutinas = async () => {
+    setLoadingTipoRutinas(true);
     try {
-      const data = await getConversaciones({ limit: 20 });
-      const conversaciones = data.data || [];
+      const data = await listTipoRutinas();
+      setTipoRutinas(data.data || []);
+    } catch (err) {
+      console.error('Error al cargar tipos de rutina:', err);
+    } finally {
+      setLoadingTipoRutinas(false);
+    }
+  };
+
+  const formatFecha = (fechaStr) => {
+    if (!fechaStr) return 'No especificada';
+    const fecha = new Date(fechaStr);
+    return fecha.toLocaleDateString('es-ES', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    });
+  };
+
+  const handleCrearRutina = () => {
+    setFormData({
+      tipo_rutina_id: '',
+      sexo: '',
+      edad: '',
+      peso: '',
+      notas: ''
+    });
+    setErrorModal('');
+    setMostrarModalCrearRutina(true);
+  };
+
+  const handleSubmitCrearRutina = async (e) => {
+    e.preventDefault();
+    setErrorModal('');
+    setGenerandoRutina(true);
+
+    try {
+      // Validar que todos los campos requeridos estén completos
+      if (!formData.tipo_rutina_id || !formData.sexo || !formData.edad || !formData.peso) {
+        setErrorModal('Por favor, complete todos los campos obligatorios');
+        setGenerandoRutina(false);
+        return;
+      }
+
+      // Validar rangos
+      const edadNum = parseInt(formData.edad);
+      const pesoNum = parseFloat(formData.peso);
       
-      // Convertir conversaciones a formato de mensajes
-      const mensajesFormateados = [];
-      conversaciones.forEach((conv) => {
-        mensajesFormateados.push({
-          mensaje: conv.mensaje_usuario,
-          esUsuario: true,
-          fecha: conv.fecha,
-          rutinaData: null,
-        });
-        mensajesFormateados.push({
-          mensaje: conv.respuesta_asistente,
-          esUsuario: false,
-          fecha: conv.fecha,
-          rutinaData: conv.rutinaData || null,
-        });
+      if (edadNum < 12 || edadNum > 99) {
+        setErrorModal('La edad debe estar entre 12 y 99 años');
+        setGenerandoRutina(false);
+        return;
+      }
+
+      if (pesoNum < 20 || pesoNum > 300) {
+        setErrorModal('El peso debe estar entre 20 y 300 kg');
+        setGenerandoRutina(false);
+        return;
+      }
+
+      // Llamar al endpoint para generar la rutina
+      const response = await generarRutina({
+        tipo_rutina_id: formData.tipo_rutina_id,
+        sexo: formData.sexo,
+        edad: edadNum,
+        peso: pesoNum,
+        notas: formData.notas.trim() || undefined
+      });
+
+      // Si es exitoso, cerrar modal, limpiar formulario y recargar lista
+      setMostrarModalCrearRutina(false);
+      setFormData({
+        tipo_rutina_id: '',
+        sexo: '',
+        edad: '',
+        peso: '',
+        notas: ''
       });
       
-      setMensajes(mensajesFormateados);
-      setIsInitialLoad(false);
+      // Recargar la lista de rutinas
+      await loadRutinas();
     } catch (err) {
-      console.error('Error al cargar conversaciones:', err);
-      setIsInitialLoad(false);
-    }
-  };
-
-  const handleEnviar = async (mensajeTexto = null, tipoMensaje = null) => {
-    const mensajeFinal = mensajeTexto || inputMensaje.trim();
-    const tipoFinal = tipoMensaje || tipo;
-
-    if (!mensajeFinal) return;
-
-    // Agregar mensaje del usuario inmediatamente
-    const nuevoMensajeUsuario = {
-      mensaje: mensajeFinal,
-      esUsuario: true,
-      fecha: new Date().toISOString(),
-    };
-    setMensajes((prev) => [...prev, nuevoMensajeUsuario]);
-    setInputMensaje('');
-    setLoading(true);
-    setError('');
-
-    try {
-      const response = await sendMessage(mensajeFinal, tipoFinal);
-      const respuesta = response.data;
-
-      // Agregar respuesta del asistente
-      const nuevoMensajeAsistente = {
-        mensaje: respuesta.respuesta_asistente,
-        esUsuario: false,
-        fecha: respuesta.fecha,
-        rutinaData: respuesta.rutinaData || null,
-      };
-      setMensajes((prev) => [...prev, nuevoMensajeAsistente]);
-      
-      // Si hay rutinaData, preparar el formulario
-      if (respuesta.rutinaData) {
-        setRutinaDataActual(respuesta.rutinaData);
-        setRutinaForm({
-          nombre: respuesta.rutinaData.nombre || '',
-          descripcion: respuesta.rutinaData.descripcion || '',
-        });
-      }
-      
-      // Hacer scroll después de agregar la respuesta
-      setTimeout(() => {
-        scrollToBottom();
-      }, 100);
-    } catch (err) {
-      console.error('Error al enviar mensaje:', err);
-      setError(err.response?.data?.error || 'Error al enviar el mensaje');
-      // Remover el mensaje del usuario si falló
-      setMensajes((prev) => prev.filter((m, i) => i !== prev.length - 1));
+      console.error('Error al generar rutina:', err);
+      setErrorModal(err.response?.data?.error || 'Error al generar la rutina. Por favor, intenta nuevamente.');
     } finally {
-      setLoading(false);
+      setGenerandoRutina(false);
     }
   };
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    handleEnviar();
-  };
-
-  const handleBotonRapido = (tipoBoton, mensaje) => {
-    setTipo(tipoBoton);
-    handleEnviar(mensaje, tipoBoton);
-  };
-
-  const handleGuardarRutina = async () => {
-    if (!rutinaDataActual) return;
-
-    setGuardandoRutina(true);
-    try {
-      const rutinaData = {
-        nombre: rutinaForm.nombre || rutinaDataActual.nombre,
-        descripcion: rutinaForm.descripcion || rutinaDataActual.descripcion,
-        ejercicios: JSON.stringify(rutinaDataActual.ejercicios),
-      };
-
-      await createRutina(rutinaData);
-      setMostrarModalRutina(false);
-      setRutinaDataActual(null);
-      alert('¡Rutina guardada exitosamente! Puedes verla en "Mis Rutinas".');
-    } catch (err) {
-      console.error('Error al guardar rutina:', err);
-      alert(err.response?.data?.error || 'Error al guardar la rutina');
-    } finally {
-      setGuardandoRutina(false);
-    }
-  };
-
-  const handleLimpiarChat = async () => {
-    setLimpiandoChat(true);
-    try {
-      await deleteAllConversaciones();
-      setMensajes([]);
-      setMostrarModalLimpiar(false);
-      setIsInitialLoad(true);
-    } catch (err) {
-      console.error('Error al limpiar chat:', err);
-      alert(err.response?.data?.error || 'Error al limpiar el chat');
-    } finally {
-      setLimpiandoChat(false);
-    }
+  const handleConsultarRutina = (rutina) => {
+    navigate(`/rutinas/${rutina.id}`);
   };
 
   return (
     <div className="max-w-4xl mx-auto p-6">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">Asistente Virtual de Entrenamiento</h1>
-        <Link
-          to="/rutinas"
-          className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+      <h1 className="text-2xl font-bold mb-6">Asistente Virtual de Entrenamiento</h1>
+
+      {/* Card informativa */}
+      <div className="bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 border-2 border-blue-200 rounded-xl shadow-lg p-6 mb-6">
+        <div className="flex flex-wrap items-center gap-3 mb-4">
+          <span className="px-3 py-1 bg-gradient-to-r from-purple-600 to-indigo-600 text-white text-xs font-bold rounded-full uppercase tracking-wide shadow-sm">
+            🤖 Powered by IA
+          </span>
+          <span className="px-3 py-1 bg-gradient-to-r from-orange-500 to-red-500 text-white text-xs font-bold rounded-full uppercase tracking-wide shadow-sm">
+            BETA
+          </span>
+        </div>
+        
+        <h2 className="text-xl font-bold text-gray-800 mb-3">
+          Crea rutinas personalizadas con Inteligencia Artificial
+        </h2>
+        
+        <p className="text-gray-700 mb-4 leading-relaxed">
+          Nuestro asistente virtual utiliza IA avanzada para generar rutinas de entrenamiento completamente personalizadas según tu perfil. 
+          Solo necesitas completar un breve formulario con tu información y el sistema diseñará una rutina adaptada a tus necesidades, 
+          incluyendo ejercicios específicos, series, repeticiones y tiempos de descanso.
+        </p>
+        
+        <div className="bg-white/60 rounded-lg p-4 mb-4 border border-blue-100">
+          <p className="text-sm text-gray-700 font-medium mb-2">✨ Características:</p>
+          <ul className="text-sm text-gray-600 space-y-1 list-disc list-inside">
+            <li>Rutinas adaptadas a tu edad, peso y sexo</li>
+            <li>Considera limitaciones médicas o físicas</li>
+            <li>Consulta sobre ejercicios con nuestro asistente IA</li>
+            <li>Rutinas guardadas y accesibles en cualquier momento</li>
+          </ul>
+        </div>
+        
+        <button
+          onClick={handleCrearRutina}
+          className="w-full md:w-auto px-8 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-semibold rounded-lg hover:from-blue-700 hover:to-indigo-700 transition-all shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
         >
-          Mis Rutinas
-        </Link>
+          🚀 Crear Nueva Rutina
+        </button>
       </div>
 
       {error && (
@@ -190,218 +186,182 @@ export default function Asistente() {
         </div>
       )}
 
-      {/* Botones rápidos */}
-      <div className="mb-4 flex gap-2 flex-wrap">
-        <button
-          onClick={() => handleBotonRapido('rutina', 'Quiero crear una rutina para principiantes')}
-          disabled={loading}
-          className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition-colors disabled:opacity-50"
-        >
-          💪 Crear Rutina
-        </button>
-        <button
-          onClick={() => handleBotonRapido('ejercicio', '¿Cómo hacer sentadillas?')}
-          disabled={loading}
-          className="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 transition-colors disabled:opacity-50"
-        >
-          📚 Consultar Ejercicio
-        </button>
-        <button
-          onClick={() => handleBotonRapido('asistencia', 'Necesito ayuda con mi entrenamiento')}
-          disabled={loading}
-          className="px-4 py-2 bg-orange-600 text-white rounded hover:bg-orange-700 transition-colors disabled:opacity-50"
-        >
-          🤝 Necesito Ayuda
-        </button>
-      </div>
+      {/* Título de sección */}
+      <h2 className="text-2xl font-bold mb-4 mt-8">Mis Rutinas</h2>
 
-      {/* Área de chat */}
-      <div className="bg-[#b9b9b9] border border-gray-400 rounded-lg shadow-sm mb-4" style={{ height: '500px' }}>
-        <div className="p-4 h-full overflow-y-auto text-gray-900" style={{ scrollBehavior: 'smooth' }}>
-          {mensajes.length === 0 ? (
-            <div className="text-center text-gray-700 mt-8">
-              <p className="text-lg mb-2">¡Hola! 👋</p>
-              <p>Soy tu asistente virtual de entrenamiento.</p>
-              <p className="mt-2">Puedo ayudarte a crear rutinas, consultar ejercicios o resolver dudas.</p>
-              <p className="mt-4 text-sm text-gray-600">Usa los botones de arriba o escribe tu pregunta directamente.</p>
-            </div>
-          ) : (
-            mensajes.map((msg, index) => (
-              <div key={index}>
-                <ChatMessage
-                  mensaje={msg.mensaje}
-                  esUsuario={msg.esUsuario}
-                  fecha={msg.fecha}
-                />
-                {!msg.esUsuario && msg.rutinaData && (
-                  <div className="flex justify-start mb-4">
-                    <button
-                      onClick={() => {
-                        setRutinaDataActual(msg.rutinaData);
-                        setRutinaForm({
-                          nombre: msg.rutinaData.nombre || '',
-                          descripcion: msg.rutinaData.descripcion || '',
-                        });
-                        setMostrarModalRutina(true);
-                      }}
-                      className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition-colors text-sm"
-                    >
-                      💾 Guardar Rutina
-                    </button>
+      {/* Listado de rutinas */}
+      {loadingRutinas ? (
+        <div className="text-center py-8 text-gray-500">Cargando rutinas...</div>
+      ) : rutinas.length === 0 ? (
+        <div className="text-center py-12 bg-white rounded-lg shadow p-8">
+          <p className="text-gray-600 text-lg mb-4">
+            No se encontraron rutinas. Haz click en 'Crear Nueva Rutina' arriba para comenzar 💪
+          </p>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {rutinas.map((rutina) => (
+            <div
+              key={rutina.id}
+              onClick={() => handleConsultarRutina(rutina)}
+              className="group bg-white p-4 rounded-lg shadow w-full cursor-pointer hover:shadow-lg hover:border-blue-300 border-2 border-transparent transition-all duration-200"
+            >
+              <div className="flex flex-col md:flex-row justify-between items-start gap-4">
+                <div className="flex-1 min-w-0 w-full md:w-auto">
+                  <h3 className="font-bold text-lg">{rutina.nombre}</h3>
+                  <div className="text-sm text-gray-600 mt-1">
+                    Creada: {formatFecha(rutina.fecha_creacion)}
                   </div>
-                )}
-              </div>
-            ))
-          )}
-          {loading && (
-            <div className="flex justify-start mb-4">
-              <div className="bg-white rounded-lg p-3">
-                <div className="flex gap-1">
-                  <div className="w-2 h-2 bg-gray-500 rounded-full animate-bounce"></div>
-                  <div className="w-2 h-2 bg-gray-500 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
-                  <div className="w-2 h-2 bg-gray-500 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                </div>
+                <div className="flex items-center ml-auto md:ml-4">
+                  <span className="text-blue-600 text-4xl transition-transform duration-200 group-hover:-rotate-45">
+                    →
+                  </span>
                 </div>
               </div>
             </div>
-          )}
-          <div ref={chatEndRef} />
+          ))}
         </div>
-      </div>
+      )}
 
-      {/* Input de mensaje */}
-      <form onSubmit={handleSubmit} className="flex gap-2 mb-2">
-        <input
-          type="text"
-          value={inputMensaje}
-          onChange={(e) => setInputMensaje(e.target.value)}
-          placeholder="Escribe tu mensaje..."
-          disabled={loading}
-          className="flex-1 px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
-        />
-        <button
-          type="submit"
-          disabled={loading || !inputMensaje.trim()}
-          className="px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors disabled:opacity-50"
-        >
-          Enviar
-        </button>
-      </form>
-
-      {/* Botón limpiar chat */}
-      <div className="text-center">
-        <button
-          onClick={() => setMostrarModalLimpiar(true)}
-          disabled={mensajes.length === 0 || loading}
-          className="text-blue-600 hover:text-blue-800 underline text-sm disabled:text-gray-400 disabled:no-underline disabled:cursor-not-allowed"
-        >
-          Limpiar chat
-        </button>
-      </div>
-
-      {/* Modal para guardar rutina */}
-      {mostrarModalRutina && rutinaDataActual && (
+      {/* Modal de Crear Rutina */}
+      {mostrarModalCrearRutina && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
-            <h3 className="text-xl font-semibold mb-4">Guardar Rutina</h3>
+            <h3 className="text-xl font-semibold mb-4">Crear Nueva Rutina</h3>
             
-            <div className="space-y-4">
+            {errorModal && (
+              <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+                {errorModal}
+              </div>
+            )}
+
+            {generandoRutina && (
+              <div className="bg-blue-50 border border-blue-200 text-blue-700 px-4 py-3 rounded mb-4">
+                <p>Generando tu rutina personalizada... Esto puede tomar unos momentos.</p>
+              </div>
+            )}
+            
+            <form onSubmit={handleSubmitCrearRutina} className="space-y-4">
+              {/* Tipo de Rutina */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Nombre de la rutina *
+                  Tipo de Rutina *
+                </label>
+                <select
+                  value={formData.tipo_rutina_id}
+                  onChange={(e) => setFormData({ ...formData, tipo_rutina_id: e.target.value })}
+                  className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  required
+                  disabled={loadingTipoRutinas}
+                >
+                  <option value="">Seleccione un tipo</option>
+                  {tipoRutinas.map((tipo) => (
+                    <option key={tipo.id} value={tipo.id}>
+                      {tipo.nombre}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Sexo */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Sexo *
+                </label>
+                <select
+                  value={formData.sexo}
+                  onChange={(e) => setFormData({ ...formData, sexo: e.target.value })}
+                  className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  required
+                >
+                  <option value="">Seleccione</option>
+                  <option value="hombre">Hombre</option>
+                  <option value="mujer">Mujer</option>
+                </select>
+              </div>
+
+              {/* Edad */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Edad *
                 </label>
                 <input
-                  type="text"
-                  value={rutinaForm.nombre}
-                  onChange={(e) => setRutinaForm({ ...rutinaForm, nombre: e.target.value })}
+                  type="number"
+                  min="12"
+                  max="99"
+                  value={formData.edad}
+                  onChange={(e) => setFormData({ ...formData, edad: e.target.value })}
                   className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   required
                 />
               </div>
 
+              {/* Peso */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Descripción
+                  Peso (kg) *
                 </label>
-                <textarea
-                  value={rutinaForm.descripcion}
-                  onChange={(e) => setRutinaForm({ ...rutinaForm, descripcion: e.target.value })}
+                <input
+                  type="number"
+                  min="20"
+                  max="300"
+                  step="0.1"
+                  value={formData.peso}
+                  onChange={(e) => setFormData({ ...formData, peso: e.target.value })}
                   className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  rows="3"
+                  required
                 />
               </div>
 
+              {/* Notas */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Ejercicios ({rutinaDataActual.ejercicios?.length || 0})
-                </label>
-                <div className="bg-gray-50 p-4 rounded-lg max-h-60 overflow-y-auto">
-                  {rutinaDataActual.ejercicios?.map((ejercicio, idx) => (
-                    <div key={idx} className="mb-3 pb-3 border-b last:border-b-0">
-                      <p className="font-semibold">{ejercicio.nombre}</p>
-                      <p className="text-sm text-gray-600">
-                        {ejercicio.series} series x {ejercicio.repeticiones} repeticiones
-                        {ejercicio.descanso && ` - Descanso: ${ejercicio.descanso}`}
-                      </p>
-                      {ejercicio.notas && (
-                        <p className="text-xs text-gray-500 mt-1">{ejercicio.notas}</p>
-                      )}
-                    </div>
-                  ))}
+                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-2">
+                  <p className="text-sm text-yellow-800">
+                    ⚠️ Complete este campo si tiene alguna limitación física o condición médica que debamos considerar al diseñar su rutina.
+                  </p>
                 </div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Notas
+                </label>
+                <textarea
+                  value={formData.notas}
+                  onChange={(e) => setFormData({ ...formData, notas: e.target.value })}
+                  maxLength={500}
+                  rows={4}
+                  className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Ej: Lesión en rodilla izquierda, hipertensión controlada..."
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  {formData.notas.length}/500 caracteres
+                </p>
               </div>
-            </div>
 
-            <div className="flex gap-3 justify-end mt-6">
-              <button
-                onClick={() => {
-                  setMostrarModalRutina(false);
-                  setRutinaDataActual(null);
-                }}
-                disabled={guardandoRutina}
-                className="px-4 py-2 border border-gray-300 rounded hover:bg-gray-50 transition-colors disabled:opacity-50"
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={handleGuardarRutina}
-                disabled={guardandoRutina || !rutinaForm.nombre.trim()}
-                className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition-colors disabled:opacity-50"
-              >
-                {guardandoRutina ? 'Guardando...' : 'Guardar Rutina'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Modal de confirmación para limpiar chat */}
-      {mostrarModalLimpiar && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
-            <h3 className="text-xl font-semibold mb-4">¿Limpiar chat?</h3>
-            <p className="text-gray-700 mb-6">
-              ¿Estás seguro de que deseas eliminar todas las conversaciones? Esta acción no se puede deshacer.
-            </p>
-            <div className="flex gap-3 justify-end">
-              <button
-                onClick={() => setMostrarModalLimpiar(false)}
-                disabled={limpiandoChat}
-                className="px-4 py-2 border border-gray-300 rounded hover:bg-gray-50 transition-colors disabled:opacity-50"
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={handleLimpiarChat}
-                disabled={limpiandoChat}
-                className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition-colors disabled:opacity-50"
-              >
-                {limpiandoChat ? 'Limpiando...' : 'Limpiar'}
-              </button>
-            </div>
+              {/* Botones */}
+              <div className="flex gap-3 justify-end mt-6">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMostrarModalCrearRutina(false);
+                    setErrorModal('');
+                  }}
+                  disabled={generandoRutina}
+                  className="px-4 py-2 border border-gray-300 rounded hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Regresar
+                </button>
+                <button
+                  type="submit"
+                  disabled={generandoRutina}
+                  className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {generandoRutina ? 'Generando...' : 'Enviar'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
     </div>
   );
 }
-

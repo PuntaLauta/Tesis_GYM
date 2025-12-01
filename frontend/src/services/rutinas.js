@@ -25,4 +25,7 @@ export const toggleActiva = (id, activa) => {
   return api.put(`/api/rutinas/${id}/activar`, { activa }).then(r => r.data);
 };
 
+export const generarRutina = (data) => {
+  return api.post('/api/rutinas/generar', data).then(r => r.data);
+};
 
