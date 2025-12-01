@@ -460,15 +460,17 @@ async function seed() {
     }
   });
 
-  // Obtener todos los IDs de socios para usar en accesos y reservas
+  // Obtener todos los IDs de socios para usar en accesos, reservas y rutinas
   const todosLosSocios = query('SELECT id, estado FROM socios ORDER BY id');
   const sociosActivos = todosLosSocios.filter(s => s.estado === 'activo');
   const sociosInactivos = todosLosSocios.filter(s => s.estado !== 'activo');
 
-  // Eliminar clases, reservas y accesos anteriores
+  // Limpiar datos dependientes antes de recrear clases, reservas, accesos y rutinas
   run('DELETE FROM reservas');
   run('DELETE FROM accesos');
   run('DELETE FROM clases');
+  run('DELETE FROM rutina_ejercicio');
+  run('DELETE FROM rutinas');
   
   // Obtener o crear tipos de clase
   let tipoCrossfit = query('SELECT id FROM tipo_clase WHERE nombre = ?', ['Crossfit']);
@@ -591,6 +593,146 @@ async function seed() {
     const clase = insert(sql, params);
     clasesCreadas.push({ id: clase.lastInsertRowid, ...claseData });
   });
+
+  // --------------------------------------------------------
+  // Crear tipos de rutina, ejercicios base y rutinas de ejemplo
+  // --------------------------------------------------------
+
+  // Crear tipos de rutina si no existen
+  let tiposRutina = query('SELECT * FROM tipo_rutina');
+  if (tiposRutina.length === 0) {
+    insert(
+      'INSERT INTO tipo_rutina (nombre, descripcion) VALUES (?, ?)',
+      ['Fuerza', 'Rutinas enfocadas en el aumento de fuerza máxima']
+    );
+    insert(
+      'INSERT INTO tipo_rutina (nombre, descripcion) VALUES (?, ?)',
+      ['Hipertrofia', 'Rutinas orientadas a aumento de masa muscular']
+    );
+    insert(
+      'INSERT INTO tipo_rutina (nombre, descripcion) VALUES (?, ?)',
+      ['Full Body', 'Rutinas que trabajan todo el cuerpo en una misma sesión']
+    );
+    tiposRutina = query('SELECT * FROM tipo_rutina');
+  }
+
+  // Crear ejercicios base si no existen
+  let ejerciciosBase = query('SELECT * FROM ejercicios');
+  if (ejerciciosBase.length === 0) {
+    insert(
+      'INSERT INTO ejercicios (nombre, series, repeticiones, descripcion) VALUES (?, ?, ?, ?)',
+      ['Sentadilla con barra', 4, '6-8', 'Ejercicio básico de fuerza para tren inferior (cuádriceps, glúteos, core).']
+    );
+    insert(
+      'INSERT INTO ejercicios (nombre, series, repeticiones, descripcion) VALUES (?, ?, ?, ?)',
+      ['Press banca', 4, '6-8', 'Trabajo de pecho, hombros y tríceps con barra en banco plano.']
+    );
+    insert(
+      'INSERT INTO ejercicios (nombre, series, repeticiones, descripcion) VALUES (?, ?, ?, ?)',
+      ['Peso muerto', 3, '5-6', 'Ejercicio de fuerza para cadena posterior (espalda baja, glúteos, isquiosurales).']
+    );
+    insert(
+      'INSERT INTO ejercicios (nombre, series, repeticiones, descripcion) VALUES (?, ?, ?, ?)',
+      ['Remo con barra', 3, '8-10', 'Ejercicio para espalda media y bíceps.']
+    );
+    insert(
+      'INSERT INTO ejercicios (nombre, series, repeticiones, descripcion) VALUES (?, ?, ?, ?)',
+      ['Press militar', 3, '8-10', 'Trabajo de hombros y tríceps de pie con barra o mancuernas.']
+    );
+    ejerciciosBase = query('SELECT * FROM ejercicios');
+  }
+
+  // Crear algunas rutinas de ejemplo para los primeros socios activos
+  const tiposRutinaMap = {};
+  tiposRutina.forEach(tr => { tiposRutinaMap[tr.nombre] = tr.id; });
+
+  const ejerciciosPorNombre = {};
+  ejerciciosBase.forEach(ej => { ejerciciosPorNombre[ej.nombre] = ej; });
+
+  // Solo si hay socios activos, crear rutinas
+  if (sociosActivos.length > 0) {
+    const socioPrincipal = sociosActivos[0];
+    const socioSecundario = sociosActivos[1] || sociosActivos[0];
+
+    // Rutina de Fuerza para el primer socio
+    const rutinaFuerza = insert(
+      `INSERT INTO rutinas (socio_id, tipo_rutina_id, nombre, descripcion, ejercicios, fecha_inicio, activa)
+       VALUES (?, ?, ?, ?, ?, date('now'), 1)`,
+      [
+        socioPrincipal.id,
+        tiposRutinaMap['Fuerza'] || null,
+        'Fuerza básica 3 días',
+        'Rutina de fuerza para todo el cuerpo, 3 días por semana.',
+        JSON.stringify(['Sentadilla con barra', 'Press banca', 'Peso muerto', 'Remo con barra', 'Press militar'])
+      ]
+    );
+
+    const rutinaFuerzaId = rutinaFuerza.lastInsertRowid;
+
+    // Asociar ejercicios a la rutina de fuerza
+    const ordenEjerciciosFuerza = [
+      'Sentadilla con barra',
+      'Press banca',
+      'Peso muerto',
+      'Remo con barra',
+      'Press militar'
+    ];
+
+    ordenEjerciciosFuerza.forEach((nombreEjercicio, index) => {
+      const ejercicio = ejerciciosPorNombre[nombreEjercicio];
+      if (ejercicio) {
+        insert(
+          `INSERT INTO rutina_ejercicio (rutina_id, ejercicio_id, series, repeticiones, orden)
+           VALUES (?, ?, ?, ?, ?)`,
+          [
+            rutinaFuerzaId,
+            ejercicio.id,
+            ejercicio.series,
+            ejercicio.repeticiones,
+            index + 1
+          ]
+        );
+      }
+    });
+
+    // Rutina Full Body para segundo socio
+    const rutinaFullBody = insert(
+      `INSERT INTO rutinas (socio_id, tipo_rutina_id, nombre, descripcion, ejercicios, fecha_inicio, activa)
+       VALUES (?, ?, ?, ?, ?, date('now'), 1)`,
+      [
+        socioSecundario.id,
+        tiposRutinaMap['Full Body'] || null,
+        'Full Body iniciación',
+        'Rutina full body pensada para 2-3 veces por semana.',
+        JSON.stringify(['Sentadilla con barra', 'Press banca', 'Remo con barra'])
+      ]
+    );
+
+    const rutinaFullBodyId = rutinaFullBody.lastInsertRowid;
+
+    const ordenEjerciciosFullBody = [
+      'Sentadilla con barra',
+      'Press banca',
+      'Remo con barra'
+    ];
+
+    ordenEjerciciosFullBody.forEach((nombreEjercicio, index) => {
+      const ejercicio = ejerciciosPorNombre[nombreEjercicio];
+      if (ejercicio) {
+        insert(
+          `INSERT INTO rutina_ejercicio (rutina_id, ejercicio_id, series, repeticiones, orden)
+           VALUES (?, ?, ?, ?, ?)`,
+          [
+            rutinaFullBodyId,
+            ejercicio.id,
+            ejercicio.series,
+            ejercicio.repeticiones,
+            index + 1
+          ]
+        );
+      }
+    });
+  }
 
   // Crear reservas para al menos 6 socios activos
   // Limitar a 1 reserva por día por socio

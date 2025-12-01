@@ -41,8 +41,14 @@ CREATE TABLE IF NOT EXISTS pagos (
   FOREIGN KEY (socio_id) REFERENCES socios(id)
 );
 
--- Tabla de tipo_clase
 CREATE TABLE IF NOT EXISTS tipo_clase (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  nombre TEXT NOT NULL,
+  descripcion TEXT
+);
+
+-- Tabla de tipos de rutina (por ejemplo: fuerza, hipertrofia, full body, etc.)
+CREATE TABLE IF NOT EXISTS tipo_rutina (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   nombre TEXT NOT NULL,
   descripcion TEXT
@@ -122,10 +128,10 @@ CREATE TABLE IF NOT EXISTS backup_config (
   activo INTEGER DEFAULT 1
 );
 
--- Tabla para almacenar rutinas generadas
 CREATE TABLE IF NOT EXISTS rutinas (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   socio_id INTEGER NOT NULL,
+   tipo_rutina_id INTEGER,
   nombre TEXT NOT NULL,
   descripcion TEXT,
   ejercicios TEXT NOT NULL, -- JSON con array de ejercicios
@@ -133,7 +139,30 @@ CREATE TABLE IF NOT EXISTS rutinas (
   fecha_inicio TEXT,
   fecha_fin TEXT,
   activa INTEGER DEFAULT 1 CHECK(activa IN (0, 1)),
-  FOREIGN KEY (socio_id) REFERENCES socios(id)
+  FOREIGN KEY (socio_id) REFERENCES socios(id),
+  FOREIGN KEY (tipo_rutina_id) REFERENCES tipo_rutina(id)
+);
+
+-- Tabla de ejercicios base (catálogo general de ejercicios)
+CREATE TABLE IF NOT EXISTS ejercicios (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  nombre TEXT NOT NULL,
+  series INTEGER,
+  repeticiones TEXT,
+  descripcion TEXT
+);
+
+-- Tabla intermedia para relación muchos-a-muchos entre rutinas y ejercicios
+CREATE TABLE IF NOT EXISTS rutina_ejercicio (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  rutina_id INTEGER NOT NULL,
+  ejercicio_id INTEGER NOT NULL,
+  series INTEGER,
+  repeticiones TEXT,
+  orden INTEGER,
+  FOREIGN KEY (rutina_id) REFERENCES rutinas(id),
+  FOREIGN KEY (ejercicio_id) REFERENCES ejercicios(id),
+  UNIQUE(rutina_id, ejercicio_id)
 );
 
 -- Tabla para historial de conversaciones con el asistente
