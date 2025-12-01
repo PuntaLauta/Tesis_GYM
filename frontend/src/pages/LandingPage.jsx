@@ -86,14 +86,30 @@ export default function LandingPage() {
     return (
         <div className="min-h-screen bg-gray-50 text-gray-900 font-sans">
             {/* Hero Section */}
-            <section className="relative overflow-hidden bg-white">
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-20 pb-12 text-center lg:pt-32">
+            <section className="relative py-20 flex items-center justify-center overflow-hidden">
+                {/* Video Background */}
+                <div className="absolute inset-0 w-full h-full overflow-hidden">
+                    <video
+                        autoPlay
+                        loop
+                        muted
+                        playsInline
+                        className="absolute min-w-full min-h-full object-cover object-[center_15%] blur-sm scale-110"
+                    >
+                        <source src="https://videos.pexels.com/video-files/855828/855828-hd_1920_1080_30fps.mp4" type="video/mp4" />
+                        Your browser does not support the video tag.
+                    </video>
+                    {/* Overlay for better text readability */}
+                    <div className="absolute inset-0 bg-black/40"></div>
+                </div>
+
+                <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
                     <div className="animate-fade-in-up max-w-4xl mx-auto">
-                        <h1 className="text-4xl tracking-tight font-extrabold text-gray-900 sm:text-5xl md:text-6xl lg:text-6xl">
+                        <h1 className="text-4xl tracking-tight font-extrabold text-white sm:text-5xl md:text-6xl lg:text-6xl drop-shadow-lg">
                             <span className="block">Gestión inteligente</span>{' '}
-                            <span className="block text-blue-600">para tu gimnasio</span>
+                            <span className="block text-blue-400">para tu gimnasio</span>
                         </h1>
-                        <p className="mt-4 text-base text-gray-500 sm:mt-6 sm:text-lg md:text-xl lg:text-2xl mx-auto">
+                        <p className="mt-4 text-base text-gray-100 sm:mt-6 sm:text-lg md:text-xl lg:text-2xl mx-auto drop-shadow-md">
                             La plataforma todo en uno que conecta a administradores, entrenadores y clientes.
                             Simplifica la gestión, optimiza tus rutinas y lleva tu entrenamiento al siguiente nivel.
                         </p>
@@ -109,10 +125,10 @@ export default function LandingPage() {
                             <div>
                                 <a
                                     href="#features"
-                                    className="w-full flex items-center justify-center px-8 py-3 border border-transparent text-base font-medium rounded-md text-blue-700 bg-blue-100 hover:bg-blue-200 md:py-4 md:text-lg transition-colors"
+                                    className="w-full flex items-center justify-center px-8 py-3 border border-transparent text-base font-medium rounded-md text-blue-100 bg-white/10 hover:bg-white/20 backdrop-blur-sm md:py-4 md:text-lg transition-colors"
                                 >
                                     Saber más
-                                </a >
+                                </a>
                             </div>
                         </div>
                     </div>
@@ -122,9 +138,12 @@ export default function LandingPage() {
             {/* Carousel Section */}
             <section className="w-full bg-gray-100 py-12">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                    <h2 className="text-2xl font-bold text-center mb-8 text-gray-800 uppercase tracking-wide">
-                        Nuestras Instalaciones
-                    </h2>
+                    <div className="text-center mb-12">
+                        <h2 className="text-base font-semibold text-blue-600 tracking-wide uppercase">Galería</h2>
+                        <p className="mt-1 text-3xl font-extrabold text-gray-900 sm:text-4xl">
+                            Nuestras Instalaciones
+                        </p>
+                    </div>
                     <div className="relative">
                         {/* Arrows */}
                         <button
