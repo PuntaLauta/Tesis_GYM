@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { listRutinas, generarRutina } from '../services/rutinas';
 import { listTipoRutinas } from '../services/tipoRutina';
+import { getMySocio } from '../services/socios';
 
 export default function Asistente() {
   const navigate = useNavigate();
@@ -10,6 +11,8 @@ export default function Asistente() {
   const [mostrarModalCrearRutina, setMostrarModalCrearRutina] = useState(false);
   const [tipoRutinas, setTipoRutinas] = useState([]);
   const [loadingTipoRutinas, setLoadingTipoRutinas] = useState(false);
+  const [socio, setSocio] = useState(null);
+  const [loadingSocio, setLoadingSocio] = useState(true);
   const [formData, setFormData] = useState({
     tipo_rutina_id: '',
     sexo: '',
@@ -22,9 +25,32 @@ export default function Asistente() {
   const [generandoRutina, setGenerandoRutina] = useState(false);
 
   useEffect(() => {
-    loadRutinas();
-    loadTipoRutinas();
+    loadSocio();
   }, []);
+
+  useEffect(() => {
+    if (socio && socio.estado === 'activo') {
+      loadRutinas();
+      loadTipoRutinas();
+    }
+  }, [socio]);
+
+  const loadSocio = async () => {
+    setLoadingSocio(true);
+    try {
+      const data = await getMySocio();
+      if (data.data) {
+        setSocio(data.data);
+      } else {
+        setError('No tienes un socio asociado. Contacta al administrador.');
+      }
+    } catch (err) {
+      console.error('Error al cargar socio:', err);
+      setError(err.response?.data?.error || 'Error al cargar tu información');
+    } finally {
+      setLoadingSocio(false);
+    }
+  };
 
   const loadRutinas = async () => {
     setLoadingRutinas(true);
@@ -64,6 +90,11 @@ export default function Asistente() {
   };
 
   const handleCrearRutina = () => {
+    // Verificar que el socio esté activo
+    if (!socio || socio.estado !== 'activo') {
+      setError('Tu cuenta debe estar activa para crear rutinas. Contacta a recepción para reactivar tu membresía.');
+      return;
+    }
     setFormData({
       tipo_rutina_id: '',
       sexo: '',
@@ -78,6 +109,13 @@ export default function Asistente() {
   const handleSubmitCrearRutina = async (e) => {
     e.preventDefault();
     setErrorModal('');
+    
+    // Verificar que el socio esté activo
+    if (!socio || socio.estado !== 'activo') {
+      setErrorModal('Tu cuenta debe estar activa para crear rutinas. Contacta a recepción para reactivar tu membresía.');
+      return;
+    }
+
     setGenerandoRutina(true);
 
     try {
@@ -137,12 +175,47 @@ export default function Asistente() {
     navigate(`/rutinas/${rutina.id}`);
   };
 
+  // Si está cargando el socio, mostrar loading
+  if (loadingSocio) {
+    return (
+      <div className="max-w-4xl mx-auto p-6">
+        <div className="text-center py-8 text-gray-500">Cargando información...</div>
+      </div>
+    );
+  }
+
+  // Si el socio no está activo, mostrar mensaje de error
+  const isSocioActivo = socio && socio.estado === 'activo';
+
   return (
     <div className="max-w-4xl mx-auto p-6">
       <h1 className="text-2xl font-bold mb-6">Asistente Virtual de Entrenamiento</h1>
 
-      {/* Card informativa */}
-      <div className="bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 border-2 border-blue-200 rounded-xl shadow-lg p-6 mb-6">
+      {/* Mensaje de error si el socio está inactivo */}
+      {!isSocioActivo && (
+        <div className="bg-red-50 border-l-4 border-red-400 p-6 rounded-lg shadow-lg mb-6">
+          <div className="flex items-start">
+            <div className="flex-shrink-0">
+              <svg className="h-8 w-8 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+            </div>
+            <div className="ml-4 flex-1">
+              <h3 className="text-lg font-semibold text-red-800 mb-2">Asistente Desactivado</h3>
+              <p className="text-red-700 mb-2">
+                Tu cuenta está inactiva y no puedes acceder al asistente virtual.
+              </p>
+              <p className="text-sm text-red-600">
+                Contacta a recepción para reactivar tu membresía y acceder a todas las funcionalidades del asistente.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Card informativa - Solo mostrar si está activo */}
+      {isSocioActivo && (
+        <div className="bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 border-2 border-blue-200 rounded-xl shadow-lg p-6 mb-6">
         <div className="flex flex-wrap items-center gap-3 mb-4">
           <span className="px-3 py-1 bg-gradient-to-r from-purple-600 to-indigo-600 text-white text-xs font-bold rounded-full uppercase tracking-wide shadow-sm">
             🤖 Powered by IA
@@ -174,11 +247,13 @@ export default function Asistente() {
         
         <button
           onClick={handleCrearRutina}
-          className="w-full md:w-auto px-8 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-semibold rounded-lg hover:from-blue-700 hover:to-indigo-700 transition-all shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
+          disabled={!isSocioActivo}
+          className="w-full md:w-auto px-8 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-semibold rounded-lg hover:from-blue-700 hover:to-indigo-700 transition-all shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
         >
           🚀 Crear Nueva Rutina
         </button>
-      </div>
+        </div>
+      )}
 
       {error && (
         <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
@@ -186,11 +261,13 @@ export default function Asistente() {
         </div>
       )}
 
-      {/* Título de sección */}
-      <h2 className="text-2xl font-bold mb-4 mt-8">Mis Rutinas</h2>
+      {/* Título de sección - Solo mostrar si está activo */}
+      {isSocioActivo && (
+        <>
+          <h2 className="text-2xl font-bold mb-4 mt-8">Mis Rutinas</h2>
 
-      {/* Listado de rutinas */}
-      {loadingRutinas ? (
+          {/* Listado de rutinas */}
+          {loadingRutinas ? (
         <div className="text-center py-8 text-gray-500">Cargando rutinas...</div>
       ) : rutinas.length === 0 ? (
         <div className="text-center py-12 bg-white rounded-lg shadow p-8">
@@ -222,6 +299,8 @@ export default function Asistente() {
             </div>
           ))}
         </div>
+          )}
+        </>
       )}
 
       {/* Modal de Crear Rutina */}

@@ -61,9 +61,14 @@ router.post('/generar', requireAuth, requireRole('cliente'), async (req, res) =>
     }
 
     // Obtener socio_id del usuario
-    const socio = get('SELECT id FROM socios WHERE usuario_id = ?', [user.id]);
+    const socio = get('SELECT id, estado FROM socios WHERE usuario_id = ?', [user.id]);
     if (!socio) {
       return res.status(404).json({ error: 'No tienes un socio asociado' });
+    }
+
+    // Verificar que el socio esté activo
+    if (socio.estado !== 'activo') {
+      return res.status(403).json({ error: 'Tu cuenta debe estar activa para generar rutinas. Contacta a recepción para reactivar tu membresía.' });
     }
 
     // Obtener el nombre del tipo de rutina
