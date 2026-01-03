@@ -18,6 +18,7 @@ export default function Asistente() {
     sexo: '',
     edad: '',
     peso: '',
+    altura: '',
     notas: ''
   });
   const [error, setError] = useState('');
@@ -100,6 +101,7 @@ export default function Asistente() {
       sexo: '',
       edad: '',
       peso: '',
+      altura: '',
       notas: ''
     });
     setErrorModal('');
@@ -120,7 +122,7 @@ export default function Asistente() {
 
     try {
       // Validar que todos los campos requeridos estén completos
-      if (!formData.tipo_rutina_id || !formData.sexo || !formData.edad || !formData.peso) {
+      if (!formData.tipo_rutina_id || !formData.sexo || !formData.edad || !formData.peso || !formData.altura) {
         setErrorModal('Por favor, complete todos los campos obligatorios');
         setGenerandoRutina(false);
         return;
@@ -129,6 +131,7 @@ export default function Asistente() {
       // Validar rangos
       const edadNum = parseInt(formData.edad);
       const pesoNum = parseFloat(formData.peso);
+      const alturaNum = parseFloat(formData.altura);
       
       if (edadNum < 12 || edadNum > 99) {
         setErrorModal('La edad debe estar entre 12 y 99 años');
@@ -142,12 +145,19 @@ export default function Asistente() {
         return;
       }
 
+      if (alturaNum < 100 || alturaNum > 250) {
+        setErrorModal('La altura debe estar entre 100 y 250 cm');
+        setGenerandoRutina(false);
+        return;
+      }
+
       // Llamar al endpoint para generar la rutina
       const response = await generarRutina({
         tipo_rutina_id: formData.tipo_rutina_id,
         sexo: formData.sexo,
         edad: edadNum,
         peso: pesoNum,
+        altura: alturaNum,
         notas: formData.notas.trim() || undefined
       });
 
@@ -388,6 +398,23 @@ export default function Asistente() {
                   step="0.1"
                   value={formData.peso}
                   onChange={(e) => setFormData({ ...formData, peso: e.target.value })}
+                  className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  required
+                />
+              </div>
+
+              {/* Altura */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Altura (cm) *
+                </label>
+                <input
+                  type="number"
+                  min="100"
+                  max="250"
+                  step="0.1"
+                  value={formData.altura}
+                  onChange={(e) => setFormData({ ...formData, altura: e.target.value })}
                   className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   required
                 />

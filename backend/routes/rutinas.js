@@ -44,7 +44,7 @@ router.get('/', requireAuth, requireRole('cliente'), (req, res) => {
 router.post('/generar', requireAuth, requireRole('cliente'), async (req, res) => {
   try {
     const user = req.session.user;
-    const { tipo_rutina_id, sexo, edad, peso, notas } = req.body;
+    const { tipo_rutina_id, sexo, edad, peso, altura, notas } = req.body;
 
     // Validar campos requeridos
     if (!tipo_rutina_id) {
@@ -58,6 +58,9 @@ router.post('/generar', requireAuth, requireRole('cliente'), async (req, res) =>
     }
     if (!peso || peso < 20 || peso > 300) {
       return res.status(400).json({ error: 'El peso debe estar entre 20 y 300 kg' });
+    }
+    if (!altura || altura < 100 || altura > 250) {
+      return res.status(400).json({ error: 'La altura debe estar entre 100 y 250 cm' });
     }
 
     // Obtener socio_id del usuario
@@ -83,6 +86,7 @@ router.post('/generar', requireAuth, requireRole('cliente'), async (req, res) =>
       sexo,
       parseInt(edad),
       parseFloat(peso),
+      parseFloat(altura),
       notas || ''
     );
 
