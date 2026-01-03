@@ -40,6 +40,7 @@ router.get('/', requireAuth, requireRole('cliente'), (req, res) => {
           re.*,
           e.nombre as ejercicio_nombre,
           e.descripcion as ejercicio_descripcion,
+          e.descripcion_profesor as descripcion_profesor,
           ee.nombre as estado_nombre
         FROM rutina_ejercicio re
         LEFT JOIN ejercicios e ON re.ejercicio_id = e.id
@@ -73,7 +74,7 @@ router.get('/', requireAuth, requireRole('cliente'), (req, res) => {
             notas: ejercicioJson?.notas || re.ejercicio_descripcion || '',
             estado_id: parseInt(re.estado_id, 10) || 1, // Asegurar que sea número
             estado_nombre: re.estado_nombre,
-            notas_instructor: ejercicioJson?.notas_instructor || ''
+            descripcion_profesor: re.descripcion_profesor || null
           };
         });
 
@@ -219,6 +220,7 @@ router.post('/generar', requireAuth, requireRole('cliente'), async (req, res) =>
         re.*,
         e.nombre as ejercicio_nombre,
         e.descripcion as ejercicio_descripcion,
+        e.descripcion_profesor as descripcion_profesor,
         ee.nombre as estado_nombre
       FROM rutina_ejercicio re
       LEFT JOIN ejercicios e ON re.ejercicio_id = e.id
@@ -241,7 +243,7 @@ router.post('/generar', requireAuth, requireRole('cliente'), async (req, res) =>
         notas: re.ejercicio_descripcion || ejercicioOriginal.notas || '',
         estado_id: parseInt(re.estado_id, 10) || 1, // Asegurar que sea número
         estado_nombre: re.estado_nombre,
-        notas_instructor: ejercicioOriginal.notas_instructor || ''
+        descripcion_profesor: re.descripcion_profesor || null
       };
     });
 
@@ -268,6 +270,139 @@ router.post('/generar', requireAuth, requireRole('cliente'), async (req, res) =>
     }
 
     res.status(500).json({ error: error.message || 'Error interno del servidor' });
+  }
+});
+
+// GET /api/rutinas/instructor - Listar todas las rutinas para instructores
+// IMPORTANTE: Esta ruta debe estar ANTES de /:id para que no se interprete "instructor" como un ID
+router.get('/instructor', requireAuth, requireRole('instructor'), (req, res) => {
+  try {
+    // Obtener todas las rutinas
+    let sql = `
+      SELECT id, nombre, descripcion, ejercicios, fecha_creacion, fecha_inicio, fecha_fin, activa, socio_id
+      FROM rutinas
+      ORDER BY fecha_creacion DESC
+    `;
+    
+    const rutinas = query(sql);
+
+    // Para cada rutina, obtener ejercicios desde rutina_ejercicio si existen
+    const rutinasConEjercicios = rutinas.map(rutina => {
+      const ejerciciosRutina = query(`
+        SELECT 
+          re.*,
+          e.nombre as ejercicio_nombre,
+          e.descripcion as ejercicio_descripcion,
+          e.descripcion_profesor as descripcion_profesor,
+          ee.nombre as estado_nombre
+        FROM rutina_ejercicio re
+        LEFT JOIN ejercicios e ON re.ejercicio_id = e.id
+        LEFT JOIN estado_ejercicios ee ON re.estado_id = ee.id
+        WHERE re.rutina_id = ?
+        ORDER BY re.orden
+      `, [rutina.id]);
+
+      if (ejerciciosRutina && ejerciciosRutina.length > 0) {
+        // Parsear JSON para obtener datos adicionales
+        let ejerciciosJson = [];
+        try {
+          ejerciciosJson = typeof rutina.ejercicios === 'string' 
+            ? JSON.parse(rutina.ejercicios) 
+            : rutina.ejercicios || [];
+        } catch (e) {
+          ejerciciosJson = [];
+        }
+
+        const ejerciciosFormateados = ejerciciosRutina.map((re, idx) => {
+          const ejercicioJson = ejerciciosJson[idx] || 
+            ejerciciosJson.find(ej => ej.nombre === re.ejercicio_nombre || ej.id === re.ejercicio_id) ||
+            {};
+
+          return {
+            id: re.id, // ID de rutina_ejercicio para poder actualizarlo
+            ejercicio_id: re.ejercicio_id,
+            nombre: re.ejercicio_nombre,
+            series: re.series,
+            repeticiones: re.repeticiones,
+            descanso: ejercicioJson.descanso || null,
+            notas: ejercicioJson.notas || re.ejercicio_descripcion || '',
+            estado_id: parseInt(re.estado_id, 10) || 1,
+            estado_nombre: re.estado_nombre,
+            descripcion_profesor: re.descripcion_profesor || null
+          };
+        });
+
+        return {
+          ...rutina,
+          ejercicios: ejerciciosFormateados
+        };
+      }
+
+      // Si no hay ejercicios en rutina_ejercicio, mantener el JSON original
+      return rutina;
+    });
+
+    res.json({ data: rutinasConEjercicios });
+  } catch (error) {
+    console.error('Error al listar rutinas para instructor:', error);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
+// PUT /api/rutinas/ejercicios/:id/revisar - Revisar ejercicio (aprobar/rechazar)
+// IMPORTANTE: Esta ruta debe estar ANTES de /:id para que no se interprete "ejercicios" como un ID
+router.put('/ejercicios/:id/revisar', requireAuth, requireRole('instructor'), (req, res) => {
+  try {
+    const { id } = req.params; // ID de rutina_ejercicio
+    const { estado, notas } = req.body; // estado: 'aprobado' o 'rechazado', notas: texto
+    
+    if (!estado || (estado !== 'aprobado' && estado !== 'rechazado')) {
+      return res.status(400).json({ error: 'El estado debe ser "aprobado" o "rechazado"' });
+    }
+
+    if (notas && notas.length > 500) {
+      return res.status(400).json({ error: 'Las notas no pueden exceder 500 caracteres' });
+    }
+
+    // Obtener el registro de rutina_ejercicio
+    const rutinaEjercicio = get('SELECT * FROM rutina_ejercicio WHERE id = ?', [id]);
+    if (!rutinaEjercicio) {
+      return res.status(404).json({ error: 'Ejercicio no encontrado' });
+    }
+
+    // Obtener el ID del estado correspondiente
+    const estadoEjercicio = get('SELECT id FROM estado_ejercicios WHERE nombre = ?', [estado.toUpperCase()]);
+    if (!estadoEjercicio) {
+      return res.status(400).json({ error: 'Estado inválido' });
+    }
+
+    // Obtener el instructor_id del usuario actual
+    const user = req.session.user;
+    const instructor = get('SELECT id FROM instructores WHERE email = ?', [user.email]);
+    if (!instructor) {
+      return res.status(404).json({ error: 'Instructor no encontrado' });
+    }
+
+    // Actualizar el estado en rutina_ejercicio
+    run('UPDATE rutina_ejercicio SET estado_id = ? WHERE id = ?', [estadoEjercicio.id, id]);
+
+    // Actualizar descripcion_profesor e instructor_id en la tabla ejercicios
+    run(
+      'UPDATE ejercicios SET descripcion_profesor = ?, instructor_id = ? WHERE id = ?',
+      [notas || null, instructor.id, rutinaEjercicio.ejercicio_id]
+    );
+
+    res.json({ 
+      message: `Ejercicio ${estado === 'aprobado' ? 'aprobado' : 'rechazado'} correctamente`,
+      data: {
+        estado_id: estadoEjercicio.id,
+        estado_nombre: estado.toUpperCase(),
+        descripcion_profesor: notas || null
+      }
+    });
+  } catch (error) {
+    console.error('Error al revisar ejercicio:', error);
+    res.status(500).json({ error: 'Error interno del servidor' });
   }
 });
 
@@ -298,6 +433,7 @@ router.get('/:id', requireAuth, requireRole('cliente'), (req, res) => {
         re.*,
         e.nombre as ejercicio_nombre,
         e.descripcion as ejercicio_descripcion,
+        e.descripcion_profesor as descripcion_profesor,
         ee.nombre as estado_nombre
       FROM rutina_ejercicio re
       LEFT JOIN ejercicios e ON re.ejercicio_id = e.id
@@ -333,7 +469,7 @@ router.get('/:id', requireAuth, requireRole('cliente'), (req, res) => {
           notas: ejercicioJson.notas || re.ejercicio_descripcion || '',
           estado_id: parseInt(re.estado_id, 10) || 1, // Asegurar que sea número
           estado_nombre: re.estado_nombre,
-          notas_instructor: ejercicioJson.notas_instructor || ''
+          descripcion_profesor: re.descripcion_profesor || null
         };
       });
 

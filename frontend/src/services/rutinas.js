@@ -29,3 +29,15 @@ export const generarRutina = (data) => {
   return api.post('/api/rutinas/generar', data).then(r => r.data);
 };
 
+// Endpoints para instructores
+export const listRutinasInstructor = () => {
+  return api.get('/api/rutinas/instructor').then(r => r.data);
+};
+
+export const revisarEjercicio = (rutinaEjercicioId, estado, notas) => {
+  return api.put(`/api/rutinas/ejercicios/${rutinaEjercicioId}/revisar`, {
+    estado,
+    notas
+  }).then(r => r.data);
+};
+

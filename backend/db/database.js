@@ -680,6 +680,50 @@ async function initDatabase() {
     }
   }
 
+  // Verificar si existe la columna descripcion_profesor en la tabla ejercicios
+  let columnaDescripcionProfesorExiste = false;
+  try {
+    const tableInfo = db.exec("PRAGMA table_info(ejercicios)");
+    if (tableInfo && tableInfo[0] && tableInfo[0].values) {
+      columnaDescripcionProfesorExiste = tableInfo[0].values.some(row => row[1] === 'descripcion_profesor');
+    }
+  } catch (e) {
+    // Error al verificar, asumir que no existe
+  }
+  
+  // Agregar columna descripcion_profesor si no existe (migración)
+  if (!columnaDescripcionProfesorExiste) {
+    try {
+      db.run('ALTER TABLE ejercicios ADD COLUMN descripcion_profesor TEXT');
+      saveDatabase();
+      console.log('✅ Columna descripcion_profesor agregada a la tabla ejercicios');
+    } catch (e) {
+      console.log('Advertencia: No se pudo agregar columna descripcion_profesor:', e.message);
+    }
+  }
+
+  // Verificar si existe la columna instructor_id en la tabla ejercicios
+  let columnaInstructorIdEjerciciosExiste = false;
+  try {
+    const tableInfo = db.exec("PRAGMA table_info(ejercicios)");
+    if (tableInfo && tableInfo[0] && tableInfo[0].values) {
+      columnaInstructorIdEjerciciosExiste = tableInfo[0].values.some(row => row[1] === 'instructor_id');
+    }
+  } catch (e) {
+    // Error al verificar, asumir que no existe
+  }
+  
+  // Agregar columna instructor_id si no existe (migración)
+  if (!columnaInstructorIdEjerciciosExiste) {
+    try {
+      db.run('ALTER TABLE ejercicios ADD COLUMN instructor_id INTEGER REFERENCES instructores(id)');
+      saveDatabase();
+      console.log('✅ Columna instructor_id agregada a la tabla ejercicios');
+    } catch (e) {
+      console.log('Advertencia: No se pudo agregar columna instructor_id a ejercicios:', e.message);
+    }
+  }
+
   
   return db;
 }

@@ -338,8 +338,8 @@ export default function MisRutinas() {
                             </p>
                           )}
                           <p>
-                            <strong>Notas del Instructor:</strong> {ejercicio.notas_instructor && ejercicio.notas_instructor.trim() 
-                              ? ejercicio.notas_instructor 
+                            <strong>Notas del Instructor:</strong> {ejercicio.descripcion_profesor && ejercicio.descripcion_profesor.trim() 
+                              ? ejercicio.descripcion_profesor 
                               : 'Sin notas del instructor'}
                           </p>
                         </div>

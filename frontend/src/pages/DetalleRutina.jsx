@@ -471,8 +471,8 @@ export default function DetalleRutina() {
                 <div className="mt-3 pt-3 border-t">
                   <strong className="text-gray-700 block mb-1">Notas del Instructor:</strong>
                   <p className="text-gray-600 text-sm italic">
-                    {ejercicio.notas_instructor && ejercicio.notas_instructor.trim() 
-                      ? ejercicio.notas_instructor 
+                    {ejercicio.descripcion_profesor && ejercicio.descripcion_profesor.trim() 
+                      ? ejercicio.descripcion_profesor 
                       : 'Sin notas del instructor'}
                   </p>
                 </div>

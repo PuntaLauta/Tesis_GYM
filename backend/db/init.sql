@@ -151,7 +151,10 @@ CREATE TABLE IF NOT EXISTS ejercicios (
   repeticiones TEXT,
   descripcion TEXT,
   estado_id INTEGER DEFAULT 1,
-  FOREIGN KEY (estado_id) REFERENCES estado_ejercicios(id)
+  descripcion_profesor TEXT,
+  instructor_id INTEGER,
+  FOREIGN KEY (estado_id) REFERENCES estado_ejercicios(id),
+  FOREIGN KEY (instructor_id) REFERENCES instructores(id)
 );
 
 -- Tabla intermedia para relación muchos-a-muchos entre rutinas y ejercicios
