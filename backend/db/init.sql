@@ -149,7 +149,9 @@ CREATE TABLE IF NOT EXISTS ejercicios (
   nombre TEXT NOT NULL,
   series INTEGER,
   repeticiones TEXT,
-  descripcion TEXT
+  descripcion TEXT,
+  estado_id INTEGER DEFAULT 1,
+  FOREIGN KEY (estado_id) REFERENCES estado_ejercicios(id)
 );
 
 -- Tabla intermedia para relación muchos-a-muchos entre rutinas y ejercicios
@@ -160,8 +162,10 @@ CREATE TABLE IF NOT EXISTS rutina_ejercicio (
   series INTEGER,
   repeticiones TEXT,
   orden INTEGER,
+  estado_id INTEGER DEFAULT 1,
   FOREIGN KEY (rutina_id) REFERENCES rutinas(id),
   FOREIGN KEY (ejercicio_id) REFERENCES ejercicios(id),
+  FOREIGN KEY (estado_id) REFERENCES estado_ejercicios(id),
   UNIQUE(rutina_id, ejercicio_id)
 );
 
@@ -188,3 +192,16 @@ CREATE TABLE IF NOT EXISTS ejercicios_favoritos (
   FOREIGN KEY (socio_id) REFERENCES socios(id),
   UNIQUE(socio_id, nombre_ejercicio)
 );
+
+-- Tabla de estados de ejercicios
+CREATE TABLE IF NOT EXISTS estado_ejercicios (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  nombre TEXT NOT NULL UNIQUE,
+  descripcion TEXT
+);
+
+-- Insertar estados por defecto
+INSERT OR IGNORE INTO estado_ejercicios (nombre, descripcion) VALUES 
+  ('PENDIENTE', 'Pendiente de revisión por instructor'),
+  ('APROBADO', 'Aprobado por instructor'),
+  ('RECHAZADO', 'Rechazado por instructor');

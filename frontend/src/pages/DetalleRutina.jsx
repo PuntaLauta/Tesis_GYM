@@ -217,14 +217,24 @@ export default function DetalleRutina() {
   }
 
   // Parsear ejercicios
+  // El backend puede devolver ejercicios como array (desde rutina_ejercicio) o como JSON string
   let ejercicios = [];
   try {
-    ejercicios = typeof rutina.ejercicios === 'string' 
-      ? JSON.parse(rutina.ejercicios) 
-      : rutina.ejercicios || [];
+    // El backend devuelve los ejercicios en rutina.ejercicios como array cuando hay registros en rutina_ejercicio
+    if (Array.isArray(rutina.ejercicios)) {
+      // Si ya es un array, usarlo directamente (viene desde rutina_ejercicio)
+      ejercicios = rutina.ejercicios;
+    } else if (typeof rutina.ejercicios === 'string') {
+      // Si es string, parsearlo (fallback para rutinas antiguas)
+      ejercicios = JSON.parse(rutina.ejercicios);
+    } else {
+      ejercicios = [];
+    }
   } catch (e) {
+    console.error('Error al parsear ejercicios:', e);
     ejercicios = [];
   }
+  
 
   return (
     <div className="max-w-4xl mx-auto p-6">
@@ -357,9 +367,70 @@ export default function DetalleRutina() {
           <p className="text-gray-500">No hay ejercicios definidos en esta rutina.</p>
         ) : (
           <div className="space-y-4">
-            {ejercicios.map((ejercicio, index) => (
-              <div key={index} className="border rounded-lg p-4 hover:shadow-md transition-shadow">
-                <div className="flex items-start justify-between mb-3">
+            {ejercicios.map((ejercicio, index) => {
+              // Determinar estado_id del ejercicio (por defecto 1 = PENDIENTE)
+              // Si tiene estado_id numérico, usarlo; si tiene estado string, mapearlo; sino default 1
+              let estadoId = ejercicio.estado_id;
+              
+              // Convertir a número si es string
+              if (typeof estadoId === 'string') {
+                estadoId = parseInt(estadoId, 10);
+              }
+              
+              if (!estadoId || isNaN(estadoId)) {
+                // Compatibilidad con ejercicios antiguos que usan estado como string
+                if (ejercicio.estado === 'APROBADO') estadoId = 2;
+                else if (ejercicio.estado === 'RECHAZADO') estadoId = 3;
+                else estadoId = 1; // PENDIENTE por defecto
+              }
+              
+              
+              // Configuración del tooltip según el estado_id
+              const estadoConfig = {
+                1: { // PENDIENTE
+                  emoji: '⚠️',
+                  color: 'bg-yellow-500',
+                  texto: 'Pendiente de Revisión',
+                  hoverColor: 'hover:bg-yellow-600'
+                },
+                2: { // APROBADO
+                  emoji: '✅',
+                  color: 'bg-green-500',
+                  texto: 'Aprobado por Instructor',
+                  hoverColor: 'hover:bg-green-600'
+                },
+                3: { // RECHAZADO
+                  emoji: '❌',
+                  color: 'bg-red-500',
+                  texto: 'Rechazado por Instructor',
+                  hoverColor: 'hover:bg-red-600'
+                }
+              };
+              
+              const config = estadoConfig[estadoId] || estadoConfig[1];
+              
+              return (
+              <div key={index} className="border rounded-lg p-4 hover:shadow-md transition-shadow relative">
+                {/* Tooltip de estado en esquina superior derecha */}
+                <div className="absolute top-2 right-2">
+                  <div className="group relative">
+                    <button
+                      className={`${config.color} ${config.hoverColor} text-white rounded-lg px-3 py-1.5 flex items-center gap-1.5 text-xs font-medium transition-colors shadow-md`}
+                      title={config.texto}
+                    >
+                      <span>{config.texto}</span>
+                      <span>{config.emoji}</span>
+                    </button>
+                    <div className="absolute right-0 top-10 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
+                      <div className="bg-gray-800 text-white text-xs rounded py-1 px-2 whitespace-nowrap shadow-lg">
+                        {config.texto}
+                        <div className="absolute -top-1 right-2 w-2 h-2 bg-gray-800 transform rotate-45"></div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="flex items-start justify-between mb-3 pr-10">
                   <h3 className="text-xl font-semibold text-gray-800">
                     {index + 1}. {ejercicio.nombre || `Ejercicio ${index + 1}`}
                   </h3>
@@ -388,14 +459,26 @@ export default function DetalleRutina() {
                   )}
                 </div>
 
+                {/* Notas del Asistente IA */}
                 {ejercicio.notas && ejercicio.notas.trim() && (
                   <div className="mt-3 pt-3 border-t">
-                    <strong className="text-gray-700 block mb-1">Notas:</strong>
+                    <strong className="text-gray-700 block mb-1">Notas del Asistente IA:</strong>
                     <p className="text-gray-600 text-sm">{ejercicio.notas}</p>
                   </div>
                 )}
+                
+                {/* Notas del Instructor */}
+                <div className="mt-3 pt-3 border-t">
+                  <strong className="text-gray-700 block mb-1">Notas del Instructor:</strong>
+                  <p className="text-gray-600 text-sm italic">
+                    {ejercicio.notas_instructor && ejercicio.notas_instructor.trim() 
+                      ? ejercicio.notas_instructor 
+                      : 'Sin notas del instructor'}
+                  </p>
+                </div>
               </div>
-            ))}
+            );
+            })}
           </div>
         )}
       </div>

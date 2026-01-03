@@ -33,7 +33,61 @@ router.get('/', requireAuth, requireRole('cliente'), (req, res) => {
 
     const rutinas = query(sql, params);
 
-    res.json({ data: rutinas });
+    // Para cada rutina, obtener ejercicios desde rutina_ejercicio si existen
+    const rutinasConEjercicios = rutinas.map(rutina => {
+      const ejerciciosRutina = query(`
+        SELECT 
+          re.*,
+          e.nombre as ejercicio_nombre,
+          e.descripcion as ejercicio_descripcion,
+          ee.nombre as estado_nombre
+        FROM rutina_ejercicio re
+        LEFT JOIN ejercicios e ON re.ejercicio_id = e.id
+        LEFT JOIN estado_ejercicios ee ON re.estado_id = ee.id
+        WHERE re.rutina_id = ?
+        ORDER BY re.orden
+      `, [rutina.id]);
+
+      if (ejerciciosRutina && ejerciciosRutina.length > 0) {
+        // Parsear JSON para obtener datos adicionales
+        let ejerciciosJson = [];
+        try {
+          ejerciciosJson = typeof rutina.ejercicios === 'string' 
+            ? JSON.parse(rutina.ejercicios) 
+            : rutina.ejercicios || [];
+        } catch (e) {
+          ejerciciosJson = [];
+        }
+
+        const ejerciciosFormateados = ejerciciosRutina.map(re => {
+          const ejercicioJson = ejerciciosJson.find(ej => 
+            ej.nombre === re.ejercicio_nombre || ej.id === re.ejercicio_id
+          );
+
+          return {
+            id: re.ejercicio_id,
+            nombre: re.ejercicio_nombre,
+            series: re.series,
+            repeticiones: re.repeticiones,
+            descanso: ejercicioJson?.descanso || null,
+            notas: ejercicioJson?.notas || re.ejercicio_descripcion || '',
+            estado_id: parseInt(re.estado_id, 10) || 1, // Asegurar que sea número
+            estado_nombre: re.estado_nombre,
+            notas_instructor: ejercicioJson?.notas_instructor || ''
+          };
+        });
+
+        return {
+          ...rutina,
+          ejercicios: ejerciciosFormateados
+        };
+      }
+
+      // Si no hay ejercicios en rutina_ejercicio, mantener el JSON original
+      return rutina;
+    });
+
+    res.json({ data: rutinasConEjercicios });
   } catch (error) {
     console.error('Error al listar rutinas:', error);
     res.status(500).json({ error: 'Error interno del servidor' });
@@ -95,7 +149,7 @@ router.post('/generar', requireAuth, requireRole('cliente'), async (req, res) =>
       return res.status(500).json({ error: 'Error: La rutina generada no tiene el formato correcto' });
     }
 
-    // Convertir ejercicios a JSON string
+    // Convertir ejercicios a JSON string (mantener para compatibilidad)
     const ejerciciosJson = JSON.stringify(rutinaData.ejercicios);
 
     // Crear la rutina en la base de datos
@@ -111,10 +165,96 @@ router.post('/generar', requireAuth, requireRole('cliente'), async (req, res) =>
       ]
     );
 
-    // Obtener la rutina creada
-    const nuevaRutina = get('SELECT * FROM rutinas WHERE id = ?', [result.lastInsertRowid]);
+    const rutinaId = result.lastInsertRowid;
 
-    res.status(201).json({ data: nuevaRutina });
+    // Obtener el ID del estado PENDIENTE
+    const estadoPendiente = get("SELECT id FROM estado_ejercicios WHERE nombre = 'PENDIENTE'");
+    const estadoPendienteId = estadoPendiente ? estadoPendiente.id : 1;
+
+    // Crear ejercicios en la tabla ejercicios y asociarlos en rutina_ejercicio
+    rutinaData.ejercicios.forEach((ejercicioData, index) => {
+      // Buscar si el ejercicio ya existe en el catálogo
+      let ejercicio = get('SELECT id FROM ejercicios WHERE nombre = ?', [ejercicioData.nombre]);
+      
+      if (!ejercicio) {
+        // Crear nuevo ejercicio en el catálogo
+        const ejercicioResult = insert(
+          `INSERT INTO ejercicios (nombre, series, repeticiones, descripcion, estado_id)
+           VALUES (?, ?, ?, ?, ?)`,
+          [
+            ejercicioData.nombre,
+            ejercicioData.series || null,
+            ejercicioData.repeticiones || null,
+            ejercicioData.notas || null,
+            estadoPendienteId
+          ]
+        );
+        ejercicio = { id: ejercicioResult.lastInsertRowid };
+      }
+
+      // Obtener estado_id del ejercicio (si viene en el JSON, usarlo; sino PENDIENTE)
+      const ejercicioEstadoId = ejercicioData.estado_id || estadoPendienteId;
+
+      // Crear registro en rutina_ejercicio
+      insert(
+        `INSERT INTO rutina_ejercicio (rutina_id, ejercicio_id, series, repeticiones, orden, estado_id)
+         VALUES (?, ?, ?, ?, ?, ?)`,
+        [
+          rutinaId,
+          ejercicio.id,
+          ejercicioData.series || null,
+          ejercicioData.repeticiones || null,
+          index + 1,
+          ejercicioEstadoId
+        ]
+      );
+    });
+
+    // Obtener la rutina creada con ejercicios desde rutina_ejercicio
+    const nuevaRutina = get('SELECT * FROM rutinas WHERE id = ?', [rutinaId]);
+    
+    // Obtener ejercicios desde rutina_ejercicio
+    const ejerciciosRutina = query(`
+      SELECT 
+        re.*,
+        e.nombre as ejercicio_nombre,
+        e.descripcion as ejercicio_descripcion,
+        ee.nombre as estado_nombre
+      FROM rutina_ejercicio re
+      LEFT JOIN ejercicios e ON re.ejercicio_id = e.id
+      LEFT JOIN estado_ejercicios ee ON re.estado_id = ee.id
+      WHERE re.rutina_id = ?
+      ORDER BY re.orden
+    `, [rutinaId]);
+
+    // Formatear ejercicios para la respuesta
+    const ejerciciosFormateados = ejerciciosRutina.map((re, idx) => {
+      // Buscar el ejercicio original en rutinaData para obtener datos adicionales
+      const ejercicioOriginal = rutinaData.ejercicios[idx] || {};
+      
+      return {
+        id: re.ejercicio_id,
+        nombre: re.ejercicio_nombre || ejercicioOriginal.nombre,
+        series: re.series,
+        repeticiones: re.repeticiones,
+        descanso: ejercicioOriginal.descanso || null,
+        notas: re.ejercicio_descripcion || ejercicioOriginal.notas || '',
+        estado_id: parseInt(re.estado_id, 10) || 1, // Asegurar que sea número
+        estado_nombre: re.estado_nombre,
+        notas_instructor: ejercicioOriginal.notas_instructor || ''
+      };
+    });
+
+    // Actualizar el JSON de ejercicios en la rutina para mantener compatibilidad
+    const ejerciciosJsonActualizado = JSON.stringify(ejerciciosFormateados);
+    run('UPDATE rutinas SET ejercicios = ? WHERE id = ?', [ejerciciosJsonActualizado, rutinaId]);
+
+    res.status(201).json({ 
+      data: {
+        ...nuevaRutina,
+        ejercicios: ejerciciosFormateados
+      }
+    });
   } catch (error) {
     console.error('Error al generar rutina:', error);
     
@@ -152,7 +292,61 @@ router.get('/:id', requireAuth, requireRole('cliente'), (req, res) => {
       return res.status(404).json({ error: 'Rutina no encontrada' });
     }
 
-    res.json({ data: rutina });
+    // Obtener ejercicios desde rutina_ejercicio si existen
+    const ejerciciosRutina = query(`
+      SELECT 
+        re.*,
+        e.nombre as ejercicio_nombre,
+        e.descripcion as ejercicio_descripcion,
+        ee.nombre as estado_nombre
+      FROM rutina_ejercicio re
+      LEFT JOIN ejercicios e ON re.ejercicio_id = e.id
+      LEFT JOIN estado_ejercicios ee ON re.estado_id = ee.id
+      WHERE re.rutina_id = ?
+      ORDER BY re.orden
+    `, [id]);
+
+    // Si hay ejercicios en rutina_ejercicio, usarlos; sino usar el JSON
+    if (ejerciciosRutina && ejerciciosRutina.length > 0) {
+      // Parsear el JSON de ejercicios para obtener datos adicionales como descanso y notas_instructor
+      let ejerciciosJson = [];
+      try {
+        ejerciciosJson = typeof rutina.ejercicios === 'string' 
+          ? JSON.parse(rutina.ejercicios) 
+          : rutina.ejercicios || [];
+      } catch (e) {
+        ejerciciosJson = [];
+      }
+
+      const ejerciciosFormateados = ejerciciosRutina.map((re, idx) => {
+        // Buscar ejercicio correspondiente en el JSON por índice o nombre
+        const ejercicioJson = ejerciciosJson[idx] || 
+          ejerciciosJson.find(ej => ej.nombre === re.ejercicio_nombre || ej.id === re.ejercicio_id) ||
+          {};
+
+        return {
+          id: re.ejercicio_id,
+          nombre: re.ejercicio_nombre,
+          series: re.series,
+          repeticiones: re.repeticiones,
+          descanso: ejercicioJson.descanso || null,
+          notas: ejercicioJson.notas || re.ejercicio_descripcion || '',
+          estado_id: parseInt(re.estado_id, 10) || 1, // Asegurar que sea número
+          estado_nombre: re.estado_nombre,
+          notas_instructor: ejercicioJson.notas_instructor || ''
+        };
+      });
+
+      res.json({ 
+        data: {
+          ...rutina,
+          ejercicios: ejerciciosFormateados
+        }
+      });
+    } else {
+      // Fallback: usar JSON si no hay registros en rutina_ejercicio
+      res.json({ data: rutina });
+    }
   } catch (error) {
     console.error('Error al obtener rutina:', error);
     res.status(500).json({ error: 'Error interno del servidor' });

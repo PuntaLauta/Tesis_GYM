@@ -573,6 +573,113 @@ async function initDatabase() {
     }
   }
 
+  // Verificar y crear tabla estado_ejercicios
+  let tablaEstadoEjerciciosExiste = false;
+  try {
+    const tables = db.exec("SELECT name FROM sqlite_master WHERE type='table' AND name='estado_ejercicios'");
+    tablaEstadoEjerciciosExiste = tables && tables[0] && tables[0].values && tables[0].values.length > 0;
+  } catch (e) {
+    // Error al verificar, asumir que no existe
+  }
+
+  if (!tablaEstadoEjerciciosExiste) {
+    try {
+      db.run(`
+        CREATE TABLE IF NOT EXISTS estado_ejercicios (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          nombre TEXT NOT NULL UNIQUE,
+          descripcion TEXT
+        )
+      `);
+      
+      // Insertar estados por defecto
+      const estadosExistentes = db.exec("SELECT COUNT(*) as count FROM estado_ejercicios");
+      if (!estadosExistentes || !estadosExistentes[0] || !estadosExistentes[0].values || estadosExistentes[0].values[0][0] === 0) {
+        db.run(`INSERT INTO estado_ejercicios (nombre, descripcion) VALUES 
+          ('PENDIENTE', 'Pendiente de revisión por instructor'),
+          ('APROBADO', 'Aprobado por instructor'),
+          ('RECHAZADO', 'Rechazado por instructor')`);
+      }
+      
+      saveDatabase();
+      console.log('✅ Tabla estado_ejercicios creada');
+    } catch (e) {
+      console.log('Advertencia: No se pudo crear tabla estado_ejercicios:', e.message);
+    }
+  }
+
+  // Verificar si existe la columna estado_id en la tabla ejercicios
+  let columnaEstadoIdExiste = false;
+  try {
+    const tableInfo = db.exec("PRAGMA table_info(ejercicios)");
+    if (tableInfo && tableInfo[0] && tableInfo[0].values) {
+      columnaEstadoIdExiste = tableInfo[0].values.some(row => row[1] === 'estado_id');
+    }
+  } catch (e) {
+    // Error al verificar, asumir que no existe
+  }
+  
+  // Agregar columna estado_id si no existe (migración)
+  if (!columnaEstadoIdExiste) {
+    try {
+      // Primero obtener el ID del estado PENDIENTE
+      const estadoPendiente = db.exec("SELECT id FROM estado_ejercicios WHERE nombre = 'PENDIENTE'");
+      let estadoPendienteId = 1; // Default
+      if (estadoPendiente && estadoPendiente[0] && estadoPendiente[0].values && estadoPendiente[0].values.length > 0) {
+        estadoPendienteId = estadoPendiente[0].values[0][0];
+      }
+      
+      // SQLite no permite parámetros en ALTER TABLE, usar el valor directamente
+      db.run(`ALTER TABLE ejercicios ADD COLUMN estado_id INTEGER DEFAULT ${estadoPendienteId}`);
+      
+      // Actualizar ejercicios existentes que tengan estado_id NULL al estado PENDIENTE
+      const stmt = db.prepare('UPDATE ejercicios SET estado_id = ? WHERE estado_id IS NULL');
+      stmt.run([estadoPendienteId]);
+      stmt.free();
+      
+      saveDatabase();
+      console.log('✅ Columna estado_id agregada a la tabla ejercicios');
+    } catch (e) {
+      console.log('Advertencia: No se pudo agregar columna estado_id:', e.message);
+    }
+  }
+
+  // Verificar si existe la columna estado_id en la tabla rutina_ejercicio
+  let columnaEstadoIdRutinaEjercicioExiste = false;
+  try {
+    const tableInfo = db.exec("PRAGMA table_info(rutina_ejercicio)");
+    if (tableInfo && tableInfo[0] && tableInfo[0].values) {
+      columnaEstadoIdRutinaEjercicioExiste = tableInfo[0].values.some(row => row[1] === 'estado_id');
+    }
+  } catch (e) {
+    // Error al verificar, asumir que no existe
+  }
+  
+  // Agregar columna estado_id si no existe (migración)
+  if (!columnaEstadoIdRutinaEjercicioExiste) {
+    try {
+      // Primero obtener el ID del estado PENDIENTE
+      const estadoPendiente = db.exec("SELECT id FROM estado_ejercicios WHERE nombre = 'PENDIENTE'");
+      let estadoPendienteId = 1; // Default
+      if (estadoPendiente && estadoPendiente[0] && estadoPendiente[0].values && estadoPendiente[0].values.length > 0) {
+        estadoPendienteId = estadoPendiente[0].values[0][0];
+      }
+      
+      // SQLite no permite parámetros en ALTER TABLE, usar el valor directamente
+      db.run(`ALTER TABLE rutina_ejercicio ADD COLUMN estado_id INTEGER DEFAULT ${estadoPendienteId}`);
+      
+      // Actualizar registros existentes que tengan estado_id NULL al estado PENDIENTE
+      const stmt = db.prepare('UPDATE rutina_ejercicio SET estado_id = ? WHERE estado_id IS NULL');
+      stmt.run([estadoPendienteId]);
+      stmt.free();
+      
+      saveDatabase();
+      console.log('✅ Columna estado_id agregada a la tabla rutina_ejercicio');
+    } catch (e) {
+      console.log('Advertencia: No se pudo agregar columna estado_id a rutina_ejercicio:', e.message);
+    }
+  }
+
   
   return db;
 }

@@ -327,10 +327,18 @@ Asegúrate de que:
       throw new Error('El JSON generado no tiene la estructura correcta');
     }
 
-    // Validar que cada ejercicio tenga los campos requeridos
+    // Validar que cada ejercicio tenga los campos requeridos y agregar estado_id por defecto
     for (const ejercicio of rutinaData.ejercicios) {
       if (!ejercicio.nombre || ejercicio.series === undefined || !ejercicio.repeticiones) {
         throw new Error('Algunos ejercicios no tienen todos los campos requeridos');
+      }
+      // Agregar estado_id PENDIENTE (1) por defecto si no existe
+      if (!ejercicio.estado_id) {
+        ejercicio.estado_id = 1; // 1 = PENDIENTE
+      }
+      // Inicializar notas_instructor como vacío si no existe
+      if (!ejercicio.notas_instructor) {
+        ejercicio.notas_instructor = '';
       }
     }
 
