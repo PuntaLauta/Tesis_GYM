@@ -308,7 +308,7 @@ export default function GestionInstructores() {
                                 }}
                                 className="px-3 py-1 bg-indigo-600 text-white rounded text-sm hover:bg-indigo-700 whitespace-nowrap"
                               >
-                                Cambiar Pass
+                                Cambiar contraseña
                               </button>
                             )}
                             <button

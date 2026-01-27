@@ -264,7 +264,7 @@ export default function GestionAdmins() {
                             }}
                             className="px-3 py-1 bg-indigo-600 text-white rounded text-sm hover:bg-indigo-700"
                           >
-                            Cambiar Pass
+                            Cambiar contraseña
                           </button>
                           <button
                             onClick={() => handleDelete(usuario.id)}
@@ -335,7 +335,7 @@ export default function GestionAdmins() {
                                 }}
                                 className="px-3 py-1 bg-indigo-600 text-white rounded text-sm hover:bg-indigo-700"
                               >
-                                Cambiar Pass
+                                Cambiar contraseña
                               </button>
                             )}
                             <Link

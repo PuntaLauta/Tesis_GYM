@@ -13,6 +13,11 @@ export default function RutinasInstructor() {
   const [notasEditar, setNotasEditar] = useState('');
   const [estadoEditar, setEstadoEditar] = useState(2); // 2 = APROBADO, 3 = RECHAZADO
   const [guardandoNotas, setGuardandoNotas] = useState(false);
+  
+  // Estados para filtros
+  const [ocultarInactivas, setOcultarInactivas] = useState(false);
+  const [socioFiltro, setSocioFiltro] = useState('');
+  const [soloPendientes, setSoloPendientes] = useState(false);
 
   useEffect(() => {
     loadRutinas();
@@ -158,6 +163,80 @@ export default function RutinasInstructor() {
       month: 'long',
       day: 'numeric',
     });
+  };
+
+  // Obtener socios únicos que tienen rutinas activas
+  const getSociosConRutinasActivas = () => {
+    const sociosMap = new Map();
+    rutinas.forEach(rutina => {
+      if (rutina.activa === 1 || rutina.activa === true) {
+        if (rutina.socio_id && rutina.socio_nombre) {
+          if (!sociosMap.has(rutina.socio_id)) {
+            sociosMap.set(rutina.socio_id, {
+              id: rutina.socio_id,
+              nombre: rutina.socio_nombre
+            });
+          }
+        }
+      }
+    });
+    return Array.from(sociosMap.values()).sort((a, b) => a.nombre.localeCompare(b.nombre));
+  };
+
+  // Calcular ejercicios pendientes de una rutina
+  const calcularEjerciciosPendientes = (ejercicios) => {
+    if (!ejercicios || !Array.isArray(ejercicios)) return 0;
+    let pendientes = 0;
+    ejercicios.forEach(ejercicio => {
+      const estadoId = typeof ejercicio.estado_id === 'string' 
+        ? parseInt(ejercicio.estado_id, 10) 
+        : ejercicio.estado_id;
+      if (!estadoId || isNaN(estadoId) || estadoId === 1) {
+        pendientes++;
+      }
+    });
+    return pendientes;
+  };
+
+  // Filtrar rutinas según los filtros aplicados
+  const filtrarRutinas = () => {
+    return rutinas.filter(rutina => {
+      // Filtro: Ocultar rutinas inactivas
+      if (ocultarInactivas && (rutina.activa !== 1 && rutina.activa !== true)) {
+        return false;
+      }
+
+      // Filtro: Por socio
+      if (socioFiltro && rutina.socio_id !== parseInt(socioFiltro, 10)) {
+        return false;
+      }
+
+      // Filtro: Solo rutinas con ejercicios pendientes
+      if (soloPendientes) {
+        let ejerciciosCard = [];
+        try {
+          ejerciciosCard = Array.isArray(rutina.ejercicios)
+            ? rutina.ejercicios
+            : typeof rutina.ejercicios === 'string'
+            ? JSON.parse(rutina.ejercicios)
+            : [];
+        } catch (e) {
+          ejerciciosCard = [];
+        }
+        const pendientes = calcularEjerciciosPendientes(ejerciciosCard);
+        if (pendientes === 0) {
+          return false;
+        }
+      }
+
+      return true;
+    });
+  };
+
+  const handleLimpiarFiltros = () => {
+    setOcultarInactivas(false);
+    setSocioFiltro('');
+    setSoloPendientes(false);
   };
 
   if (loading) {
@@ -341,11 +420,80 @@ export default function RutinasInstructor() {
         <div className="container mx-auto px-4 py-8">
           <h1 className="text-3xl font-bold text-gray-800 mb-6">Rutinas</h1>
 
+          {/* Sector de Filtros */}
+          <div className="bg-white border rounded-lg p-3 shadow-sm mb-4">
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-base font-semibold text-gray-800">Filtros</h2>
+              <button
+                onClick={handleLimpiarFiltros}
+                className="px-2.5 py-1 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition-colors text-xs"
+              >
+                Limpiar filtros
+              </button>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              {/* Select: Filtrar por socio - PRIMERO */}
+              <div>
+                <label htmlFor="filtro-socio" className="block text-xs font-medium text-gray-700 mb-1">
+                  Filtrar por socio
+                </label>
+                <select
+                  id="filtro-socio"
+                  value={socioFiltro}
+                  onChange={(e) => setSocioFiltro(e.target.value)}
+                  className="w-full px-2.5 py-1.5 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                >
+                  <option value="">Todos los socios</option>
+                  {getSociosConRutinasActivas().map((socio) => (
+                    <option key={socio.id} value={socio.id}>
+                      {socio.nombre} (ID: {socio.id})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Checkbox: Solo rutinas pendientes - SEGUNDO */}
+              <div className="flex items-center">
+                <input
+                  type="checkbox"
+                  id="solo-pendientes"
+                  checked={soloPendientes}
+                  onChange={(e) => setSoloPendientes(e.target.checked)}
+                  className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                />
+                <label htmlFor="solo-pendientes" className="ml-2 text-sm text-gray-700 cursor-pointer">
+                  Solo rutinas pendientes de revisión
+                </label>
+              </div>
+
+              {/* Checkbox: Ocultar rutinas inactivas - ÚLTIMO */}
+              <div className="flex items-center">
+                <input
+                  type="checkbox"
+                  id="ocultar-inactivas"
+                  checked={ocultarInactivas}
+                  onChange={(e) => setOcultarInactivas(e.target.checked)}
+                  className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                />
+                <label htmlFor="ocultar-inactivas" className="ml-2 text-sm text-gray-700 cursor-pointer">
+                  Ocultar rutinas inactivas
+                </label>
+              </div>
+            </div>
+          </div>
+
           {rutinas.length === 0 ? (
             <p className="text-gray-500">No hay rutinas disponibles.</p>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {rutinas.map((rutina) => {
+            <>
+              {filtrarRutinas().length === 0 ? (
+                <div className="bg-gray-50 border rounded-lg p-6 text-center">
+                  <p className="text-gray-500">No hay rutinas que coincidan con los filtros seleccionados.</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {filtrarRutinas().map((rutina) => {
                 let ejerciciosCard = [];
                 try {
                   ejerciciosCard = Array.isArray(rutina.ejercicios)
@@ -358,18 +506,7 @@ export default function RutinasInstructor() {
                 }
 
                 // Calcular ejercicios pendientes
-                let ejerciciosPendientes = 0;
-                ejerciciosCard.forEach(ejercicio => {
-                  const estadoId = typeof ejercicio.estado_id === 'string' 
-                    ? parseInt(ejercicio.estado_id, 10) 
-                    : ejercicio.estado_id;
-                  if (!estadoId || isNaN(estadoId)) {
-                    // Si no tiene estado_id, asumir pendiente
-                    ejerciciosPendientes++;
-                  } else if (estadoId === 1) { // PENDIENTE
-                    ejerciciosPendientes++;
-                  }
-                });
+                const ejerciciosPendientes = calcularEjerciciosPendientes(ejerciciosCard);
 
                 const tienePendientes = ejerciciosPendientes > 0;
                 const todosCompletos = ejerciciosCard.length > 0 && ejerciciosPendientes === 0;
@@ -431,8 +568,10 @@ export default function RutinasInstructor() {
                     </div>
                   </div>
                 );
-              })}
-            </div>
+                  })}
+                </div>
+              )}
+            </>
           )}
         </div>
       )}
