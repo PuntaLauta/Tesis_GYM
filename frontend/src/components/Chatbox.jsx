@@ -139,7 +139,7 @@ export default function Chatbox({ socioEstado = 'activo' }) {
 
       {/* Chatbox expandido */}
       {isOpen && (
-        <div className="fixed bottom-6 right-6 w-96 h-[500px] bg-white border rounded-lg shadow-2xl flex flex-col z-50">
+        <div className="fixed bottom-0 right-0 left-0 sm:bottom-6 sm:right-6 sm:left-auto sm:w-96 h-[500px] bg-white border rounded-t-lg sm:rounded-lg shadow-2xl flex flex-col z-50">
           {/* Header */}
           <div className="bg-blue-600 text-white p-4 rounded-t-lg flex justify-between items-center">
             <h3 className="font-semibold">Asistente Virtual</h3>
@@ -230,12 +230,12 @@ export default function Chatbox({ socioEstado = 'activo' }) {
                 onChange={(e) => setInputMensaje(e.target.value)}
                 placeholder={!isSocioActivo ? "Cuenta inactiva" : "Escribe tu mensaje..."}
                 disabled={loading || !isSocioActivo}
-                className="flex-1 px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                className="flex-1 px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed text-sm min-w-0"
               />
               <button
                 type="submit"
                 disabled={loading || !inputMensaje.trim() || !isSocioActivo}
-                className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm flex-shrink-0"
               >
                 Enviar
               </button>

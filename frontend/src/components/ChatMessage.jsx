@@ -9,9 +9,9 @@ export default function ChatMessage({ mensaje, esUsuario, fecha }) {
   };
 
   return (
-    <div className={`flex ${esUsuario ? 'justify-end' : 'justify-start'} mb-4`}>
+    <div className={`flex ${esUsuario ? 'justify-end' : 'justify-start'} mb-4 ${esUsuario ? 'pr-2 sm:pr-0' : ''}`}>
       <div
-        className={`max-w-[80%] rounded-lg p-3 ${
+        className={`${esUsuario ? 'max-w-[90%] sm:max-w-[80%]' : 'max-w-[80%]'} rounded-lg p-3 ${
           esUsuario
             ? 'bg-blue-600 text-white'
             : 'bg-[#0b1533] text-blue-50'
