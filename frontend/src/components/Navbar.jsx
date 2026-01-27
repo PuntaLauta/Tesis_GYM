@@ -55,6 +55,7 @@ export default function Navbar() {
           </>
         ) : user.rol === 'instructor' ? (
           <>
+            <Link to="/instructor/rutinas" className="text-sm block py-2" onClick={closeMobileMenu}>Rutinas</Link>
             <Link to="/instructor/profile" className="text-sm block py-2" onClick={closeMobileMenu}>Mi Perfil</Link>
           </>
         ) : (
@@ -131,6 +132,7 @@ export default function Navbar() {
                 </>
               ) : user.rol === 'instructor' ? (
                 <>
+                  <Link to="/instructor/rutinas" className="text-sm">Rutinas</Link>
                   <Link to="/instructor/profile" className="text-sm">Mi Perfil</Link>
                 </>
               ) : (

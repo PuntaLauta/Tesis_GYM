@@ -233,11 +233,17 @@ export default function MisRutinas() {
               {(() => {
                 let ejercicios = [];
                 try {
-                  ejercicios =
-                    typeof rutinaDetalle.ejercicios === 'string'
-                      ? JSON.parse(rutinaDetalle.ejercicios)
-                      : rutinaDetalle.ejercicios || [];
+                  if (Array.isArray(rutinaDetalle.ejercicios)) {
+                    // Si ya es un array, usarlo directamente
+                    ejercicios = rutinaDetalle.ejercicios;
+                  } else if (typeof rutinaDetalle.ejercicios === 'string') {
+                    // Si es string, parsearlo
+                    ejercicios = JSON.parse(rutinaDetalle.ejercicios);
+                  } else {
+                    ejercicios = [];
+                  }
                 } catch (e) {
+                  console.error('Error al parsear ejercicios:', e);
                   ejercicios = [];
                 }
 
@@ -247,9 +253,60 @@ export default function MisRutinas() {
 
                 return (
                   <div className="space-y-3">
-                    {ejercicios.map((ejercicio, index) => (
-                      <div key={index} className="border rounded p-3">
-                        <h4 className="font-semibold mb-1">{ejercicio.nombre || `Ejercicio ${index + 1}`}</h4>
+                    {ejercicios.map((ejercicio, index) => {
+                      // Determinar estado_id del ejercicio (por defecto 1 = PENDIENTE)
+                      // Si tiene estado_id numérico, usarlo; si tiene estado string, mapearlo; sino default 1
+                      let estadoId = ejercicio.estado_id;
+                      
+                      // Convertir a número si es string
+                      if (typeof estadoId === 'string') {
+                        estadoId = parseInt(estadoId, 10);
+                      }
+                      
+                      if (!estadoId || isNaN(estadoId)) {
+                        // Compatibilidad con ejercicios antiguos que usan estado como string
+                        if (ejercicio.estado === 'APROBADO') estadoId = 2;
+                        else if (ejercicio.estado === 'RECHAZADO') estadoId = 3;
+                        else estadoId = 1; // PENDIENTE por defecto
+                      }
+                      
+                      // Configuración del botón según el estado_id
+                      const estadoConfig = {
+                        1: { // PENDIENTE
+                          emoji: '⚠️',
+                          color: 'bg-yellow-500',
+                          texto: 'Pendiente de Revisión por un Instructor',
+                          hoverColor: 'hover:bg-yellow-600'
+                        },
+                        2: { // APROBADO
+                          emoji: '✅',
+                          color: 'bg-green-500',
+                          texto: 'Verificado por un Instructor',
+                          hoverColor: 'hover:bg-green-600'
+                        },
+                        3: { // RECHAZADO
+                          emoji: '❌',
+                          color: 'bg-red-500',
+                          texto: 'Rechazado por un Instructor',
+                          hoverColor: 'hover:bg-red-600'
+                        }
+                      };
+                      
+                      const config = estadoConfig[estadoId] || estadoConfig[1];
+                      
+                      return (
+                      <div key={index} className="border rounded p-3 relative">
+                        {/* Botón de estado en esquina superior derecha */}
+                        <div className="absolute top-2 right-2">
+                          <button
+                            className={`${config.color} ${config.hoverColor} text-white rounded-lg px-2.5 py-1 flex items-center gap-1.5 text-xs font-medium transition-colors shadow-md`}
+                          >
+                            <span>{config.texto}</span>
+                            <span>{config.emoji}</span>
+                          </button>
+                        </div>
+                        
+                        <h4 className="font-semibold mb-1 pr-8">{ejercicio.nombre || `Ejercicio ${index + 1}`}</h4>
                         <div className="text-sm text-gray-600 space-y-1">
                           {ejercicio.series && (
                             <p>
@@ -268,12 +325,23 @@ export default function MisRutinas() {
                           )}
                           {ejercicio.notas && (
                             <p>
-                              <strong>Notas:</strong> {ejercicio.notas}
+                              <strong>Notas del Asistente IA:</strong> {ejercicio.notas}
+                            </p>
+                          )}
+                          <p>
+                            <strong>Notas del Instructor:</strong> {ejercicio.descripcion_profesor && ejercicio.descripcion_profesor.trim() 
+                              ? ejercicio.descripcion_profesor 
+                              : 'Sin notas del instructor'}
+                          </p>
+                          {(estadoId === 2 || estadoId === 3) && ejercicio.instructor_nombre && (
+                            <p className="text-gray-500 text-xs mt-1">
+                              Revisado por {ejercicio.instructor_nombre}
                             </p>
                           )}
                         </div>
                       </div>
-                    ))}
+                    );
+                    })}
                   </div>
                 );
               })()}

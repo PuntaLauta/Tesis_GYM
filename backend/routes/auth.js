@@ -1,6 +1,7 @@
 const express = require('express');
 const bcrypt = require('bcrypt');
 const { get, run, insert } = require('../db/database');
+const { isSocioActivo } = require('../models/helpers');
 const router = express.Router();
 
 // Función para normalizar respuestas: minúsculas, sin espacios, sin tildes
@@ -40,6 +41,16 @@ router.post('/login', async (req, res) => {
       const socioExistente = get('SELECT id FROM socios WHERE usuario_id = ?', [user.id]);
       if (socioExistente) {
         socioId = socioExistente.id;
+        
+        // Verificar y actualizar estado del socio basado en vigencia del último pago
+        try {
+          const validacion = isSocioActivo(socioId);
+          const nuevoEstado = validacion.activo ? 'activo' : 'inactivo';
+          run('UPDATE socios SET estado = ? WHERE id = ?', [nuevoEstado, socioId]);
+        } catch (error) {
+          // Si hay error en la verificación, no afectar el proceso de login
+          console.error('Error al actualizar estado del socio en login:', error);
+        }
       }
       // No asignar automáticamente socios sin usuario - deben estar correctamente asociados desde el seed
     }

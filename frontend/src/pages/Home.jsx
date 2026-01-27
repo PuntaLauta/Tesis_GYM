@@ -572,8 +572,10 @@ export default function Home() {
               )}
             </>
           )}
-          {/* Chatbox flotante solo para clientes */}
-          {user && user.rol === 'cliente' && <Chatbox />}
+          {/* Chatbox flotante solo para clientes activos */}
+          {user && user.rol === 'cliente' && socio && socio.estado === 'activo' && (
+            <Chatbox socioEstado={socio.estado} />
+          )}
         </div>
       ) : (
         <div className="space-y-2">

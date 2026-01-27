@@ -26,6 +26,7 @@ import ProfileInstructor from "./pages/ProfileInstructor";
 import Asistente from "./pages/Asistente";
 import MisRutinas from "./pages/MisRutinas";
 import DetalleRutina from "./pages/DetalleRutina";
+import RutinasInstructor from "./pages/RutinasInstructor";
 import NotFound from "./pages/NotFound";
 
 function DashboardRouter() {
@@ -207,15 +208,23 @@ export default function App() {
               </ProtectedRoute>
             }/>
 
-            <Route path="/admin/instructores" element={
-              <ProtectedRoute>
-                <RoleRoute roles={["admin", "root"]}>
-                  <GestionInstructores />
-                </RoleRoute>
-              </ProtectedRoute>
-            }/>
+        <Route path="/admin/instructores" element={
+          <ProtectedRoute>
+            <RoleRoute roles={["admin", "root"]}>
+              <GestionInstructores />
+            </RoleRoute>
+          </ProtectedRoute>
+        }/>
 
-            <Route path="*" element={<NotFound />} />
+        <Route path="/instructor/rutinas" element={
+          <ProtectedRoute>
+            <RoleRoute roles={["instructor"]}>
+              <RutinasInstructor />
+            </RoleRoute>
+          </ProtectedRoute>
+        }/>
+
+        <Route path="*" element={<NotFound />} />
         </Routes>
       </div>
       <Footer />

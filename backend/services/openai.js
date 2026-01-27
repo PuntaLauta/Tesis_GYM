@@ -235,10 +235,11 @@ function intentarExtraerRutinaData(texto) {
  * @param {string} sexo - Sexo del usuario ("hombre" o "mujer")
  * @param {number} edad - Edad del usuario
  * @param {number} peso - Peso del usuario en kg
+ * @param {number} altura - Altura del usuario en cm
  * @param {string} notasMedicas - Notas médicas o limitaciones (opcional)
  * @returns {Promise<object>} Objeto con nombre, descripcion y ejercicios en formato JSON
  */
-async function generarRutinaPersonalizada(tipoRutina, sexo, edad, peso, notasMedicas = '') {
+async function generarRutinaPersonalizada(tipoRutina, sexo, edad, peso, altura, notasMedicas = '') {
   try {
     // Verificar que la API key esté configurada
     if (!apiKey || apiKey.trim() === '') {
@@ -255,6 +256,7 @@ La información será proporcionada a través de los siguientes datos:
 - sexo: El sexo del usuario (hombre o mujer)
 - edad: La edad del usuario
 - peso: El peso del usuario en kilogramos
+- altura: La altura del usuario en centímetros
 - notas_medicas: Limitaciones físicas o condiciones médicas (si las hay)
 
 Debes usar estos datos para crear una rutina adecuada al perfil del usuario, considerando nivel físico esperado, riesgos potenciales, y limitaciones mencionadas.
@@ -284,7 +286,7 @@ Asegúrate de que:
 - El nombre de la rutina sea descriptivo y específico`;
 
     // Construir el mensaje del usuario
-    let userMessage = `Genera una rutina para ${tipoRutina}. Soy ${sexo}, tengo ${edad} años, peso ${peso} kg`;
+    let userMessage = `Genera una rutina para ${tipoRutina}. Soy ${sexo}, tengo ${edad} años, peso ${peso} kg y mido ${altura} cm`;
     if (notasMedicas && notasMedicas.trim()) {
       userMessage += `, y tengo las siguientes limitaciones: ${notasMedicas.trim()}`;
     }
@@ -325,10 +327,18 @@ Asegúrate de que:
       throw new Error('El JSON generado no tiene la estructura correcta');
     }
 
-    // Validar que cada ejercicio tenga los campos requeridos
+    // Validar que cada ejercicio tenga los campos requeridos y agregar estado_id por defecto
     for (const ejercicio of rutinaData.ejercicios) {
       if (!ejercicio.nombre || ejercicio.series === undefined || !ejercicio.repeticiones) {
         throw new Error('Algunos ejercicios no tienen todos los campos requeridos');
+      }
+      // Agregar estado_id PENDIENTE (1) por defecto si no existe
+      if (!ejercicio.estado_id) {
+        ejercicio.estado_id = 1; // 1 = PENDIENTE
+      }
+      // Inicializar notas_instructor como vacío si no existe
+      if (!ejercicio.notas_instructor) {
+        ejercicio.notas_instructor = '';
       }
     }
 
