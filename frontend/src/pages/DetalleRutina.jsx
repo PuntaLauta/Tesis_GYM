@@ -385,24 +385,24 @@ export default function DetalleRutina() {
               }
               
               
-              // Configuración del tooltip según el estado_id
+              // Configuración del botón según el estado_id
               const estadoConfig = {
                 1: { // PENDIENTE
                   emoji: '⚠️',
                   color: 'bg-yellow-500',
-                  texto: 'Pendiente de Revisión',
+                  texto: 'Pendiente de Revisión por un Instructor',
                   hoverColor: 'hover:bg-yellow-600'
                 },
                 2: { // APROBADO
                   emoji: '✅',
                   color: 'bg-green-500',
-                  texto: 'Aprobado por Instructor',
+                  texto: 'Verificado por un Instructor',
                   hoverColor: 'hover:bg-green-600'
                 },
                 3: { // RECHAZADO
                   emoji: '❌',
                   color: 'bg-red-500',
-                  texto: 'Rechazado por Instructor',
+                  texto: 'Rechazado por un Instructor',
                   hoverColor: 'hover:bg-red-600'
                 }
               };
@@ -411,23 +411,14 @@ export default function DetalleRutina() {
               
               return (
               <div key={index} className="border rounded-lg p-4 hover:shadow-md transition-shadow relative">
-                {/* Tooltip de estado en esquina superior derecha */}
+                {/* Botón de estado en esquina superior derecha */}
                 <div className="absolute top-2 right-2">
-                  <div className="group relative">
-                    <button
-                      className={`${config.color} ${config.hoverColor} text-white rounded-lg px-3 py-1.5 flex items-center gap-1.5 text-xs font-medium transition-colors shadow-md`}
-                      title={config.texto}
-                    >
-                      <span>{config.texto}</span>
-                      <span>{config.emoji}</span>
-                    </button>
-                    <div className="absolute right-0 top-10 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
-                      <div className="bg-gray-800 text-white text-xs rounded py-1 px-2 whitespace-nowrap shadow-lg">
-                        {config.texto}
-                        <div className="absolute -top-1 right-2 w-2 h-2 bg-gray-800 transform rotate-45"></div>
-                      </div>
-                    </div>
-                  </div>
+                  <button
+                    className={`${config.color} ${config.hoverColor} text-white rounded-lg px-3 py-1.5 flex items-center gap-1.5 text-xs font-medium transition-colors shadow-md`}
+                  >
+                    <span>{config.texto}</span>
+                    <span>{config.emoji}</span>
+                  </button>
                 </div>
                 
                 <div className="flex items-start justify-between mb-3 pr-10">
@@ -475,6 +466,11 @@ export default function DetalleRutina() {
                       ? ejercicio.descripcion_profesor 
                       : 'Sin notas del instructor'}
                   </p>
+                  {(estadoId === 2 || estadoId === 3) && ejercicio.instructor_nombre && (
+                    <p className="text-gray-500 text-xs mt-1">
+                      Revisado por {ejercicio.instructor_nombre}
+                    </p>
+                  )}
                 </div>
               </div>
             );

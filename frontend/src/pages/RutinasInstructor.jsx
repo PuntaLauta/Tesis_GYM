@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { listRutinasInstructor, revisarEjercicio } from '../services/rutinas';
+import { listRutinasInstructor, revisarEjercicio, actualizarNotasEjercicio } from '../services/rutinas';
 
 export default function RutinasInstructor() {
   const [rutinas, setRutinas] = useState([]);
@@ -9,6 +9,9 @@ export default function RutinasInstructor() {
   const [ejercicioRevisar, setEjercicioRevisar] = useState(null);
   const [notasRevisar, setNotasRevisar] = useState('');
   const [guardando, setGuardando] = useState(false);
+  const [ejercicioEditarNotas, setEjercicioEditarNotas] = useState(null);
+  const [notasEditar, setNotasEditar] = useState('');
+  const [guardandoNotas, setGuardandoNotas] = useState(false);
 
   useEffect(() => {
     loadRutinas();
@@ -96,6 +99,41 @@ export default function RutinasInstructor() {
     }
   };
 
+  const handleEditarNotas = (ejercicio) => {
+    setEjercicioEditarNotas(ejercicio);
+    setNotasEditar(ejercicio.descripcion_profesor || '');
+  };
+
+  const handleCerrarModalNotas = () => {
+    setEjercicioEditarNotas(null);
+    setNotasEditar('');
+  };
+
+  const handleGuardarNotas = async () => {
+    if (!ejercicioEditarNotas) return;
+    
+    setGuardandoNotas(true);
+    try {
+      await actualizarNotasEjercicio(ejercicioEditarNotas.id, notasEditar);
+      // Recargar rutinas para actualizar notas
+      await loadRutinas();
+      // Actualizar la rutina seleccionada si existe
+      if (rutinaSeleccionada) {
+        const data = await listRutinasInstructor();
+        const rutinaActualizada = data.data.find(r => r.id === rutinaSeleccionada.id);
+        if (rutinaActualizada) {
+          setRutinaSeleccionada(rutinaActualizada);
+        }
+      }
+      handleCerrarModalNotas();
+    } catch (err) {
+      console.error('Error al actualizar notas:', err);
+      alert(err.response?.data?.error || 'Error al actualizar las notas');
+    } finally {
+      setGuardandoNotas(false);
+    }
+  };
+
   const formatFecha = (fechaStr) => {
     if (!fechaStr) return 'No especificada';
     const fecha = new Date(fechaStr);
@@ -156,6 +194,9 @@ export default function RutinasInstructor() {
             {rutinaSeleccionada.descripcion && (
               <p className="text-gray-600 mt-2">{rutinaSeleccionada.descripcion}</p>
             )}
+            <p className="text-gray-600 mt-2">
+              Generada por {rutinaSeleccionada.socio_nombre || 'N/A'} (ID: {rutinaSeleccionada.socio_id}) el día {formatFecha(rutinaSeleccionada.fecha_creacion)}
+            </p>
           </div>
 
           <div className="space-y-4">
@@ -172,24 +213,24 @@ export default function RutinasInstructor() {
                   estadoId = 1; // PENDIENTE por defecto
                 }
 
-                // Configuración del tooltip según el estado_id
+                // Configuración del botón según el estado_id
                 const estadoConfig = {
                   1: { // PENDIENTE
                     emoji: '⚠️',
                     color: 'bg-yellow-500',
-                    texto: 'Pendiente de Revisión',
+                    texto: 'Pendiente de Revisión por un Instructor',
                     hoverColor: 'hover:bg-yellow-600'
                   },
                   2: { // APROBADO
                     emoji: '✅',
                     color: 'bg-green-500',
-                    texto: 'Aprobado por Instructor',
+                    texto: 'Verificado por un Instructor',
                     hoverColor: 'hover:bg-green-600'
                   },
                   3: { // RECHAZADO
                     emoji: '❌',
                     color: 'bg-red-500',
-                    texto: 'Rechazado por Instructor',
+                    texto: 'Rechazado por un Instructor',
                     hoverColor: 'hover:bg-red-600'
                   }
                 };
@@ -198,17 +239,14 @@ export default function RutinasInstructor() {
 
                 return (
                   <div key={index} className="border rounded-lg p-4 hover:shadow-md transition-shadow relative bg-white">
-                    {/* Tooltip de estado en esquina superior derecha */}
+                    {/* Botón de estado en esquina superior derecha */}
                     <div className="absolute top-2 right-2">
-                      <div className="group relative">
-                        <button
-                          className={`${config.color} ${config.hoverColor} text-white rounded-lg px-3 py-1.5 flex items-center gap-1.5 text-xs font-medium transition-colors shadow-md`}
-                          title={config.texto}
-                        >
-                          <span>{config.texto}</span>
-                          <span>{config.emoji}</span>
-                        </button>
-                      </div>
+                      <button
+                        className={`${config.color} ${config.hoverColor} text-white rounded-lg px-3 py-1.5 flex items-center gap-1.5 text-xs font-medium transition-colors shadow-md`}
+                      >
+                        <span>{config.texto}</span>
+                        <span>{config.emoji}</span>
+                      </button>
                     </div>
 
                     <h4 className="font-semibold mb-2 pr-32">{ejercicio.nombre || `Ejercicio ${index + 1}`}</h4>
@@ -238,6 +276,11 @@ export default function RutinasInstructor() {
                           ? ejercicio.descripcion_profesor 
                           : 'Sin notas del instructor'}
                       </p>
+                      {(estadoId === 2 || estadoId === 3) && ejercicio.instructor_nombre && (
+                        <p className="text-gray-500 text-xs mt-1">
+                          Revisado por {ejercicio.instructor_nombre}
+                        </p>
+                      )}
                     </div>
 
                     {/* Botón Revisar ejercicio solo si está PENDIENTE */}
@@ -248,6 +291,18 @@ export default function RutinasInstructor() {
                           className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
                         >
                           Revisar ejercicio
+                        </button>
+                      </div>
+                    )}
+
+                    {/* Botón Editar notas solo si está APROBADO o RECHAZADO */}
+                    {(estadoId === 2 || estadoId === 3) && (
+                      <div className="mt-4">
+                        <button
+                          onClick={() => handleEditarNotas(ejercicio)}
+                          className="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 transition-colors"
+                        >
+                          Editar notas
                         </button>
                       </div>
                     )}
@@ -299,6 +354,9 @@ export default function RutinasInstructor() {
                           <strong>Fecha de creación:</strong> {formatFecha(rutina.fecha_creacion)}
                         </p>
                       )}
+                      <p>
+                        <strong>Socio:</strong> {rutina.socio_nombre || 'N/A'} (ID: {rutina.socio_id})
+                      </p>
                       <span
                         className={`inline-block px-2 py-1 rounded text-xs font-medium ${
                           rutina.activa === 1 || rutina.activa === true
@@ -365,6 +423,71 @@ export default function RutinasInstructor() {
               <button
                 onClick={handleCerrarModal}
                 disabled={guardando}
+                className="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal para editar notas - siempre disponible */}
+      {ejercicioEditarNotas && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+          onClick={handleCerrarModalNotas}
+        >
+          <div 
+            className="bg-white rounded-lg p-6 max-w-md w-full mx-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-2xl font-bold">Editar Notas del Instructor</h2>
+              <button
+                onClick={handleCerrarModalNotas}
+                disabled={guardandoNotas}
+                className="text-gray-500 hover:text-gray-700 text-2xl font-bold disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                ×
+              </button>
+            </div>
+            <p className="text-gray-700 mb-4">
+              <strong>Ejercicio:</strong> {ejercicioEditarNotas.nombre}
+            </p>
+
+            <div className="mb-4">
+              <label className="block text-gray-700 text-sm font-bold mb-2">
+                Notas
+              </label>
+              <textarea
+                value={notasEditar}
+                onChange={(e) => {
+                  if (e.target.value.length <= 500) {
+                    setNotasEditar(e.target.value);
+                  }
+                }}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
+                rows="4"
+                placeholder="Escribe las notas del instructor (máximo 500 caracteres)"
+                maxLength={500}
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                {notasEditar.length}/500 caracteres
+              </p>
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={handleGuardarNotas}
+                disabled={guardandoNotas}
+                className="flex-1 px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {guardandoNotas ? 'Guardando...' : 'Guardar'}
+              </button>
+              <button
+                onClick={handleCerrarModalNotas}
+                disabled={guardandoNotas}
                 className="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Cancelar

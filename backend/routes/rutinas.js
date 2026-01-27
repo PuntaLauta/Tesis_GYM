@@ -41,9 +41,12 @@ router.get('/', requireAuth, requireRole('cliente'), (req, res) => {
           e.nombre as ejercicio_nombre,
           e.descripcion as ejercicio_descripcion,
           e.descripcion_profesor as descripcion_profesor,
+          e.instructor_id,
+          i.nombre as instructor_nombre,
           ee.nombre as estado_nombre
         FROM rutina_ejercicio re
         LEFT JOIN ejercicios e ON re.ejercicio_id = e.id
+        LEFT JOIN instructores i ON e.instructor_id = i.id
         LEFT JOIN estado_ejercicios ee ON re.estado_id = ee.id
         WHERE re.rutina_id = ?
         ORDER BY re.orden
@@ -74,7 +77,9 @@ router.get('/', requireAuth, requireRole('cliente'), (req, res) => {
             notas: ejercicioJson?.notas || re.ejercicio_descripcion || '',
             estado_id: parseInt(re.estado_id, 10) || 1, // Asegurar que sea número
             estado_nombre: re.estado_nombre,
-            descripcion_profesor: re.descripcion_profesor || null
+            descripcion_profesor: re.descripcion_profesor || null,
+            instructor_id: re.instructor_id || null,
+            instructor_nombre: re.instructor_nombre || null
           };
         });
 
@@ -277,11 +282,12 @@ router.post('/generar', requireAuth, requireRole('cliente'), async (req, res) =>
 // IMPORTANTE: Esta ruta debe estar ANTES de /:id para que no se interprete "instructor" como un ID
 router.get('/instructor', requireAuth, requireRole('instructor'), (req, res) => {
   try {
-    // Obtener todas las rutinas
+    // Obtener todas las rutinas con información del socio
     let sql = `
-      SELECT id, nombre, descripcion, ejercicios, fecha_creacion, fecha_inicio, fecha_fin, activa, socio_id
-      FROM rutinas
-      ORDER BY fecha_creacion DESC
+      SELECT r.id, r.nombre, r.descripcion, r.ejercicios, r.fecha_creacion, r.fecha_inicio, r.fecha_fin, r.activa, r.socio_id, s.nombre as socio_nombre
+      FROM rutinas r
+      LEFT JOIN socios s ON r.socio_id = s.id
+      ORDER BY r.fecha_creacion DESC
     `;
     
     const rutinas = query(sql);
@@ -294,9 +300,12 @@ router.get('/instructor', requireAuth, requireRole('instructor'), (req, res) => 
           e.nombre as ejercicio_nombre,
           e.descripcion as ejercicio_descripcion,
           e.descripcion_profesor as descripcion_profesor,
+          e.instructor_id,
+          i.nombre as instructor_nombre,
           ee.nombre as estado_nombre
         FROM rutina_ejercicio re
         LEFT JOIN ejercicios e ON re.ejercicio_id = e.id
+        LEFT JOIN instructores i ON e.instructor_id = i.id
         LEFT JOIN estado_ejercicios ee ON re.estado_id = ee.id
         WHERE re.rutina_id = ?
         ORDER BY re.orden
@@ -328,7 +337,9 @@ router.get('/instructor', requireAuth, requireRole('instructor'), (req, res) => 
             notas: ejercicioJson.notas || re.ejercicio_descripcion || '',
             estado_id: parseInt(re.estado_id, 10) || 1,
             estado_nombre: re.estado_nombre,
-            descripcion_profesor: re.descripcion_profesor || null
+            descripcion_profesor: re.descripcion_profesor || null,
+            instructor_id: re.instructor_id || null,
+            instructor_nombre: re.instructor_nombre || null
           };
         });
 
@@ -406,6 +417,58 @@ router.put('/ejercicios/:id/revisar', requireAuth, requireRole('instructor'), (r
   }
 });
 
+// PUT /api/rutinas/ejercicios/:id/notas - Actualizar notas del instructor
+// IMPORTANTE: Esta ruta debe estar ANTES de /:id para que no se interprete "ejercicios" como un ID
+router.put('/ejercicios/:id/notas', requireAuth, requireRole('instructor'), (req, res) => {
+  try {
+    const { id } = req.params; // ID de rutina_ejercicio
+    const { notas } = req.body;
+    
+    if (notas && notas.length > 500) {
+      return res.status(400).json({ error: 'Las notas no pueden exceder 500 caracteres' });
+    }
+
+    // Obtener el registro de rutina_ejercicio
+    const rutinaEjercicio = get('SELECT * FROM rutina_ejercicio WHERE id = ?', [id]);
+    if (!rutinaEjercicio) {
+      return res.status(404).json({ error: 'Ejercicio no encontrado' });
+    }
+
+    // Verificar que el ejercicio esté aprobado o rechazado
+    if (rutinaEjercicio.estado_id !== 2 && rutinaEjercicio.estado_id !== 3) {
+      return res.status(400).json({ error: 'Solo se pueden editar notas de ejercicios aprobados o rechazados' });
+    }
+
+    // Actualizar descripcion_profesor en la tabla ejercicios
+    run(
+      'UPDATE ejercicios SET descripcion_profesor = ? WHERE id = ?',
+      [notas || null, rutinaEjercicio.ejercicio_id]
+    );
+
+    // Obtener el ejercicio actualizado con información del instructor
+    const ejercicioActualizado = get(`
+      SELECT 
+        e.*,
+        i.nombre as instructor_nombre
+      FROM ejercicios e
+      LEFT JOIN instructores i ON e.instructor_id = i.id
+      WHERE e.id = ?
+    `, [rutinaEjercicio.ejercicio_id]);
+
+    res.json({ 
+      message: 'Notas actualizadas correctamente',
+      data: {
+        descripcion_profesor: notas || null,
+        instructor_id: ejercicioActualizado?.instructor_id || null,
+        instructor_nombre: ejercicioActualizado?.instructor_nombre || null
+      }
+    });
+  } catch (error) {
+    console.error('Error al actualizar notas:', error);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
 // GET /api/rutinas/:id - Obtener rutina específica
 router.get('/:id', requireAuth, requireRole('cliente'), (req, res) => {
   try {
@@ -434,9 +497,12 @@ router.get('/:id', requireAuth, requireRole('cliente'), (req, res) => {
         e.nombre as ejercicio_nombre,
         e.descripcion as ejercicio_descripcion,
         e.descripcion_profesor as descripcion_profesor,
+        e.instructor_id,
+        i.nombre as instructor_nombre,
         ee.nombre as estado_nombre
       FROM rutina_ejercicio re
       LEFT JOIN ejercicios e ON re.ejercicio_id = e.id
+      LEFT JOIN instructores i ON e.instructor_id = i.id
       LEFT JOIN estado_ejercicios ee ON re.estado_id = ee.id
       WHERE re.rutina_id = ?
       ORDER BY re.orden
@@ -469,7 +535,9 @@ router.get('/:id', requireAuth, requireRole('cliente'), (req, res) => {
           notas: ejercicioJson.notas || re.ejercicio_descripcion || '',
           estado_id: parseInt(re.estado_id, 10) || 1, // Asegurar que sea número
           estado_nombre: re.estado_nombre,
-          descripcion_profesor: re.descripcion_profesor || null
+          descripcion_profesor: re.descripcion_profesor || null,
+          instructor_id: re.instructor_id || null,
+          instructor_nombre: re.instructor_nombre || null
         };
       });
 

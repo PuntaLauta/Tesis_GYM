@@ -41,3 +41,9 @@ export const revisarEjercicio = (rutinaEjercicioId, estado, notas) => {
   }).then(r => r.data);
 };
 
+export const actualizarNotasEjercicio = (rutinaEjercicioId, notas) => {
+  return api.put(`/api/rutinas/ejercicios/${rutinaEjercicioId}/notas`, {
+    notas
+  }).then(r => r.data);
+};
+
