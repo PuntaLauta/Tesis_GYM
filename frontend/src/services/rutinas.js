@@ -46,4 +46,3 @@ export const actualizarNotasEjercicio = (rutinaEjercicioId, notas) => {
     notas
   }).then(r => r.data);
 };
-

@@ -347,7 +347,7 @@ async function seed() {
     
     if (index === 0) {
       // Juan: activo, pago reciente (hoy), plan mensual
-      diasAtrasPago = 0;
+      diasAtrasPago = 1;
       estado = 'activo';
       planSeleccionado = planMensual;
       montoPago = planMensual.precio;
