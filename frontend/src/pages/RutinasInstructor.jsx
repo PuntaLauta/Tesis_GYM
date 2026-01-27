@@ -11,6 +11,7 @@ export default function RutinasInstructor() {
   const [guardando, setGuardando] = useState(false);
   const [ejercicioEditarNotas, setEjercicioEditarNotas] = useState(null);
   const [notasEditar, setNotasEditar] = useState('');
+  const [estadoEditar, setEstadoEditar] = useState(2); // 2 = APROBADO, 3 = RECHAZADO
   const [guardandoNotas, setGuardandoNotas] = useState(false);
 
   useEffect(() => {
@@ -102,11 +103,21 @@ export default function RutinasInstructor() {
   const handleEditarNotas = (ejercicio) => {
     setEjercicioEditarNotas(ejercicio);
     setNotasEditar(ejercicio.descripcion_profesor || '');
+    // Establecer el estado actual del ejercicio
+    let estadoId = ejercicio.estado_id;
+    if (typeof estadoId === 'string') {
+      estadoId = parseInt(estadoId, 10);
+    }
+    if (!estadoId || isNaN(estadoId)) {
+      estadoId = 2; // Por defecto APROBADO
+    }
+    setEstadoEditar(estadoId);
   };
 
   const handleCerrarModalNotas = () => {
     setEjercicioEditarNotas(null);
     setNotasEditar('');
+    setEstadoEditar(2);
   };
 
   const handleGuardarNotas = async () => {
@@ -114,8 +125,13 @@ export default function RutinasInstructor() {
     
     setGuardandoNotas(true);
     try {
-      await actualizarNotasEjercicio(ejercicioEditarNotas.id, notasEditar);
-      // Recargar rutinas para actualizar notas
+      // Convertir estado a string para la API
+      const estadoString = estadoEditar === 2 ? 'aprobado' : 'rechazado';
+      
+      // Usar revisarEjercicio para actualizar tanto el estado como las notas
+      await revisarEjercicio(ejercicioEditarNotas.id, estadoString, notasEditar);
+      
+      // Recargar rutinas para actualizar notas y estado
       await loadRutinas();
       // Actualizar la rutina seleccionada si existe
       if (rutinaSeleccionada) {
@@ -127,8 +143,8 @@ export default function RutinasInstructor() {
       }
       handleCerrarModalNotas();
     } catch (err) {
-      console.error('Error al actualizar notas:', err);
-      alert(err.response?.data?.error || 'Error al actualizar las notas');
+      console.error('Error al actualizar revisión:', err);
+      alert(err.response?.data?.error || 'Error al actualizar la revisión');
     } finally {
       setGuardandoNotas(false);
     }
@@ -239,8 +255,8 @@ export default function RutinasInstructor() {
 
                 return (
                   <div key={index} className="border rounded-lg p-4 hover:shadow-md transition-shadow relative bg-white">
-                    {/* Botón de estado en esquina superior derecha */}
-                    <div className="absolute top-2 right-2">
+                    {/* Botón de estado - en desktop esquina superior derecha */}
+                    <div className="absolute top-2 right-2 sm:block hidden">
                       <button
                         className={`${config.color} ${config.hoverColor} text-white rounded-lg px-3 py-1.5 flex items-center gap-1.5 text-xs font-medium transition-colors shadow-md`}
                       >
@@ -249,7 +265,15 @@ export default function RutinasInstructor() {
                       </button>
                     </div>
 
-                    <h4 className="font-semibold mb-2 pr-32">{ejercicio.nombre || `Ejercicio ${index + 1}`}</h4>
+                    <h4 className="font-semibold mb-2 sm:pr-40 pr-0">{ejercicio.nombre || `Ejercicio ${index + 1}`}</h4>
+                    
+                    {/* Panel de estado para móvil - debajo del título */}
+                    <div className="mb-3 sm:hidden">
+                      <div className={`${config.color} text-white rounded-lg px-3 py-1.5 flex items-center gap-1.5 text-xs font-medium shadow-md w-fit`}>
+                        <span>{config.texto}</span>
+                        <span>{config.emoji}</span>
+                      </div>
+                    </div>
                     <div className="text-sm text-gray-600 space-y-1">
                       {ejercicio.series && (
                         <p>
@@ -295,14 +319,14 @@ export default function RutinasInstructor() {
                       </div>
                     )}
 
-                    {/* Botón Editar notas solo si está APROBADO o RECHAZADO */}
+                    {/* Botón Editar revisión solo si está APROBADO o RECHAZADO */}
                     {(estadoId === 2 || estadoId === 3) && (
                       <div className="mt-4">
                         <button
                           onClick={() => handleEditarNotas(ejercicio)}
                           className="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 transition-colors"
                         >
-                          Editar notas
+                          Editar revisión
                         </button>
                       </div>
                     )}
@@ -333,15 +357,53 @@ export default function RutinasInstructor() {
                   ejerciciosCard = [];
                 }
 
+                // Calcular ejercicios pendientes
+                let ejerciciosPendientes = 0;
+                ejerciciosCard.forEach(ejercicio => {
+                  const estadoId = typeof ejercicio.estado_id === 'string' 
+                    ? parseInt(ejercicio.estado_id, 10) 
+                    : ejercicio.estado_id;
+                  if (!estadoId || isNaN(estadoId)) {
+                    // Si no tiene estado_id, asumir pendiente
+                    ejerciciosPendientes++;
+                  } else if (estadoId === 1) { // PENDIENTE
+                    ejerciciosPendientes++;
+                  }
+                });
+
+                const tienePendientes = ejerciciosPendientes > 0;
+                const todosCompletos = ejerciciosCard.length > 0 && ejerciciosPendientes === 0;
+
                 return (
                   <div
                     key={rutina.id}
                     className="bg-white border rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow cursor-pointer"
                     onClick={() => handleVerEjercicios(rutina)}
                   >
-                    <h3 className="text-lg font-semibold text-gray-800 mb-2">
-                      {rutina.nombre}
-                    </h3>
+                    <div className="flex items-start justify-between mb-2">
+                      <h3 className="text-lg font-semibold text-gray-800 flex-1">
+                        {rutina.nombre}
+                      </h3>
+                      {ejerciciosCard.length > 0 && (
+                        <div className="ml-2 flex items-center gap-1">
+                          {tienePendientes ? (
+                            <>
+                              <span className="text-xl">⚠️</span>
+                              <span className="text-xs text-yellow-600 font-medium">
+                                {ejerciciosPendientes} pendiente{ejerciciosPendientes !== 1 ? 's' : ''}
+                              </span>
+                            </>
+                          ) : todosCompletos ? (
+                            <>
+                              <span className="text-xl">✅</span>
+                              <span className="text-xs text-green-600 font-medium">
+                                Revisiones completadas
+                              </span>
+                            </>
+                          ) : null}
+                        </div>
+                      )}
+                    </div>
                     {rutina.descripcion && (
                       <p className="text-sm text-gray-600 mb-3">{rutina.descripcion}</p>
                     )}
@@ -443,7 +505,7 @@ export default function RutinasInstructor() {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex justify-between items-center mb-4">
-              <h2 className="text-2xl font-bold">Editar Notas del Instructor</h2>
+              <h2 className="text-2xl font-bold">Editar Revisión</h2>
               <button
                 onClick={handleCerrarModalNotas}
                 disabled={guardandoNotas}
@@ -458,7 +520,22 @@ export default function RutinasInstructor() {
 
             <div className="mb-4">
               <label className="block text-gray-700 text-sm font-bold mb-2">
-                Notas
+                Estado
+              </label>
+              <select
+                value={estadoEditar}
+                onChange={(e) => setEstadoEditar(parseInt(e.target.value, 10))}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
+                disabled={guardandoNotas}
+              >
+                <option value={2}>Aprobado</option>
+                <option value={3}>Rechazado</option>
+              </select>
+            </div>
+
+            <div className="mb-4">
+              <label className="block text-gray-700 text-sm font-bold mb-2">
+                Notas del Instructor
               </label>
               <textarea
                 value={notasEditar}
@@ -471,6 +548,7 @@ export default function RutinasInstructor() {
                 rows="4"
                 placeholder="Escribe las notas del instructor (máximo 500 caracteres)"
                 maxLength={500}
+                disabled={guardandoNotas}
               />
               <p className="text-xs text-gray-500 mt-1">
                 {notasEditar.length}/500 caracteres
@@ -483,7 +561,7 @@ export default function RutinasInstructor() {
                 disabled={guardandoNotas}
                 className="flex-1 px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {guardandoNotas ? 'Guardando...' : 'Guardar'}
+                {guardandoNotas ? 'Guardando...' : 'Guardar Cambios'}
               </button>
               <button
                 onClick={handleCerrarModalNotas}

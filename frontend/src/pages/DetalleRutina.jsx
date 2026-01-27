@@ -411,8 +411,8 @@ export default function DetalleRutina() {
               
               return (
               <div key={index} className="border rounded-lg p-4 hover:shadow-md transition-shadow relative">
-                {/* Botón de estado en esquina superior derecha */}
-                <div className="absolute top-2 right-2">
+                {/* Botón de estado - en desktop esquina superior derecha */}
+                <div className="absolute top-2 right-2 sm:block hidden">
                   <button
                     className={`${config.color} ${config.hoverColor} text-white rounded-lg px-3 py-1.5 flex items-center gap-1.5 text-xs font-medium transition-colors shadow-md`}
                   >
@@ -421,10 +421,18 @@ export default function DetalleRutina() {
                   </button>
                 </div>
                 
-                <div className="flex items-start justify-between mb-3 pr-10">
+                <div className="flex items-start justify-between mb-3 sm:pr-40 pr-0">
                   <h3 className="text-xl font-semibold text-gray-800">
                     {index + 1}. {ejercicio.nombre || `Ejercicio ${index + 1}`}
                   </h3>
+                </div>
+                
+                {/* Panel de estado para móvil - debajo del título */}
+                <div className="mb-3 sm:hidden">
+                  <div className={`${config.color} text-white rounded-lg px-3 py-1.5 flex items-center gap-1.5 text-xs font-medium shadow-md w-fit`}>
+                    <span>{config.texto}</span>
+                    <span>{config.emoji}</span>
+                  </div>
                 </div>
                 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">

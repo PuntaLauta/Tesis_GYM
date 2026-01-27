@@ -296,8 +296,8 @@ export default function MisRutinas() {
                       
                       return (
                       <div key={index} className="border rounded p-3 relative">
-                        {/* Botón de estado en esquina superior derecha */}
-                        <div className="absolute top-2 right-2">
+                        {/* Botón de estado - en desktop esquina superior derecha */}
+                        <div className="absolute top-2 right-2 sm:block hidden">
                           <button
                             className={`${config.color} ${config.hoverColor} text-white rounded-lg px-2.5 py-1 flex items-center gap-1.5 text-xs font-medium transition-colors shadow-md`}
                           >
@@ -306,7 +306,15 @@ export default function MisRutinas() {
                           </button>
                         </div>
                         
-                        <h4 className="font-semibold mb-1 pr-8">{ejercicio.nombre || `Ejercicio ${index + 1}`}</h4>
+                        <h4 className="font-semibold mb-2 sm:pr-32 pr-0">{ejercicio.nombre || `Ejercicio ${index + 1}`}</h4>
+                        
+                        {/* Panel de estado para móvil - debajo del título */}
+                        <div className="mb-2 sm:hidden">
+                          <div className={`${config.color} text-white rounded-lg px-2.5 py-1 flex items-center gap-1.5 text-xs font-medium shadow-md w-fit`}>
+                            <span>{config.texto}</span>
+                            <span>{config.emoji}</span>
+                          </div>
+                        </div>
                         <div className="text-sm text-gray-600 space-y-1">
                           {ejercicio.series && (
                             <p>
