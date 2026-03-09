@@ -248,7 +248,7 @@ export default function Asistente() {
         <div className="bg-white/60 rounded-lg p-4 mb-4 border border-blue-100">
           <p className="text-sm text-gray-700 font-medium mb-2">✨ Características:</p>
           <ul className="text-sm text-gray-600 space-y-1 list-disc list-inside">
-            <li>Rutinas adaptadas a tu edad, peso y sexo</li>
+            <li>Rutinas adaptadas a tu edad, peso, altura y sexo</li>
             <li>Considera limitaciones médicas o físicas</li>
             <li>Consulta sobre ejercicios con nuestro asistente IA</li>
             <li>Rutinas guardadas y accesibles en cualquier momento</li>

@@ -86,11 +86,13 @@ router.get('/ingresos', (req, res) => {
     const params = [];
 
     if (desde) {
-      sql += ' AND fecha >= ?';
+      // Usar DATE() para comparar solo la parte de fecha, o incluir hora 00:00:00
+      sql += ' AND DATE(fecha) >= DATE(?)';
       params.push(desde);
     }
     if (hasta) {
-      sql += ' AND fecha <= ?';
+      // Usar DATE() para comparar solo la parte de fecha, o incluir hora 23:59:59
+      sql += ' AND DATE(fecha) <= DATE(?)';
       params.push(hasta);
     }
 

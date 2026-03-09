@@ -1,17 +1,15 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { getActivosInactivos, getIngresos, getOcupacionClases } from '../services/reports';
+import { getIngresos, getOcupacionClases } from '../services/reports';
 import { listClasses } from '../services/classes';
 import { listAll } from '../services/reservations';
 import { listAllPayments } from '../services/pagos';
 import { listSocios } from '../services/socios';
-import StatCards from '../components/StatCards';
 
 export default function DashboardAdmin() {
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
-  const [stats, setStats] = useState(null);
   const [ingresos, setIngresos] = useState(null);
   const [ocupacion, setOcupacion] = useState(null);
   const [clasesHoy, setClasesHoy] = useState([]);
@@ -37,7 +35,6 @@ export default function DashboardAdmin() {
       
       // Cargar datos en paralelo
       const [
-        activosData,
         ingresosData,
         ocupacionData,
         clasesData,
@@ -45,7 +42,6 @@ export default function DashboardAdmin() {
         pagosData,
         sociosData
       ] = await Promise.all([
-        getActivosInactivos(),
         getIngresos({ desde: hoy, hasta: hoy }),
         getOcupacionClases({ desde: hoy, hasta: hoy }),
         listClasses({ desde: desdeMes, hasta: hastaMes }),
@@ -54,7 +50,6 @@ export default function DashboardAdmin() {
         listSocios()
       ]);
 
-      setStats(activosData.data);
       setIngresos(ingresosData.data);
       setOcupacion(ocupacionData.data);
       
@@ -192,14 +187,18 @@ export default function DashboardAdmin() {
         </div>
       </div>
 
-      {/* Tarjetas de Estadisticas */}
-      <StatCards
-        stats={{
-          ...stats,
-          totalIngresos: ingresosHoy,
-          promedioOcupacion: ocupacion?.promedio || 0,
-        }}
-      />
+      {/* Resumen de Ingresos de Hoy */}
+      {ingresosHoy > 0 && (
+        <div className="bg-white p-4 rounded-lg shadow mb-6">
+          <h2 className="font-bold mb-2">Ingresos de Hoy</h2>
+          <div className="text-3xl font-bold text-green-600">
+            ${ingresosHoy.toFixed(2)}
+          </div>
+          <div className="text-sm text-gray-600 mt-1">
+            {ingresos?.resumen?.totalPagos || 0} {ingresos?.resumen?.totalPagos === 1 ? 'pago' : 'pagos'} registrados
+          </div>
+        </div>
+      )}
 
       {/* Alertas y Notificaciones */}
       {clasesAlerta.length > 0 && (
@@ -328,7 +327,7 @@ export default function DashboardAdmin() {
         )}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="space-y-6">
         {/* Clases del Mes */}
         <div className="bg-white p-4 rounded-lg shadow">
           <div className="flex justify-between items-center mb-4">
@@ -365,7 +364,6 @@ export default function DashboardAdmin() {
             </div>
           )}
         </div>
-
 
         {/* Ultimas Reservas */}
         <div className="bg-white p-4 rounded-lg shadow">
@@ -430,19 +428,6 @@ export default function DashboardAdmin() {
           )}
         </div>
       </div>
-
-      {/* Resumen de Ingresos de Hoy */}
-      {ingresosHoy > 0 && (
-        <div className="bg-white p-4 rounded-lg shadow mt-6">
-          <h2 className="font-bold mb-2">Ingresos de Hoy</h2>
-          <div className="text-3xl font-bold text-green-600">
-            ${ingresosHoy.toFixed(2)}
-          </div>
-          <div className="text-sm text-gray-600 mt-1">
-            {ingresos?.resumen?.totalPagos || 0} {ingresos?.resumen?.totalPagos === 1 ? 'pago' : 'pagos'} registrados
-          </div>
-        </div>
-      )}
     </div>
   );
 }

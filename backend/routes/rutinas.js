@@ -497,12 +497,9 @@ router.get('/:id', requireAuth, requireRole('cliente'), (req, res) => {
         e.nombre as ejercicio_nombre,
         e.descripcion as ejercicio_descripcion,
         e.descripcion_profesor as descripcion_profesor,
-        e.instructor_id,
-        i.nombre as instructor_nombre,
         ee.nombre as estado_nombre
       FROM rutina_ejercicio re
       LEFT JOIN ejercicios e ON re.ejercicio_id = e.id
-      LEFT JOIN instructores i ON e.instructor_id = i.id
       LEFT JOIN estado_ejercicios ee ON re.estado_id = ee.id
       WHERE re.rutina_id = ?
       ORDER BY re.orden
@@ -535,9 +532,7 @@ router.get('/:id', requireAuth, requireRole('cliente'), (req, res) => {
           notas: ejercicioJson.notas || re.ejercicio_descripcion || '',
           estado_id: parseInt(re.estado_id, 10) || 1, // Asegurar que sea número
           estado_nombre: re.estado_nombre,
-          descripcion_profesor: re.descripcion_profesor || null,
-          instructor_id: re.instructor_id || null,
-          instructor_nombre: re.instructor_nombre || null
+          descripcion_profesor: re.descripcion_profesor || null
         };
       });
 

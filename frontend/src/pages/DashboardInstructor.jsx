@@ -1,10 +1,13 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { getClasesInstructor, getSociosClase, getInstructor } from '../services/instructores';
 import { cancelClass } from '../services/classes';
+import { listRutinasInstructor } from '../services/rutinas';
 
 export default function DashboardInstructor() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [instructor, setInstructor] = useState(null);
   const [clases, setClases] = useState([]);
@@ -14,6 +17,8 @@ export default function DashboardInstructor() {
   const [selectedClase, setSelectedClase] = useState(null);
   const [sociosInscriptos, setSociosInscriptos] = useState([]);
   const [loadingSocios, setLoadingSocios] = useState(false);
+  const [rutinasPendientes, setRutinasPendientes] = useState(0);
+  const [loadingRutinas, setLoadingRutinas] = useState(false);
   const [stats, setStats] = useState({
     totalClases: 0,
     ocupacionPromedio: 0,
@@ -24,6 +29,7 @@ export default function DashboardInstructor() {
     if (user && user.instructor_id) {
       loadInstructor();
       loadClases();
+      loadRutinasPendientes();
     }
   }, [user]);
 
@@ -140,6 +146,37 @@ export default function DashboardInstructor() {
     }
   };
 
+  const loadRutinasPendientes = async () => {
+    if (!user || !user.instructor_id) return;
+    
+    setLoadingRutinas(true);
+    try {
+      const data = await listRutinasInstructor();
+      const rutinas = data.data || [];
+      
+      // Contar ejercicios pendientes (estado_id = 1)
+      let ejerciciosPendientes = 0;
+      rutinas.forEach(rutina => {
+        if (rutina.ejercicios && Array.isArray(rutina.ejercicios)) {
+          rutina.ejercicios.forEach(ejercicio => {
+            const estadoId = typeof ejercicio.estado_id === 'string' 
+              ? parseInt(ejercicio.estado_id, 10) 
+              : ejercicio.estado_id;
+            if (estadoId === 1) { // PENDIENTE
+              ejerciciosPendientes++;
+            }
+          });
+        }
+      });
+      
+      setRutinasPendientes(ejerciciosPendientes);
+    } catch (error) {
+      console.error('Error al cargar rutinas pendientes:', error);
+    } finally {
+      setLoadingRutinas(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="max-w-6xl mx-auto p-6">
@@ -161,6 +198,49 @@ export default function DashboardInstructor() {
           Organizá tus clases, revisá la ocupación y acompañá a tus alumnos desde un solo panel,
           manteniendo tus horarios y grupos siempre claros.
         </p>
+      </div>
+
+      {/* Sección de Rutinas Pendientes */}
+      <div className="bg-white p-4 rounded-lg shadow mb-6">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            {rutinasPendientes > 0 ? (
+              <>
+                <div className="flex items-center justify-center w-12 h-12 bg-yellow-100 rounded-full">
+                  <span className="text-2xl">⚠️</span>
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-800">
+                    {rutinasPendientes} {rutinasPendientes === 1 ? 'ejercicio pendiente' : 'ejercicios pendientes'} de revisión
+                  </h3>
+                  <p className="text-sm text-gray-600">
+                    Hay rutinas esperando tu revisión
+                  </p>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="flex items-center justify-center w-12 h-12 bg-green-100 rounded-full">
+                  <span className="text-2xl">✅</span>
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-800">
+                    No hay ejercicios pendientes
+                  </h3>
+                  <p className="text-sm text-gray-600">
+                    Todas las rutinas han sido revisadas
+                  </p>
+                </div>
+              </>
+            )}
+          </div>
+          <button
+            onClick={() => navigate('/instructor/rutinas')}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+          >
+            Ir a Rutinas
+          </button>
+        </div>
       </div>
 
       <h2 className="text-xl font-bold mb-6">Dashboard Instructor</h2>
