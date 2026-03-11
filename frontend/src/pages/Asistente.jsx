@@ -196,27 +196,78 @@ export default function Asistente() {
 
   // Si el socio no está activo, mostrar mensaje de error
   const isSocioActivo = socio && socio.estado === 'activo';
+  const estadoSocio = socio ? socio.estado : null;
+  const isSuspendido = estadoSocio === 'suspendido';
+  const isAbandono = estadoSocio === 'abandono';
 
   return (
     <div className="max-w-4xl mx-auto p-6">
       <h1 className="text-2xl font-bold mb-6">Asistente Virtual de Entrenamiento</h1>
 
-      {/* Mensaje de error si el socio está inactivo */}
+      {/* Mensaje de error si el socio no está activo */}
       {!isSocioActivo && (
-        <div className="bg-red-50 border-l-4 border-red-400 p-6 rounded-lg shadow-lg mb-6">
+        <div
+          className={`border-l-4 p-6 rounded-lg shadow-lg mb-6 ${
+            isSuspendido
+              ? 'bg-yellow-50 border-yellow-400'
+              : isAbandono
+              ? 'bg-orange-50 border-orange-400'
+              : 'bg-red-50 border-red-400'
+          }`}
+        >
           <div className="flex items-start">
             <div className="flex-shrink-0">
-              <svg className="h-8 w-8 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg
+                className={`h-8 w-8 ${
+                  isSuspendido ? 'text-yellow-400' : isAbandono ? 'text-orange-400' : 'text-red-400'
+                }`}
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
               </svg>
             </div>
             <div className="ml-4 flex-1">
-              <h3 className="text-lg font-semibold text-red-800 mb-2">Asistente Desactivado</h3>
-              <p className="text-red-700 mb-2">
-                Tu cuenta está inactiva y no puedes acceder al asistente virtual.
+              <h3
+                className={`text-lg font-semibold mb-2 ${
+                  isSuspendido ? 'text-yellow-800' : isAbandono ? 'text-orange-800' : 'text-red-800'
+                }`}
+              >
+                Asistente Desactivado
+              </h3>
+              {estadoSocio && (
+                <p className="mb-2">
+                  <span
+                    className={`inline-block px-2 py-1 rounded text-xs uppercase tracking-wide font-semibold ${
+                      estadoSocio === 'suspendido'
+                        ? 'bg-yellow-100 text-yellow-800'
+                        : estadoSocio === 'abandono'
+                        ? 'bg-orange-100 text-orange-800'
+                        : 'bg-red-100 text-red-800'
+                    }`}
+                  >
+                    Estado: {estadoSocio}
+                  </span>
+                </p>
+              )}
+              <p
+                className={`mb-2 ${
+                  isSuspendido ? 'text-yellow-700' : isAbandono ? 'text-orange-700' : 'text-red-700'
+                }`}
+              >
+                {estadoSocio === 'suspendido'
+                  ? 'Tu cuenta fue suspendida por un administrador y no puedes acceder al asistente virtual.'
+                  : 'Tu cuenta no está activa (cuota vencida o estado abandono) y no puedes acceder al asistente virtual.'}
               </p>
-              <p className="text-sm text-red-600">
-                Contacta a recepción para reactivar tu membresía y acceder a todas las funcionalidades del asistente.
+              <p
+                className={`text-sm ${
+                  isSuspendido ? 'text-yellow-700' : isAbandono ? 'text-orange-700' : 'text-red-600'
+                }`}
+              >
+                {isAbandono
+                  ? 'Contacta a recepción para regularizar tu situación y reactivar tu membresía antes de volver a usar el asistente.'
+                  : 'Contacta a recepción para reactivar tu membresía y acceder a todas las funcionalidades del asistente.'}
               </p>
             </div>
           </div>

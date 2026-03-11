@@ -301,11 +301,17 @@ export default function DashboardAdmin() {
                     <td className="py-2">{socio.telefono || '-'}</td>
                     <td className="py-2">{socio.usuario_email || '-'}</td>
                     <td className="py-2">
-                      <span className={`px-2 py-1 rounded text-xs ${
-                        socio.estado === 'activo' ? 'bg-green-100 text-green-800' :
-                        socio.estado === 'suspendido' ? 'bg-yellow-100 text-yellow-800' :
-                        'bg-red-100 text-red-800'
-                      }`}>
+                      <span
+                        className={`px-2 py-1 rounded text-xs ${
+                          socio.estado === 'activo'
+                            ? 'bg-green-100 text-green-800'
+                            : socio.estado === 'suspendido'
+                            ? 'bg-yellow-100 text-yellow-800'
+                            : socio.estado === 'abandono'
+                            ? 'bg-orange-100 text-orange-800'
+                            : 'bg-red-100 text-red-800'
+                        }`}
+                      >
                         {socio.estado}
                       </span>
                     </td>

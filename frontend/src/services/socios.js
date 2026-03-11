@@ -34,6 +34,10 @@ export const updateSocio = (id, data) => {
   return api.put(`/api/socios/${id}`, data).then(r => r.data);
 };
 
+export const updateSocioEstadoAdmin = (id, data) => {
+  return api.put(`/api/socios/${id}/estado-admin`, data).then(r => r.data);
+};
+
 export const deleteSocio = (id) => {
   return api.delete(`/api/socios/${id}`).then(r => r.data);
 };

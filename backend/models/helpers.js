@@ -1,33 +1,52 @@
 const { query, get } = require('../db/database');
 
-// Verificar si un socio está activo según su último pago y duración del plan
-function isSocioActivo(socioId) {
-  // Obtener el socio con su plan
-  const socio = get(`
+// Calcular estado recomendado de un socio según su último pago y duración del plan
+function calcularEstadoSocioConPagos(socioId) {
+  const socio = get(
+    `
     SELECT s.*, p.duracion 
     FROM socios s 
     LEFT JOIN planes p ON s.plan_id = p.id 
     WHERE s.id = ?
-  `, [socioId]);
+  `,
+    [socioId]
+  );
 
-  if (!socio || !socio.plan_id) {
-    return { activo: false, motivo: 'Socio sin plan asignado' };
+  if (!socio) {
+    return {
+      estadoRecomendado: 'inactivo',
+      diasDesdeVencimiento: null,
+      motivo: 'Socio no encontrado',
+    };
   }
 
-  // Obtener último pago del socio
-  const ultimoPago = get(`
+  if (!socio.plan_id || !socio.duracion) {
+    return {
+      estadoRecomendado: 'inactivo',
+      diasDesdeVencimiento: null,
+      motivo: 'Socio sin plan asignado',
+    };
+  }
+
+  const ultimoPago = get(
+    `
     SELECT fecha 
     FROM pagos 
     WHERE socio_id = ? 
     ORDER BY fecha DESC 
     LIMIT 1
-  `, [socioId]);
+  `,
+    [socioId]
+  );
 
   if (!ultimoPago) {
-    return { activo: false, motivo: 'Socio sin pagos registrados' };
+    return {
+      estadoRecomendado: 'inactivo',
+      diasDesdeVencimiento: null,
+      motivo: 'Socio sin pagos registrados',
+    };
   }
 
-  // Calcular fecha de vencimiento
   const fechaPago = new Date(ultimoPago.fecha);
   const fechaVencimiento = new Date(fechaPago);
   fechaVencimiento.setDate(fechaVencimiento.getDate() + socio.duracion);
@@ -36,14 +55,45 @@ function isSocioActivo(socioId) {
   hoy.setHours(0, 0, 0, 0);
   fechaVencimiento.setHours(0, 0, 0, 0);
 
+  // Membresía vigente
   if (fechaVencimiento >= hoy) {
-    return { activo: true, motivo: 'Membresía vigente' };
-  } else {
-    return { 
-      activo: false, 
-      motivo: `Membresía vencida el ${fechaVencimiento.toISOString().split('T')[0]}` 
+    return {
+      estadoRecomendado: 'activo',
+      diasDesdeVencimiento: 0,
+      motivo: 'Membresía vigente',
     };
   }
+
+  // Membresía vencida: calcular días desde vencimiento
+  const diffTime = hoy - fechaVencimiento;
+  const diasDesdeVencimiento = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+
+  if (diasDesdeVencimiento > 90) {
+    return {
+      estadoRecomendado: 'abandono',
+      diasDesdeVencimiento,
+      motivo: `Membresía vencida hace ${diasDesdeVencimiento} días (abandono)`,
+    };
+  }
+
+  return {
+    estadoRecomendado: 'inactivo',
+    diasDesdeVencimiento,
+    motivo: `Membresía vencida el ${fechaVencimiento.toISOString().split('T')[0]}`,
+  };
+}
+
+// Verificar si un socio está activo usando el cálculo anterior
+function isSocioActivo(socioId) {
+  const { estadoRecomendado, diasDesdeVencimiento, motivo } =
+    calcularEstadoSocioConPagos(socioId);
+
+  return {
+    activo: estadoRecomendado === 'activo',
+    motivo,
+    estadoRecomendado,
+    diasDesdeVencimiento,
+  };
 }
 
 // Contar ocupación de una clase (reservados + asistieron)
@@ -88,10 +138,18 @@ function isSocioActivoByToken(qrToken) {
     return { activo: false, motivo: 'Token no válido' };
   }
 
-  return isSocioActivo(socio.id);
+  const resultado = calcularEstadoSocioConPagos(socio.id);
+
+  return {
+    activo: resultado.estadoRecomendado === 'activo',
+    motivo: resultado.motivo,
+    estadoRecomendado: resultado.estadoRecomendado,
+    diasDesdeVencimiento: resultado.diasDesdeVencimiento,
+  };
 }
 
 module.exports = {
+  calcularEstadoSocioConPagos,
   isSocioActivo,
   isSocioActivoByToken,
   getOcupacionClase,

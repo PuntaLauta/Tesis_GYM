@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { listSocios, createSocio, updateSocio, deleteSocio } from '../services/socios';
+import { listSocios, createSocio, updateSocio, deleteSocio, updateSocioEstadoAdmin } from '../services/socios';
 import { listPlanes } from '../services/planes';
 import SocioQrCard from '../components/SocioQrCard';
 
@@ -13,6 +13,7 @@ export default function Socios() {
   const [showForm, setShowForm] = useState(false);
   const [editingSocio, setEditingSocio] = useState(null);
   const [selectedSocioId, setSelectedSocioId] = useState(null);
+  const [successMessage, setSuccessMessage] = useState('');
   const [formData, setFormData] = useState({
     nombre: '',
     documento: '',
@@ -68,13 +69,15 @@ export default function Socios() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     e.stopPropagation();
-    
+    setSuccessMessage('');
+
     try {
       const isEditing = !!editingSocio;
       
       if (isEditing) {
         // Si hay contraseña nueva, incluirla en la actualización
-        const updateData = { ...formData };
+        const { estado, ...rest } = formData;
+        const updateData = { ...rest };
         // Solo incluir password si se proporcionó una nueva
         if (!updateData.password || updateData.password.trim() === '') {
           delete updateData.password;
@@ -82,6 +85,11 @@ export default function Socios() {
         // No enviar email en la actualización (ya está deshabilitado)
         delete updateData.email;
         await updateSocio(editingSocio.id, updateData);
+        // Actualizar estado y marca de cancelación por admin en endpoint dedicado
+        const estadoAdminActual = editingSocio.cancelado_por_admin ? 'suspendido' : 'activo';
+        if (estado && estado !== estadoAdminActual) {
+          await updateSocioEstadoAdmin(editingSocio.id, { estado });
+        }
       } else {
         await createSocio(formData);
       }
@@ -90,7 +98,11 @@ export default function Socios() {
       setEditingSocio(null);
       setFormData({ nombre: '', documento: '', telefono: '', estado: 'activo', plan_id: '', email: '', password: '', notas: '' });
       await loadSocios();
-      alert(isEditing ? 'Socio actualizado' : 'Socio creado. QR generado automáticamente.');
+      if (isEditing) {
+        setSuccessMessage('Socio actualizado correctamente.');
+      } else {
+        alert('Socio creado. QR generado automáticamente.');
+      }
     } catch (error) {
       console.error('Error al guardar socio:', error);
       alert(error.response?.data?.error || 'Error al guardar socio');
@@ -103,7 +115,7 @@ export default function Socios() {
       nombre: socio.nombre,
       documento: socio.documento || '',
       telefono: socio.telefono || '',
-      estado: socio.estado,
+      estado: socio.cancelado_por_admin ? 'suspendido' : 'activo',
       plan_id: socio.plan_id || '',
       email: socio.usuario_email || '',
       password: '',
@@ -146,6 +158,11 @@ export default function Socios() {
 
   return (
     <div className="max-w-6xl mx-auto p-6">
+      {successMessage && (
+        <div className="mb-4 px-4 py-3 rounded bg-green-100 border border-green-300 text-green-800 text-sm">
+          {successMessage}
+        </div>
+      )}
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold">Gestión de Socios</h1>
         <button
@@ -238,7 +255,6 @@ export default function Socios() {
               >
                 <option value="activo">Activo</option>
                 <option value="suspendido">Suspendido</option>
-                <option value="inactivo">Inactivo</option>
               </select>
             </div>
             <div>
@@ -369,12 +385,21 @@ export default function Socios() {
                           )}
                         </div>
                         <span className={`inline-block mt-2 px-2 py-1 rounded text-xs ${
-                          socio.estado === 'activo' ? 'bg-green-100 text-green-800' :
-                          socio.estado === 'suspendido' ? 'bg-yellow-100 text-yellow-800' :
-                          'bg-red-100 text-red-800'
+                          socio.estado === 'activo'
+                            ? 'bg-green-100 text-green-800'
+                            : socio.estado === 'suspendido'
+                            ? 'bg-yellow-100 text-yellow-800'
+                            : socio.estado === 'abandono'
+                            ? 'bg-orange-100 text-orange-800'
+                            : 'bg-red-100 text-red-800'
                         }`}>
                           {socio.estado}
                         </span>
+                        {socio.cancelado_por_admin ? (
+                          <span className="inline-block mt-2 ml-2 px-2 py-1 rounded text-xs bg-red-200 text-red-900">
+                            Cancelado por admin
+                          </span>
+                        ) : null}
                       </div>
                       <div className="flex flex-col md:flex-row gap-2 ml-4">
                         <button

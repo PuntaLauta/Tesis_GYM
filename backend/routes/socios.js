@@ -187,7 +187,7 @@ router.put('/:id', requireAuth, async (req, res) => {
         run('UPDATE usuarios SET email = ? WHERE id = ?', [email, user.id]);
       }
     } else {
-      // Admin/root pueden editar todo
+      // Admin/root pueden editar datos generales del socio
       const { documento, notas } = req.body;
       
       // Si se está cambiando el documento, verificar que no exista
@@ -198,14 +198,18 @@ router.put('/:id', requireAuth, async (req, res) => {
         }
       }
       
-      const planIdFinal = plan_id !== undefined && plan_id !== '' ? plan_id : (plan_id === '' ? null : socio.plan_id);
+      const planIdFinal =
+        plan_id !== undefined && plan_id !== ''
+          ? plan_id
+          : plan_id === ''
+          ? null
+          : socio.plan_id;
       run(
-        `UPDATE socios SET nombre = ?, documento = ?, telefono = ?, estado = ?, plan_id = ?, notas = ? WHERE id = ?`,
+        `UPDATE socios SET nombre = ?, documento = ?, telefono = ?, plan_id = ?, notas = ? WHERE id = ?`,
         [
           nombre || socio.nombre,
           documento !== undefined ? documento : socio.documento,
           telefono !== undefined ? telefono : socio.telefono,
-          estado || socio.estado,
           planIdFinal,
           notas !== undefined ? notas : socio.notas,
           req.params.id
@@ -246,6 +250,45 @@ router.delete('/:id', requireAdmin, (req, res) => {
     res.json({ message: 'Socio eliminado' });
   } catch (error) {
     console.error('Error al eliminar socio:', error);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
+// PUT /api/socios/:id/estado-admin - Actualizar estado y marca de cancelación (solo admin/root)
+router.put('/:id/estado-admin', requireAdmin, (req, res) => {
+  try {
+    const { estado } = req.body;
+
+    if (!estado || !['activo', 'suspendido'].includes(estado)) {
+      return res.status(400).json({
+        error:
+          'Estado inválido. Valores permitidos: activo, suspendido. Los estados inactivo y abandono se gestionan automáticamente por el sistema.',
+      });
+    }
+
+    const socio = get('SELECT * FROM socios WHERE id = ?', [req.params.id]);
+    if (!socio) {
+      return res.status(404).json({ error: 'Socio no encontrado' });
+    }
+
+    const canceladoPorAdmin = estado === 'activo' ? 0 : 1;
+
+    run(
+      'UPDATE socios SET estado = ?, cancelado_por_admin = ? WHERE id = ?',
+      [estado, canceladoPorAdmin, req.params.id]
+    );
+
+    const socioActualizado = get(`
+      SELECT s.*, p.nombre as plan_nombre, u.email as usuario_email
+      FROM socios s 
+      LEFT JOIN planes p ON s.plan_id = p.id
+      LEFT JOIN usuarios u ON s.usuario_id = u.id
+      WHERE s.id = ?
+    `, [req.params.id]);
+
+    res.json({ data: socioActualizado });
+  } catch (error) {
+    console.error('Error al actualizar estado del socio por admin:', error);
     res.status(500).json({ error: 'Error interno del servidor' });
   }
 });

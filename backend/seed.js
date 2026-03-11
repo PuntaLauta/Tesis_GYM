@@ -41,6 +41,18 @@ async function seed() {
   const adminHash = await bcrypt.hash('admin123', 10);
   const rootHash = await bcrypt.hash('root123', 10);
 
+  // Hashear contraseñas para socios demo extra
+  const demoActivo1Hash = await bcrypt.hash('demoactivo1123', 10);
+  const demoSuspendido1Hash = await bcrypt.hash('demosuspendido1123', 10);
+  const demoSuspendido2Hash = await bcrypt.hash('demosuspendido2123', 10);
+  const demoSuspendido3Hash = await bcrypt.hash('demosuspendido3123', 10);
+  const demoInactivo1Hash = await bcrypt.hash('demoinactivo1123', 10);
+  const demoInactivo2Hash = await bcrypt.hash('demoinactivo2123', 10);
+  const demoInactivo3Hash = await bcrypt.hash('demoinactivo3123', 10);
+  const demoAbandono1Hash = await bcrypt.hash('demoabandono1123', 10);
+  const demoAbandono2Hash = await bcrypt.hash('demoabandono2123', 10);
+  const demoAbandono3Hash = await bcrypt.hash('demoabandono3123', 10);
+
   // Eliminar datos demo anteriores
   // Primero eliminar reservas y pagos asociados a socios de usuarios demo
   run(`
@@ -127,6 +139,57 @@ async function seed() {
   const miguelUsuario = insert(
     `INSERT INTO usuarios (nombre, email, pass_hash, rol) VALUES (?, ?, ?, ?)`,
     ['Miguel Torres', 'miguel@clientes.com', miguelHash, 'cliente']
+  );
+
+  // Usuarios para socios demo extra (correo @clientes.com y contraseña nombrecliente123)
+  const demoActivo1Usuario = insert(
+    `INSERT INTO usuarios (nombre, email, pass_hash, rol) VALUES (?, ?, ?, ?)`,
+    ['Demo Activo 1', 'demoactivo1@clientes.com', demoActivo1Hash, 'cliente']
+  );
+
+  const demoSuspendido1Usuario = insert(
+    `INSERT INTO usuarios (nombre, email, pass_hash, rol) VALUES (?, ?, ?, ?)`,
+    ['Demo Suspendido 1', 'demosuspendido1@clientes.com', demoSuspendido1Hash, 'cliente']
+  );
+
+  const demoSuspendido2Usuario = insert(
+    `INSERT INTO usuarios (nombre, email, pass_hash, rol) VALUES (?, ?, ?, ?)`,
+    ['Demo Suspendido 2', 'demosuspendido2@clientes.com', demoSuspendido2Hash, 'cliente']
+  );
+
+  const demoSuspendido3Usuario = insert(
+    `INSERT INTO usuarios (nombre, email, pass_hash, rol) VALUES (?, ?, ?, ?)`,
+    ['Demo Suspendido 3', 'demosuspendido3@clientes.com', demoSuspendido3Hash, 'cliente']
+  );
+
+  const demoInactivo1Usuario = insert(
+    `INSERT INTO usuarios (nombre, email, pass_hash, rol) VALUES (?, ?, ?, ?)`,
+    ['Demo Inactivo 1', 'demoinactivo1@clientes.com', demoInactivo1Hash, 'cliente']
+  );
+
+  const demoInactivo2Usuario = insert(
+    `INSERT INTO usuarios (nombre, email, pass_hash, rol) VALUES (?, ?, ?, ?)`,
+    ['Demo Inactivo 2', 'demoinactivo2@clientes.com', demoInactivo2Hash, 'cliente']
+  );
+
+  const demoInactivo3Usuario = insert(
+    `INSERT INTO usuarios (nombre, email, pass_hash, rol) VALUES (?, ?, ?, ?)`,
+    ['Demo Inactivo 3', 'demoinactivo3@clientes.com', demoInactivo3Hash, 'cliente']
+  );
+
+  const demoAbandono1Usuario = insert(
+    `INSERT INTO usuarios (nombre, email, pass_hash, rol) VALUES (?, ?, ?, ?)`,
+    ['Demo Abandono 1', 'demoabandono1@clientes.com', demoAbandono1Hash, 'cliente']
+  );
+
+  const demoAbandono2Usuario = insert(
+    `INSERT INTO usuarios (nombre, email, pass_hash, rol) VALUES (?, ?, ?, ?)`,
+    ['Demo Abandono 2', 'demoabandono2@clientes.com', demoAbandono2Hash, 'cliente']
+  );
+
+  const demoAbandono3Usuario = insert(
+    `INSERT INTO usuarios (nombre, email, pass_hash, rol) VALUES (?, ?, ?, ?)`,
+    ['Demo Abandono 3', 'demoabandono3@clientes.com', demoAbandono3Hash, 'cliente']
   );
 
   insert(
@@ -319,7 +382,7 @@ async function seed() {
   // Eliminar socios que NO tienen usuario_id (socios sin credenciales)
   run('DELETE FROM socios WHERE usuario_id IS NULL');
   
-  // Crear socios asociados a usuarios (10 socios total, todos con credenciales)
+  // Crear socios asociados a usuarios (10 socios con credenciales)
   const sociosConUsuario = [
     { nombre: 'Juan Pérez', documento: '40123456', telefono: '123456789', usuario: juanUsuario.lastInsertRowid, email: 'juan@clientes.com' },
     { nombre: 'María González', documento: '40987654', telefono: '987654321', usuario: mariaUsuario.lastInsertRowid, email: 'maria@clientes.com' },
@@ -338,99 +401,277 @@ async function seed() {
   const planDuracionMensual = planMensual.duracion; // 30 días
   const planDuracionTrimestral = planTrimestral ? planTrimestral.duracion : 90; // 90 días
 
-  // Crear o actualizar socios con usuario
-  sociosConUsuario.forEach((item, index) => {
-    let diasAtrasPago;
-    let estado;
-    let planSeleccionado;
-    let montoPago;
-    
-    if (index === 0) {
-      // Juan: activo, pago reciente (hoy), plan mensual
-      diasAtrasPago = 1;
-      estado = 'activo';
-      planSeleccionado = planMensual;
-      montoPago = planMensual.precio;
-    } else if (index === 1) {
-      // María: activo, vence en 3 días, plan trimestral
-      diasAtrasPago = planDuracionTrimestral - 3;
-      estado = 'activo';
-      planSeleccionado = planTrimestral;
-      montoPago = planTrimestral.precio;
-    } else if (index === 2) {
-      // Carlos: activo, vence en 5 días, plan mensual
-      diasAtrasPago = planDuracionMensual - 5;
-      estado = 'activo';
-      planSeleccionado = planMensual;
-      montoPago = planMensual.precio;
-    } else if (index === 3) {
-      // Luis: inactivo, vencido, plan mensual
-      diasAtrasPago = 45;
-      estado = 'inactivo';
-      planSeleccionado = planMensual;
-      montoPago = planMensual.precio;
-    } else if (index === 4) {
-      // Ana: activo, vence en 2 días, plan trimestral
-      diasAtrasPago = planDuracionTrimestral - 2;
-      estado = 'activo';
-      planSeleccionado = planTrimestral;
-      montoPago = planTrimestral.precio;
-    } else if (index === 5) {
-      // Pedro: activo, vence en 7 días, plan mensual
-      diasAtrasPago = planDuracionMensual - 7;
-      estado = 'activo';
-      planSeleccionado = planMensual;
-      montoPago = planMensual.precio;
-    } else if (index === 6) {
-      // Laura: activo, vence en 1 día, plan trimestral
-      diasAtrasPago = planDuracionTrimestral - 1;
-      estado = 'activo';
-      planSeleccionado = planTrimestral;
-      montoPago = planTrimestral.precio;
-    } else if (index === 7) {
-      // Roberto: activo, pago reciente, plan mensual
-      diasAtrasPago = 5;
-      estado = 'activo';
-      planSeleccionado = planMensual;
-      montoPago = planMensual.precio;
-    } else if (index === 8) {
-      // Carmen: activo, vence en 4 días, plan mensual
-      diasAtrasPago = planDuracionMensual - 4;
-      estado = 'activo';
-      planSeleccionado = planMensual;
-      montoPago = planMensual.precio;
-    } else {
-      // Miguel: inactivo, vencido, plan trimestral
-      diasAtrasPago = 100;
-      estado = 'inactivo';
-      planSeleccionado = planTrimestral;
-      montoPago = planTrimestral.precio;
+  // Configuración de estados y pagos para 20 socios demo:
+  // 5 activos, 5 suspendidos, 5 inactivos, 5 en abandono
+  const sociosConfig = [];
+
+  // Primero, los 10 socios con usuario
+  sociosConUsuario.forEach((item) => {
+    let configBase = {
+      nombre: item.nombre,
+      documento: item.documento,
+      telefono: item.telefono,
+      usuarioId: item.usuario,
+      estado: 'activo',
+      canceladoPorAdmin: 0,
+      plan: planMensual,
+      diasAtrasPago: 1,
+      notas: null,
+    };
+
+    switch (item.email) {
+      case 'juan@clientes.com':
+        // Activo, pago muy reciente
+        configBase.estado = 'activo';
+        configBase.canceladoPorAdmin = 0;
+        configBase.plan = planMensual;
+        configBase.diasAtrasPago = 1;
+        configBase.notas = 'Socio con discapacidad - requiere asistencia en el acceso';
+        break;
+      case 'maria@clientes.com':
+        // Activo, vence en ~3 días (trimestral)
+        configBase.estado = 'activo';
+        configBase.canceladoPorAdmin = 0;
+        configBase.plan = planTrimestral;
+        configBase.diasAtrasPago = planDuracionTrimestral - 3;
+        configBase.notas = 'Alergia a productos de limpieza - usar productos hipoalergenicos';
+        break;
+      case 'carlos@clientes.com':
+        // Activo, vence en ~5 días (mensual)
+        configBase.estado = 'activo';
+        configBase.canceladoPorAdmin = 0;
+        configBase.plan = planMensual;
+        configBase.diasAtrasPago = planDuracionMensual - 5;
+        break;
+      case 'luis@clientes.com':
+        // Inactivo: cuota vencida hace menos de 90 días
+        configBase.estado = 'inactivo';
+        configBase.canceladoPorAdmin = 0;
+        configBase.plan = planMensual;
+        configBase.diasAtrasPago = planDuracionMensual + 45;
+        break;
+      case 'ana@clientes.com':
+        // Activo, vence en ~2 días (trimestral)
+        configBase.estado = 'activo';
+        configBase.canceladoPorAdmin = 0;
+        configBase.plan = planTrimestral;
+        configBase.diasAtrasPago = planDuracionTrimestral - 2;
+        break;
+      case 'pedro@clientes.com':
+        // Suspendido por admin
+        configBase.estado = 'suspendido';
+        configBase.canceladoPorAdmin = 1;
+        configBase.plan = planMensual;
+        configBase.diasAtrasPago = planDuracionMensual - 7;
+        break;
+      case 'laura@clientes.com':
+        // Suspendido por admin
+        configBase.estado = 'suspendido';
+        configBase.canceladoPorAdmin = 1;
+        configBase.plan = planTrimestral;
+        configBase.diasAtrasPago = planDuracionTrimestral - 1;
+        break;
+      case 'roberto@clientes.com':
+        // Abandono: vencido hace más de 90 días (mensual)
+        configBase.estado = 'abandono';
+        configBase.canceladoPorAdmin = 0;
+        configBase.plan = planMensual;
+        configBase.diasAtrasPago = planDuracionMensual + 120;
+        break;
+      case 'carmen@clientes.com':
+        // Abandono: vencido hace más de 90 días (mensual)
+        configBase.estado = 'abandono';
+        configBase.canceladoPorAdmin = 0;
+        configBase.plan = planMensual;
+        configBase.diasAtrasPago = planDuracionMensual + 100;
+        break;
+      case 'miguel@clientes.com':
+        // Inactivo: vencido hace menos de 90 días (trimestral)
+        configBase.estado = 'inactivo';
+        configBase.canceladoPorAdmin = 0;
+        configBase.plan = planTrimestral;
+        configBase.diasAtrasPago = planDuracionTrimestral + 30;
+        break;
+      default:
+        break;
     }
 
-    // Verificar si el socio ya existe (por usuario_id)
-    const socioExistente = query('SELECT id FROM socios WHERE usuario_id = ?', [item.usuario]);
-    
+    sociosConfig.push(configBase);
+  });
+
+  // Ahora, 10 socios adicionales con credenciales para completar 5 por estado
+  const sociosExtras = [
+    // Activos (faltan 1 para llegar a 5)
+    {
+      nombre: 'Demo Activo 1',
+      documento: '50000001',
+      telefono: '3810000001',
+      usuarioId: demoActivo1Usuario.lastInsertRowid,
+      estado: 'activo',
+      canceladoPorAdmin: 0,
+      plan: planMensual,
+      diasAtrasPago: 2,
+      notas: null,
+    },
+    // Suspendidos (faltan 3 para llegar a 5)
+    {
+      nombre: 'Demo Suspendido 1',
+      documento: '50000002',
+      telefono: '3810000002',
+      usuarioId: demoSuspendido1Usuario.lastInsertRowid,
+      estado: 'suspendido',
+      canceladoPorAdmin: 1,
+      plan: planMensual,
+      diasAtrasPago: planDuracionMensual - 10,
+      notas: null,
+    },
+    {
+      nombre: 'Demo Suspendido 2',
+      documento: '50000003',
+      telefono: '3810000003',
+      usuarioId: demoSuspendido2Usuario.lastInsertRowid,
+      estado: 'suspendido',
+      canceladoPorAdmin: 1,
+      plan: planMensual,
+      diasAtrasPago: planDuracionMensual - 15,
+      notas: null,
+    },
+    {
+      nombre: 'Demo Suspendido 3',
+      documento: '50000004',
+      telefono: '3810000004',
+      usuarioId: demoSuspendido3Usuario.lastInsertRowid,
+      estado: 'suspendido',
+      canceladoPorAdmin: 1,
+      plan: planTrimestral,
+      diasAtrasPago: planDuracionTrimestral - 20,
+      notas: null,
+    },
+    // Inactivos (faltan 3 para llegar a 5)
+    {
+      nombre: 'Demo Inactivo 1',
+      documento: '50000005',
+      telefono: '3810000005',
+      usuarioId: demoInactivo1Usuario.lastInsertRowid,
+      estado: 'inactivo',
+      canceladoPorAdmin: 0,
+      plan: planMensual,
+      diasAtrasPago: planDuracionMensual + 20,
+      notas: null,
+    },
+    {
+      nombre: 'Demo Inactivo 2',
+      documento: '50000006',
+      telefono: '3810000006',
+      usuarioId: demoInactivo2Usuario.lastInsertRowid,
+      estado: 'inactivo',
+      canceladoPorAdmin: 0,
+      plan: planMensual,
+      diasAtrasPago: planDuracionMensual + 60,
+      notas: null,
+    },
+    {
+      nombre: 'Demo Inactivo 3',
+      documento: '50000007',
+      telefono: '3810000007',
+      usuarioId: demoInactivo3Usuario.lastInsertRowid,
+      estado: 'inactivo',
+      canceladoPorAdmin: 0,
+      plan: planTrimestral,
+      diasAtrasPago: planDuracionTrimestral + 45,
+      notas: null,
+    },
+    // Abandono (faltan 3 para llegar a 5)
+    {
+      nombre: 'Demo Abandono 1',
+      documento: '50000008',
+      telefono: '3810000008',
+      usuarioId: demoAbandono1Usuario.lastInsertRowid,
+      estado: 'abandono',
+      canceladoPorAdmin: 0,
+      plan: planMensual,
+      diasAtrasPago: planDuracionMensual + 120,
+      notas: null,
+    },
+    {
+      nombre: 'Demo Abandono 2',
+      documento: '50000009',
+      telefono: '3810000009',
+      usuarioId: demoAbandono2Usuario.lastInsertRowid,
+      estado: 'abandono',
+      canceladoPorAdmin: 0,
+      plan: planMensual,
+      diasAtrasPago: planDuracionMensual + 150,
+      notas: null,
+    },
+    {
+      nombre: 'Demo Abandono 3',
+      documento: '50000010',
+      telefono: '3810000010',
+      usuarioId: demoAbandono3Usuario.lastInsertRowid,
+      estado: 'abandono',
+      canceladoPorAdmin: 0,
+      plan: planTrimestral,
+      diasAtrasPago: planDuracionTrimestral + 130,
+      notas: null,
+    },
+  ];
+
+  sociosExtras.forEach((extra) => sociosConfig.push(extra));
+
+  // Crear o actualizar los 20 socios según configuración
+  sociosConfig.forEach((cfg, index) => {
     let socioId;
-    // Determinar notas según el socio
-    let notas = null;
-    if (item.nombre === 'Juan Pérez') {
-      notas = 'Socio con discapacidad - requiere asistencia en el acceso';
-    } else if (item.nombre === 'María González') {
-      notas = 'Alergia a productos de limpieza - usar productos hipoalergenicos';
-    }
-    
-    if (socioExistente.length > 0) {
-      // Actualizar socio existente
-      socioId = socioExistente[0].id;
-      run(
-        'UPDATE socios SET nombre = ?, documento = ?, telefono = ?, estado = ?, plan_id = ?, qr_token = ?, notas = ? WHERE id = ?',
-        [item.nombre, item.documento, item.telefono, estado, planSeleccionado.id, generarToken6Digitos(), notas, socioId]
-      );
+
+    if (cfg.usuarioId) {
+      const socioExistente = query('SELECT id FROM socios WHERE usuario_id = ?', [cfg.usuarioId]);
+
+      if (socioExistente.length > 0) {
+        socioId = socioExistente[0].id;
+        run(
+          'UPDATE socios SET nombre = ?, documento = ?, telefono = ?, estado = ?, cancelado_por_admin = ?, plan_id = ?, qr_token = ?, notas = ? WHERE id = ?',
+          [
+            cfg.nombre,
+            cfg.documento,
+            cfg.telefono,
+            cfg.estado,
+            cfg.canceladoPorAdmin,
+            cfg.plan ? cfg.plan.id : null,
+            generarToken6Digitos(),
+            cfg.notas,
+            socioId,
+          ]
+        );
+      } else {
+        const socio = insert(
+          'INSERT INTO socios (nombre, documento, telefono, estado, cancelado_por_admin, plan_id, usuario_id, qr_token, notas) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+          [
+            cfg.nombre,
+            cfg.documento,
+            cfg.telefono,
+            cfg.estado,
+            cfg.canceladoPorAdmin,
+            cfg.plan ? cfg.plan.id : null,
+            cfg.usuarioId,
+            generarToken6Digitos(),
+            cfg.notas,
+          ]
+        );
+        socioId = socio.lastInsertRowid;
+      }
     } else {
-      // Crear nuevo socio
       const socio = insert(
-        'INSERT INTO socios (nombre, documento, telefono, estado, plan_id, usuario_id, qr_token, notas) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-        [item.nombre, item.documento, item.telefono, estado, planSeleccionado.id, item.usuario, generarToken6Digitos(), notas]
+        'INSERT INTO socios (nombre, documento, telefono, estado, cancelado_por_admin, plan_id, usuario_id, qr_token, notas) VALUES (?, ?, ?, ?, ?, ?, NULL, ?, ?)',
+        [
+          cfg.nombre,
+          cfg.documento,
+          cfg.telefono,
+          cfg.estado,
+          cfg.canceladoPorAdmin,
+          cfg.plan ? cfg.plan.id : null,
+          generarToken6Digitos(),
+          cfg.notas,
+        ]
       );
       socioId = socio.lastInsertRowid;
     }
@@ -438,25 +679,33 @@ async function seed() {
     // Eliminar pagos anteriores del socio
     run('DELETE FROM pagos WHERE socio_id = ?', [socioId]);
 
-    // Crear nuevo pago (el más reciente)
-    const fechaPago = new Date();
-    fechaPago.setDate(fechaPago.getDate() - diasAtrasPago);
-    insert(
-      'INSERT INTO pagos (socio_id, monto, fecha, metodo_pago) VALUES (?, ?, ?, ?)',
-      [socioId, montoPago, fechaPago.toISOString().split('T')[0], index % 2 === 0 ? 'efectivo' : 'transferencia']
-    );
-
-    // Agregar pagos históricos adicionales (2-3 pagos más)
-    const pagosAdicionales = Math.floor(Math.random() * 2) + 2; // 2 o 3 pagos
-    for (let i = 1; i <= pagosAdicionales; i++) {
-      const diasAtras = diasAtrasPago + (planSeleccionado.duracion * i);
-      const fechaPagoHistorico = new Date();
-      fechaPagoHistorico.setDate(fechaPagoHistorico.getDate() - diasAtras);
-      const metodoPago = Math.random() > 0.5 ? 'efectivo' : 'transferencia';
+    // Crear pagos solo si hay plan y configuración de días
+    if (cfg.plan && typeof cfg.diasAtrasPago === 'number') {
+      const montoPago = cfg.plan.precio;
+      const fechaPago = new Date();
+      fechaPago.setDate(fechaPago.getDate() - cfg.diasAtrasPago);
       insert(
         'INSERT INTO pagos (socio_id, monto, fecha, metodo_pago) VALUES (?, ?, ?, ?)',
-        [socioId, montoPago, fechaPagoHistorico.toISOString().split('T')[0], metodoPago]
+        [
+          socioId,
+          montoPago,
+          fechaPago.toISOString().split('T')[0],
+          index % 2 === 0 ? 'efectivo' : 'transferencia',
+        ]
       );
+
+      // Agregar pagos históricos adicionales (2-3 pagos más)
+      const pagosAdicionales = Math.floor(Math.random() * 2) + 2; // 2 o 3 pagos
+      for (let i = 1; i <= pagosAdicionales; i++) {
+        const diasAtras = cfg.diasAtrasPago + cfg.plan.duracion * i;
+        const fechaPagoHistorico = new Date();
+        fechaPagoHistorico.setDate(fechaPagoHistorico.getDate() - diasAtras);
+        const metodoPago = Math.random() > 0.5 ? 'efectivo' : 'transferencia';
+        insert(
+          'INSERT INTO pagos (socio_id, monto, fecha, metodo_pago) VALUES (?, ?, ?, ?)',
+          [socioId, montoPago, fechaPagoHistorico.toISOString().split('T')[0], metodoPago]
+        );
+      }
     }
   });
 

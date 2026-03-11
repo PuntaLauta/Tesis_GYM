@@ -87,11 +87,17 @@ export default function DashboardClient() {
             <p><strong>Nombre:</strong> {socio.nombre}</p>
             {socio.telefono && <p><strong>Teléfono:</strong> {socio.telefono}</p>}
             <p><strong>Estado:</strong> 
-              <span className={`ml-2 px-2 py-1 rounded text-xs ${
-                socio.estado === 'activo' ? 'bg-green-100 text-green-800' :
-                socio.estado === 'suspendido' ? 'bg-yellow-100 text-yellow-800' :
-                'bg-red-100 text-red-800'
-              }`}>
+              <span
+                className={`ml-2 px-2 py-1 rounded text-xs ${
+                  socio.estado === 'activo'
+                    ? 'bg-green-100 text-green-800'
+                    : socio.estado === 'suspendido'
+                    ? 'bg-yellow-100 text-yellow-800'
+                    : socio.estado === 'abandono'
+                    ? 'bg-orange-100 text-orange-800'
+                    : 'bg-red-100 text-red-800'
+                }`}
+              >
                 {socio.estado}
               </span>
             </p>

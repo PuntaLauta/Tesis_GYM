@@ -280,17 +280,19 @@ async function initDatabase() {
     }
   }
 
-  // Verificar si existe la columna notas en la tabla socios
+  // Verificar si existen columnas adicionales en la tabla socios
   let columnaNotasExiste = false;
+  let columnaCanceladoPorAdminExiste = false;
   try {
     const tableInfo = db.exec("PRAGMA table_info(socios)");
     if (tableInfo && tableInfo[0] && tableInfo[0].values) {
       columnaNotasExiste = tableInfo[0].values.some(row => row[1] === 'notas');
+      columnaCanceladoPorAdminExiste = tableInfo[0].values.some(row => row[1] === 'cancelado_por_admin');
     }
   } catch (e) {
-    // Error al verificar, asumir que no existe
+    // Error al verificar, asumir que no existen
   }
-
+  
   if (!columnaNotasExiste) {
     try {
       db.run('ALTER TABLE socios ADD COLUMN notas TEXT');
@@ -299,6 +301,77 @@ async function initDatabase() {
     } catch (e) {
       console.log('Advertencia: No se pudo agregar columna notas:', e.message);
     }
+  }
+
+  // Agregar columna cancelado_por_admin si no existe (migración)
+  if (!columnaCanceladoPorAdminExiste) {
+    try {
+      db.run('ALTER TABLE socios ADD COLUMN cancelado_por_admin INTEGER NOT NULL DEFAULT 0');
+      saveDatabase();
+      console.log('✅ Columna cancelado_por_admin agregada a la tabla socios');
+    } catch (e) {
+      console.log('Advertencia: No se pudo agregar columna cancelado_por_admin:', e.message);
+    }
+  }
+
+  // Migrar constraint de estado en tabla socios para incluir 'abandono'
+  try {
+    const tablasSocios = db.exec("SELECT name, sql FROM sqlite_master WHERE type='table' AND name='socios'");
+    if (tablasSocios && tablasSocios[0] && tablasSocios[0].values && tablasSocios[0].values.length > 0) {
+      const tablaSql = tablasSocios[0].values[0][1];
+      if (tablaSql && !tablaSql.includes("'abandono'")) {
+        console.log('🔄 Migrando constraint de estado en tabla socios para incluir abandono...');
+
+        // Deshabilitar foreign keys temporalmente
+        db.run('PRAGMA foreign_keys = OFF');
+
+        // Crear nueva tabla socios_new con el CHECK actualizado
+        db.run(`
+          CREATE TABLE socios_new (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            nombre TEXT NOT NULL,
+            documento TEXT,
+            telefono TEXT,
+            estado TEXT NOT NULL DEFAULT 'activo' CHECK(estado IN ('activo', 'suspendido', 'inactivo', 'abandono')),
+            cancelado_por_admin INTEGER NOT NULL DEFAULT 0,
+            plan_id INTEGER,
+            usuario_id INTEGER,
+            qr_token TEXT UNIQUE,
+            notas TEXT,
+            FOREIGN KEY (plan_id) REFERENCES planes(id),
+            FOREIGN KEY (usuario_id) REFERENCES usuarios(id)
+          )
+        `);
+
+        // Copiar datos existentes
+        db.run(`
+          INSERT INTO socios_new (id, nombre, documento, telefono, estado, cancelado_por_admin, plan_id, usuario_id, qr_token, notas)
+          SELECT id, nombre, documento, telefono, estado, 
+                 COALESCE(cancelado_por_admin, 0) AS cancelado_por_admin,
+                 plan_id, usuario_id, qr_token, notas
+          FROM socios
+        `);
+
+        // Eliminar tabla antigua y renombrar
+        db.run('DROP TABLE socios');
+        db.run('ALTER TABLE socios_new RENAME TO socios');
+
+        // Recrear índices relacionados
+        try {
+          db.run('CREATE UNIQUE INDEX IF NOT EXISTS idx_socios_documento ON socios(documento)');
+        } catch (idxError) {
+          // Índice ya existe o no se puede crear
+        }
+
+        // Rehabilitar foreign keys
+        db.run('PRAGMA foreign_keys = ON');
+
+        saveDatabase();
+        console.log('✅ Constraint de estado actualizado para incluir abandono');
+      }
+    }
+  } catch (e) {
+    console.log('Advertencia: No se pudo migrar constraint de estado en socios:', e.message);
   }
 
   // Ejecutar migración de tipo_clase

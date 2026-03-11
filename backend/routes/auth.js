@@ -1,7 +1,7 @@
 const express = require('express');
 const bcrypt = require('bcrypt');
 const { get, run, insert } = require('../db/database');
-const { isSocioActivo } = require('../models/helpers');
+const { calcularEstadoSocioConPagos } = require('../models/helpers');
 const router = express.Router();
 
 // Función para normalizar respuestas: minúsculas, sin espacios, sin tildes
@@ -37,19 +37,41 @@ router.post('/login', async (req, res) => {
 
     // Si es cliente, obtener su socio asignado
     let socioId = null;
+    let socioCanceladoPorAdmin = false;
     if (user.rol === 'cliente') {
-      const socioExistente = get('SELECT id FROM socios WHERE usuario_id = ?', [user.id]);
+      const socioExistente = get(
+        'SELECT id, cancelado_por_admin FROM socios WHERE usuario_id = ?',
+        [user.id]
+      );
       if (socioExistente) {
         socioId = socioExistente.id;
-        
-        // Verificar y actualizar estado del socio basado en vigencia del último pago
-        try {
-          const validacion = isSocioActivo(socioId);
-          const nuevoEstado = validacion.activo ? 'activo' : 'inactivo';
-          run('UPDATE socios SET estado = ? WHERE id = ?', [nuevoEstado, socioId]);
-        } catch (error) {
-          // Si hay error en la verificación, no afectar el proceso de login
-          console.error('Error al actualizar estado del socio en login:', error);
+        socioCanceladoPorAdmin = !!socioExistente.cancelado_por_admin;
+
+        // Secuencia de checks para clientes:
+        // 1) Si está cancelado por admin, no recalcular por pagos
+        if (!socioCanceladoPorAdmin && socioId) {
+          try {
+            // 2) Calcular estado recomendado por pagos (activo / inactivo / abandono)
+            const resultadoEstado = calcularEstadoSocioConPagos(socioId);
+            const { estadoRecomendado } = resultadoEstado;
+
+            // 3) Actualizar estado en base al cálculo (solo estos valores)
+            if (
+              estadoRecomendado &&
+              ['activo', 'inactivo', 'abandono'].includes(estadoRecomendado)
+            ) {
+              run('UPDATE socios SET estado = ? WHERE id = ?', [
+                estadoRecomendado,
+                socioId,
+              ]);
+            }
+          } catch (error) {
+            // Si hay error en la verificación, no afectar el proceso de login
+            console.error(
+              'Error al actualizar estado del socio en login:',
+              error
+            );
+          }
         }
       }
       // No asignar automáticamente socios sin usuario - deben estar correctamente asociados desde el seed
@@ -72,6 +94,7 @@ router.post('/login', async (req, res) => {
       rol: user.rol,
       socio_id: socioId,
       instructor_id: instructorId,
+      cancelado_por_admin: socioCanceladoPorAdmin,
     };
 
     res.json({
@@ -82,6 +105,7 @@ router.post('/login', async (req, res) => {
         rol: user.rol,
         socio_id: socioId,
         instructor_id: instructorId,
+        cancelado_por_admin: socioCanceladoPorAdmin,
       },
     });
   } catch (error) {

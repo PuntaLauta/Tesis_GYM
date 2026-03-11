@@ -127,6 +127,7 @@ TESIS/
 - `documento` (TEXT) - DNI del socio (único)
 - `telefono` (TEXT)
 - `estado` (TEXT NOT NULL DEFAULT 'activo') - Valores: 'activo', 'suspendido', 'inactivo'
+- `cancelado_por_admin` (INTEGER NOT NULL DEFAULT 0) - 0 = no cancelado, 1 = cancelado manualmente por admin
 - `plan_id` (INTEGER) - FK a planes
 - `usuario_id` (INTEGER) - FK a usuarios (opcional, para login)
 - `qr_token` (TEXT UNIQUE) - Token de 6 dígitos para QR
