@@ -81,7 +81,7 @@ async function chatWithGPT(mensaje, tipo = 'general', contexto = {}) {
 
     // Llamar a la API de Claude
     const message = await client.messages.create({
-      model: 'claude-3-5-haiku-20241022',
+      model: 'claude-haiku-4-5-20251001',
       max_tokens: 2000,
       system: systemPrompt,
       messages: [
@@ -294,7 +294,7 @@ Asegúrate de que:
 
     // Llamar a la API de Claude
     const message = await client.messages.create({
-      model: 'claude-3-5-haiku-20241022',
+      model: 'claude-haiku-4-5-20251001',
       max_tokens: 3000,
       system: systemPrompt,
       messages: [
