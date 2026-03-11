@@ -3,6 +3,7 @@ import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
 import ProtectedRoute from "./components/ProtectedRoute";
 import RoleRoute from "./components/RoleRoute";
+import InstructorGuard from "./components/InstructorGuard";
 import { useAuth } from "./context/AuthContext";
 
 import Home from "./pages/Home";
@@ -45,7 +46,11 @@ function DashboardRouter() {
   }
   
   if (user.rol === 'instructor') {
-    return <DashboardInstructor />;
+    return (
+      <InstructorGuard>
+        <DashboardInstructor />
+      </InstructorGuard>
+    );
   }
   
   if (user.rol === 'cliente') {
@@ -94,7 +99,9 @@ export default function App() {
         <Route path="/instructor/profile" element={
           <ProtectedRoute>
             <RoleRoute roles={["instructor"]}>
-              <ProfileInstructor />
+              <InstructorGuard>
+                <ProfileInstructor />
+              </InstructorGuard>
             </RoleRoute>
           </ProtectedRoute>
         }/>
@@ -219,7 +226,9 @@ export default function App() {
         <Route path="/instructor/rutinas" element={
           <ProtectedRoute>
             <RoleRoute roles={["instructor"]}>
-              <RutinasInstructor />
+              <InstructorGuard>
+                <RutinasInstructor />
+              </InstructorGuard>
             </RoleRoute>
           </ProtectedRoute>
         }/>
