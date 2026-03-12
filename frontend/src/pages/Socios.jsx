@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { listSocios, createSocio, updateSocio, deleteSocio, updateSocioEstadoAdmin } from '../services/socios';
+import { listSocios, createSocio, updateSocio, updateSocioEstadoAdmin } from '../services/socios';
 import { listPlanes } from '../services/planes';
 import SocioQrCard from '../components/SocioQrCard';
 
@@ -8,6 +8,7 @@ export default function Socios() {
   const [socios, setSocios] = useState([]);
   const [sociosFiltrados, setSociosFiltrados] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
+  const [estadoFiltro, setEstadoFiltro] = useState('');
   const [planes, setPlanes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -54,17 +55,23 @@ export default function Socios() {
   };
 
   useEffect(() => {
+    let filtrados = [...socios];
+
+    if (estadoFiltro) {
+      filtrados = filtrados.filter((s) => s.estado === estadoFiltro);
+    }
+
     if (searchTerm.trim()) {
       const term = searchTerm.toLowerCase();
-      const filtrados = socios.filter(s => 
-        s.nombre?.toLowerCase().includes(term) || 
-        s.documento?.toLowerCase().includes(term)
+      filtrados = filtrados.filter(
+        (s) =>
+          s.nombre?.toLowerCase().includes(term) ||
+          s.documento?.toLowerCase().includes(term)
       );
-      setSociosFiltrados(filtrados);
-    } else {
-      setSociosFiltrados(socios);
     }
-  }, [searchTerm, socios]);
+
+    setSociosFiltrados(filtrados);
+  }, [searchTerm, socios, estadoFiltro]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -130,30 +137,6 @@ export default function Socios() {
         formElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }
     }, 100);
-  };
-
-  const handleChangePassword = async (socioId, newPassword) => {
-    if (!newPassword || newPassword.length < 6) {
-      alert('La contraseña debe tener al menos 6 caracteres');
-      return;
-    }
-
-    try {
-      await updateSocio(socioId, { password: newPassword });
-      alert('Contraseña actualizada correctamente');
-    } catch (error) {
-      alert(error.response?.data?.error || 'Error al actualizar contraseña');
-    }
-  };
-
-  const handleDelete = async (id) => {
-    if (!confirm('¿Estás seguro de eliminar este socio?')) return;
-    try {
-      await deleteSocio(id);
-      loadSocios();
-    } catch (error) {
-      alert(error.response?.data?.error || 'Error al eliminar socio');
-    }
   };
 
   return (
@@ -339,7 +322,7 @@ export default function Socios() {
       ) : (
         <div className="grid grid-cols-1 gap-6">
           <div>
-            <div className="mb-4">
+            <div className="mb-2">
               <input
                 type="text"
                 placeholder="Buscar por nombre o documento..."
@@ -347,6 +330,39 @@ export default function Socios() {
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-full border rounded px-3 py-2"
               />
+            </div>
+            <div className="mb-4 w-full md:w-64">
+              <label className="block text-xs font-medium text-gray-600 mb-1">
+                Filtrar por estado
+              </label>
+              <select
+                value={estadoFiltro}
+                onChange={(e) => setEstadoFiltro(e.target.value)}
+                className="w-full border rounded px-3 py-2 text-sm"
+              >
+                <option value="">Todos</option>
+                <option value="activo">Activo</option>
+                <option value="suspendido">Suspendido</option>
+                <option value="inactivo">Inactivo</option>
+                <option value="abandono">Abandono</option>
+              </select>
+            </div>
+            <div className="mb-4">
+              <h2 className="text-sm font-semibold text-gray-700 mb-2">Guía de estados</h2>
+              <div className="flex flex-wrap gap-2">
+                <span className="px-2 py-1 rounded text-xs bg-green-100 text-green-800">
+                  Activo
+                </span>
+                <span className="px-2 py-1 rounded text-xs bg-yellow-100 text-yellow-800">
+                  Suspendido
+                </span>
+                <span className="px-2 py-1 rounded text-xs bg-red-100 text-red-800">
+                  Inactivo
+                </span>
+                <span className="px-2 py-1 rounded text-xs bg-orange-100 text-orange-800">
+                  Abandono
+                </span>
+              </div>
             </div>
             <div className="space-y-4">
               {sociosFiltrados.length === 0 ? (
@@ -421,12 +437,6 @@ export default function Socios() {
                         >
                           Gestionar Pagos
                         </Link>
-                        <button
-                          onClick={() => handleDelete(socio.id)}
-                          className="px-3 py-1 bg-red-600 text-white rounded text-sm hover:bg-red-700 whitespace-nowrap"
-                        >
-                          Eliminar
-                        </button>
                       </div>
                     </div>
                   </div>

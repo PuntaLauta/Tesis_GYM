@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { listInstructores, createInstructor, updateInstructor, deleteInstructor, getClasesInstructor, changePasswordInstructor } from '../services/instructores';
+import { listInstructores, createInstructor, updateInstructor, getClasesInstructor, changePasswordInstructor } from '../services/instructores';
 
 export default function GestionInstructores() {
   const navigate = useNavigate();
@@ -12,6 +12,7 @@ export default function GestionInstructores() {
   const [viewingClases, setViewingClases] = useState(null);
   const [clasesInstructor, setClasesInstructor] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
+  const [estadoFiltro, setEstadoFiltro] = useState('');
   const [passwordData, setPasswordData] = useState({
     password: '',
     confirmPassword: ''
@@ -105,21 +106,6 @@ export default function GestionInstructores() {
     }, 100);
   };
 
-  const handleDelete = async (id) => {
-    if (!window.confirm('¿Estás seguro de que deseas eliminar este instructor?')) {
-      return;
-    }
-
-    try {
-      await deleteInstructor(id);
-      setSuccess('Instructor eliminado correctamente');
-      await loadInstructores();
-    } catch (err) {
-      console.error('Error al eliminar instructor:', err);
-      setError(err.response?.data?.error || 'Error al eliminar instructor');
-    }
-  };
-
   const handleVerClases = async (instructor) => {
     setViewingClases(instructor);
     try {
@@ -167,7 +153,12 @@ export default function GestionInstructores() {
     }
   };
 
-  const instructoresFiltrados = instructores.filter(instructor => {
+  const instructoresFiltrados = instructores.filter((instructor) => {
+    if (estadoFiltro !== '') {
+      const activoValue = instructor.activo === 1 ? '1' : '0';
+      if (activoValue !== estadoFiltro) return false;
+    }
+
     if (!searchTerm) return true;
     const term = searchTerm.toLowerCase();
     return (
@@ -239,7 +230,7 @@ export default function GestionInstructores() {
           ) : (
             <div className="grid grid-cols-1 gap-6">
               <div>
-                <div className="mb-4">
+                <div className="mb-2">
                   <input
                     type="text"
                     placeholder="Buscar por nombre o email..."
@@ -247,6 +238,20 @@ export default function GestionInstructores() {
                     onChange={(e) => setSearchTerm(e.target.value)}
                     className="w-full border rounded px-3 py-2"
                   />
+                </div>
+                <div className="mb-4 w-full md:w-64">
+                  <label className="block text-xs font-medium text-gray-600 mb-1">
+                    Filtrar por estado
+                  </label>
+                  <select
+                    value={estadoFiltro}
+                    onChange={(e) => setEstadoFiltro(e.target.value)}
+                    className="w-full border rounded px-3 py-2 text-sm"
+                  >
+                    <option value="">Todos</option>
+                    <option value="1">Activos</option>
+                    <option value="0">Inactivos</option>
+                  </select>
                 </div>
                 <div className="space-y-4">
                   {instructoresFiltrados.length === 0 ? (
@@ -311,12 +316,6 @@ export default function GestionInstructores() {
                                 Cambiar contraseña
                               </button>
                             )}
-                            <button
-                              onClick={() => handleDelete(instructor.id)}
-                              className="px-3 py-1 bg-red-600 text-white rounded text-sm hover:bg-red-700 whitespace-nowrap"
-                            >
-                              Eliminar
-                            </button>
                           </div>
                         </div>
                       </div>
