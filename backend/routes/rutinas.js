@@ -417,6 +417,103 @@ router.put('/ejercicios/:id/revisar', requireAuth, requireRole('instructor'), (r
   }
 });
 
+// POST /api/rutinas/:id/ejercicios - Instructor sugiere un ejercicio para una rutina (agrega ejercicio con estado Pendiente)
+router.post('/:id/ejercicios', requireAuth, requireRole('instructor'), (req, res) => {
+  try {
+    const { id: rutinaId } = req.params;
+    const { nombre, series, repeticiones, descripcion } = req.body;
+
+    if (!nombre || !String(nombre).trim()) {
+      return res.status(400).json({ error: 'El nombre del ejercicio es obligatorio' });
+    }
+    if (series === undefined || series === null || String(series).trim() === '') {
+      return res.status(400).json({ error: 'La cantidad de series es obligatoria' });
+    }
+    const seriesNum = parseInt(series, 10);
+    if (isNaN(seriesNum) || seriesNum < 1) {
+      return res.status(400).json({ error: 'La cantidad de series debe ser un número positivo' });
+    }
+    if (!repeticiones || !String(repeticiones).trim()) {
+      return res.status(400).json({ error: 'La cantidad de repeticiones es obligatoria' });
+    }
+    if (!descripcion || !String(descripcion).trim()) {
+      return res.status(400).json({ error: 'La descripción es obligatoria' });
+    }
+
+    const rutina = get('SELECT id, ejercicios FROM rutinas WHERE id = ?', [rutinaId]);
+    if (!rutina) {
+      return res.status(404).json({ error: 'Rutina no encontrada' });
+    }
+
+    // Asegurar que se guarde el ID del instructor que sugiere (para mostrar "Sugerido por X" en la tarjeta del socio)
+    const user = req.session.user;
+    let instructorId = user.instructor_id || null;
+    if (!instructorId && user.email) {
+      const instructor = get('SELECT id FROM instructores WHERE email = ?', [user.email]);
+      instructorId = instructor ? instructor.id : null;
+    }
+
+    const estadoSugerido = get("SELECT id FROM estado_ejercicios WHERE nombre = 'SUGERIDO'");
+    const estadoSugeridoId = estadoSugerido ? estadoSugerido.id : 4;
+
+    const ejercicioResult = insert(
+      `INSERT INTO ejercicios (nombre, series, repeticiones, descripcion, estado_id, descripcion_profesor, instructor_id)
+       VALUES (?, ?, ?, ?, ?, NULL, ?)`,
+      [nombre.trim(), seriesNum, String(repeticiones).trim(), descripcion.trim(), estadoSugeridoId, instructorId]
+    );
+    const ejercicioId = ejercicioResult.lastInsertRowid;
+
+    const maxOrden = get('SELECT COALESCE(MAX(orden), 0) as max_orden FROM rutina_ejercicio WHERE rutina_id = ?', [rutinaId]);
+    const siguienteOrden = (maxOrden && maxOrden.max_orden != null ? maxOrden.max_orden : 0) + 1;
+
+    insert(
+      `INSERT INTO rutina_ejercicio (rutina_id, ejercicio_id, series, repeticiones, orden, estado_id)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [rutinaId, ejercicioId, seriesNum, String(repeticiones).trim(), siguienteOrden, estadoSugeridoId]
+    );
+
+    let ejerciciosJson = [];
+    try {
+      ejerciciosJson = typeof rutina.ejercicios === 'string' ? JSON.parse(rutina.ejercicios) : (rutina.ejercicios || []);
+    } catch (e) {
+      ejerciciosJson = [];
+    }
+    ejerciciosJson.push({
+      nombre: nombre.trim(),
+      series: seriesNum,
+      repeticiones: String(repeticiones).trim(),
+      descripcion: descripcion.trim(),
+      estado_id: estadoSugeridoId,
+    });
+    run('UPDATE rutinas SET ejercicios = ? WHERE id = ?', [JSON.stringify(ejerciciosJson), rutinaId]);
+
+    const nuevoEjercicio = get(
+      `SELECT e.id, e.nombre, e.series, e.repeticiones, e.descripcion, e.estado_id, e.descripcion_profesor, e.instructor_id
+       FROM ejercicios e WHERE e.id = ?`,
+      [ejercicioId]
+    );
+    const estadoNombre = get('SELECT nombre FROM estado_ejercicios WHERE id = ?', [estadoSugeridoId]);
+
+    res.status(201).json({
+      message: 'Ejercicio agregado a la rutina',
+      data: {
+        id: nuevoEjercicio.id,
+        nombre: nuevoEjercicio.nombre,
+        series: nuevoEjercicio.series,
+        repeticiones: nuevoEjercicio.repeticiones,
+        descripcion: nuevoEjercicio.descripcion,
+        estado_id: nuevoEjercicio.estado_id,
+        estado_nombre: estadoNombre ? estadoNombre.nombre : 'SUGERIDO',
+        descripcion_profesor: nuevoEjercicio.descripcion_profesor,
+        instructor_id: nuevoEjercicio.instructor_id,
+      },
+    });
+  } catch (error) {
+    console.error('Error al agregar ejercicio a la rutina:', error);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
 // PUT /api/rutinas/ejercicios/:id/notas - Actualizar notas del instructor
 // IMPORTANTE: Esta ruta debe estar ANTES de /:id para que no se interprete "ejercicios" como un ID
 router.put('/ejercicios/:id/notas', requireAuth, requireRole('instructor'), (req, res) => {
@@ -490,16 +587,19 @@ router.get('/:id', requireAuth, requireRole('cliente'), (req, res) => {
       return res.status(404).json({ error: 'Rutina no encontrada' });
     }
 
-    // Obtener ejercicios desde rutina_ejercicio si existen
+    // Obtener ejercicios desde rutina_ejercicio si existen (con nombre del instructor que aprobó/rechazó/sugirió)
     const ejerciciosRutina = query(`
       SELECT 
         re.*,
         e.nombre as ejercicio_nombre,
         e.descripcion as ejercicio_descripcion,
         e.descripcion_profesor as descripcion_profesor,
+        e.instructor_id as instructor_id,
+        i.nombre as instructor_nombre,
         ee.nombre as estado_nombre
       FROM rutina_ejercicio re
       LEFT JOIN ejercicios e ON re.ejercicio_id = e.id
+      LEFT JOIN instructores i ON e.instructor_id = i.id
       LEFT JOIN estado_ejercicios ee ON re.estado_id = ee.id
       WHERE re.rutina_id = ?
       ORDER BY re.orden
@@ -532,7 +632,9 @@ router.get('/:id', requireAuth, requireRole('cliente'), (req, res) => {
           notas: ejercicioJson.notas || re.ejercicio_descripcion || '',
           estado_id: parseInt(re.estado_id, 10) || 1, // Asegurar que sea número
           estado_nombre: re.estado_nombre,
-          descripcion_profesor: re.descripcion_profesor || null
+          descripcion_profesor: re.descripcion_profesor || null,
+          instructor_id: re.instructor_id || null,
+          instructor_nombre: re.instructor_nombre || null
         };
       });
 

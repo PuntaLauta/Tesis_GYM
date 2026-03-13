@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { listRutinasInstructor, revisarEjercicio, actualizarNotasEjercicio } from '../services/rutinas';
+import { listRutinasInstructor, revisarEjercicio, actualizarNotasEjercicio, sugerirEjercicio } from '../services/rutinas';
 
 export default function RutinasInstructor() {
   const [rutinas, setRutinas] = useState([]);
@@ -20,6 +20,12 @@ export default function RutinasInstructor() {
   const [socioFiltroTexto, setSocioFiltroTexto] = useState('');
   const [socioDropdownAbierto, setSocioDropdownAbierto] = useState(false);
   const [soloPendientes, setSoloPendientes] = useState(false);
+
+  // Modal sugerir ejercicio
+  const [rutinaParaSugerir, setRutinaParaSugerir] = useState(null);
+  const [formSugerencia, setFormSugerencia] = useState({ nombre: '', series: '', repeticiones: '', descripcion: '' });
+  const [guardandoSugerencia, setGuardandoSugerencia] = useState(false);
+  const [errorSugerencia, setErrorSugerencia] = useState('');
 
   useEffect(() => {
     loadRutinas();
@@ -185,7 +191,7 @@ export default function RutinasInstructor() {
     return Array.from(sociosMap.values()).sort((a, b) => a.nombre.localeCompare(b.nombre));
   };
 
-  // Calcular ejercicios pendientes de una rutina
+  // Calcular ejercicios pendientes de revisión (PENDIENTE = 1 o SUGERIDO = 4)
   const calcularEjerciciosPendientes = (ejercicios) => {
     if (!ejercicios || !Array.isArray(ejercicios)) return 0;
     let pendientes = 0;
@@ -193,7 +199,7 @@ export default function RutinasInstructor() {
       const estadoId = typeof ejercicio.estado_id === 'string' 
         ? parseInt(ejercicio.estado_id, 10) 
         : ejercicio.estado_id;
-      if (!estadoId || isNaN(estadoId) || estadoId === 1) {
+      if (!estadoId || isNaN(estadoId) || estadoId === 1 || estadoId === 4) {
         pendientes++;
       }
     });
@@ -241,6 +247,60 @@ export default function RutinasInstructor() {
     setSocioFiltroTexto('');
     setSocioDropdownAbierto(false);
     setSoloPendientes(false);
+  };
+
+  const handleCerrarModalSugerencia = () => {
+    setRutinaParaSugerir(null);
+    setFormSugerencia({ nombre: '', series: '', repeticiones: '', descripcion: '' });
+    setErrorSugerencia('');
+  };
+
+  const handleGuardarSugerencia = async () => {
+    if (!rutinaParaSugerir) return;
+    const { nombre, series, repeticiones, descripcion } = formSugerencia;
+    if (!nombre || !nombre.trim()) {
+      setErrorSugerencia('El nombre del ejercicio es obligatorio.');
+      return;
+    }
+    if (series === '' || series === null || series === undefined) {
+      setErrorSugerencia('La cantidad de series es obligatoria.');
+      return;
+    }
+    const seriesNum = parseInt(series, 10);
+    if (isNaN(seriesNum) || seriesNum < 1) {
+      setErrorSugerencia('La cantidad de series debe ser un número positivo.');
+      return;
+    }
+    if (!repeticiones || !String(repeticiones).trim()) {
+      setErrorSugerencia('La cantidad de repeticiones es obligatoria.');
+      return;
+    }
+    if (!descripcion || !descripcion.trim()) {
+      setErrorSugerencia('La descripción es obligatoria.');
+      return;
+    }
+    setErrorSugerencia('');
+    setGuardandoSugerencia(true);
+    try {
+      await sugerirEjercicio(rutinaParaSugerir.id, {
+        nombre: nombre.trim(),
+        series: seriesNum,
+        repeticiones: String(repeticiones).trim(),
+        descripcion: descripcion.trim(),
+      });
+      await loadRutinas();
+      if (rutinaSeleccionada && rutinaSeleccionada.id === rutinaParaSugerir.id) {
+        const data = await listRutinasInstructor();
+        const actualizada = data.data.find(r => r.id === rutinaParaSugerir.id);
+        if (actualizada) setRutinaSeleccionada(actualizada);
+      }
+      handleCerrarModalSugerencia();
+    } catch (err) {
+      console.error('Error al sugerir ejercicio:', err);
+      setErrorSugerencia(err.response?.data?.error || 'Error al agregar el ejercicio');
+    } finally {
+      setGuardandoSugerencia(false);
+    }
   };
 
   if (loading) {
@@ -293,9 +353,22 @@ export default function RutinasInstructor() {
             {rutinaSeleccionada.descripcion && (
               <p className="text-gray-600 mt-2">{rutinaSeleccionada.descripcion}</p>
             )}
-            <p className="text-gray-600 mt-2">
-              Generada por {rutinaSeleccionada.socio_nombre || 'N/A'} (ID: {rutinaSeleccionada.socio_id}) el día {formatFecha(rutinaSeleccionada.fecha_creacion)}
-            </p>
+            <div className="mt-2 flex flex-wrap items-center justify-between gap-3">
+              <p className="text-gray-600">
+                Generada por {rutinaSeleccionada.socio_nombre || 'N/A'} (ID: {rutinaSeleccionada.socio_id}) el día {formatFecha(rutinaSeleccionada.fecha_creacion)}
+              </p>
+              <button
+                type="button"
+                onClick={() => {
+                  setRutinaParaSugerir(rutinaSeleccionada);
+                  setFormSugerencia({ nombre: '', series: '', repeticiones: '', descripcion: '' });
+                  setErrorSugerencia('');
+                }}
+                className="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700 transition-colors shrink-0"
+              >
+                Sugerir ejercicio
+              </button>
+            </div>
           </div>
 
           <div className="space-y-4">
@@ -331,6 +404,12 @@ export default function RutinasInstructor() {
                     color: 'bg-red-500',
                     texto: 'Rechazado por un Instructor',
                     hoverColor: 'hover:bg-red-600'
+                  },
+                  4: { // SUGERIDO
+                    emoji: '💡',
+                    color: 'bg-indigo-500',
+                    texto: 'Sugerido por instructor',
+                    hoverColor: 'hover:bg-indigo-600'
                   }
                 };
 
@@ -390,7 +469,7 @@ export default function RutinasInstructor() {
                       )}
                     </div>
 
-                    {/* Botón Revisar ejercicio solo si está PENDIENTE */}
+                    {/* Botón Revisar ejercicio solo si está PENDIENTE (no para SUGERIDO) */}
                     {estadoId === 1 && (
                       <div className="mt-4">
                         <button
@@ -768,6 +847,95 @@ export default function RutinasInstructor() {
                 onClick={handleCerrarModalNotas}
                 disabled={guardandoNotas}
                 className="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Sugerir ejercicio */}
+      {rutinaParaSugerir && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4" onClick={(e) => e.stopPropagation()}>
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-bold">Sugerir ejercicio para &quot;{rutinaParaSugerir.nombre}&quot;</h2>
+              <button
+                type="button"
+                onClick={handleCerrarModalSugerencia}
+                disabled={guardandoSugerencia}
+                className="text-gray-500 hover:text-gray-700 text-2xl font-bold disabled:opacity-50"
+              >
+                ×
+              </button>
+            </div>
+            {errorSugerencia && (
+              <div className="mb-4 px-3 py-2 rounded bg-red-100 border border-red-200 text-red-800 text-sm">
+                {errorSugerencia}
+              </div>
+            )}
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Nombre ejercicio *</label>
+                <input
+                  type="text"
+                  value={formSugerencia.nombre}
+                  onChange={(e) => setFormSugerencia((f) => ({ ...f, nombre: e.target.value }))}
+                  className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Ej: Sentadilla con barra"
+                  disabled={guardandoSugerencia}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Cantidad de series *</label>
+                <input
+                  type="number"
+                  min={1}
+                  value={formSugerencia.series}
+                  onChange={(e) => setFormSugerencia((f) => ({ ...f, series: e.target.value }))}
+                  className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Ej: 4"
+                  disabled={guardandoSugerencia}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Cantidad de repeticiones *</label>
+                <input
+                  type="text"
+                  value={formSugerencia.repeticiones}
+                  onChange={(e) => setFormSugerencia((f) => ({ ...f, repeticiones: e.target.value }))}
+                  className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Ej: 8-12"
+                  disabled={guardandoSugerencia}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Descripción *</label>
+                <textarea
+                  value={formSugerencia.descripcion}
+                  onChange={(e) => setFormSugerencia((f) => ({ ...f, descripcion: e.target.value }))}
+                  className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  rows={3}
+                  placeholder="Descripción del ejercicio"
+                  disabled={guardandoSugerencia}
+                />
+              </div>
+            </div>
+            <div className="flex gap-3 mt-6">
+              <button
+                type="button"
+                onClick={handleGuardarSugerencia}
+                disabled={guardandoSugerencia}
+                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {guardandoSugerencia ? 'Guardando...' : 'Guardar'}
+              </button>
+              <button
+                type="button"
+                onClick={handleCerrarModalSugerencia}
+                disabled={guardandoSugerencia}
+                className="px-4 py-2 border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50"
               >
                 Cancelar
               </button>

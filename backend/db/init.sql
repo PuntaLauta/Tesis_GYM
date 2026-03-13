@@ -205,7 +205,8 @@ CREATE TABLE IF NOT EXISTS estado_ejercicios (
 );
 
 -- Insertar estados por defecto
-INSERT OR IGNORE INTO estado_ejercicios (nombre, descripcion) VALUES 
-  ('PENDIENTE', 'Pendiente de revisión por instructor'),
-  ('APROBADO', 'Aprobado por instructor'),
-  ('RECHAZADO', 'Rechazado por instructor');
+INSERT OR IGNORE INTO estado_ejercicios (id, nombre, descripcion) VALUES 
+  (1, 'PENDIENTE', 'Pendiente de revisión por instructor'),
+  (2, 'APROBADO', 'Aprobado por instructor'),
+  (3, 'RECHAZADO', 'Rechazado por instructor'),
+  (4, 'SUGERIDO', 'Sugerido por instructor');

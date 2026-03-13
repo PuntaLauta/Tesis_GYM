@@ -12,6 +12,7 @@ export default function MisRutinas() {
   const [rutinaDetalle, setRutinaDetalle] = useState(null);
   const [mostrarDetalle, setMostrarDetalle] = useState(false);
   const [rutinaAEliminar, setRutinaAEliminar] = useState(null);
+  const [ocultarRechazados, setOcultarRechazados] = useState(false);
 
   useEffect(() => {
     loadRutinas();
@@ -229,15 +230,12 @@ export default function MisRutinas() {
             </div>
 
             <div>
-              <h3 className="text-lg font-semibold mb-2">Ejercicios:</h3>
               {(() => {
                 let ejercicios = [];
                 try {
                   if (Array.isArray(rutinaDetalle.ejercicios)) {
-                    // Si ya es un array, usarlo directamente
                     ejercicios = rutinaDetalle.ejercicios;
                   } else if (typeof rutinaDetalle.ejercicios === 'string') {
-                    // Si es string, parsearlo
                     ejercicios = JSON.parse(rutinaDetalle.ejercicios);
                   } else {
                     ejercicios = [];
@@ -247,13 +245,38 @@ export default function MisRutinas() {
                   ejercicios = [];
                 }
 
-                if (ejercicios.length === 0) {
-                  return <p className="text-gray-500">No hay ejercicios definidos.</p>;
-                }
+                const ejerciciosVisibles = ocultarRechazados
+                  ? ejercicios.filter((e) => {
+                      const id = typeof e.estado_id === 'string' ? parseInt(e.estado_id, 10) : e.estado_id;
+                      return id !== 3;
+                    })
+                  : ejercicios;
 
                 return (
+                  <>
+                    <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+                      <h3 className="text-lg font-semibold">Ejercicios:</h3>
+                      {ejercicios.length > 0 && (
+                        <label className="flex items-center gap-2 cursor-pointer text-sm text-gray-700">
+                          <input
+                            type="checkbox"
+                            checked={ocultarRechazados}
+                            onChange={(e) => setOcultarRechazados(e.target.checked)}
+                            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                          />
+                          <span>Ocultar ejercicios rechazados</span>
+                        </label>
+                      )}
+                    </div>
+                    {ejerciciosVisibles.length === 0 ? (
+                      <p className="text-gray-500">
+                        {ejercicios.length === 0
+                          ? 'No hay ejercicios definidos.'
+                          : 'No hay ejercicios para mostrar (todos están rechazados o filtrados).'}
+                      </p>
+                    ) : (
                   <div className="space-y-3">
-                    {ejercicios.map((ejercicio, index) => {
+                    {ejerciciosVisibles.map((ejercicio, index) => {
                       // Determinar estado_id del ejercicio (por defecto 1 = PENDIENTE)
                       // Si tiene estado_id numérico, usarlo; si tiene estado string, mapearlo; sino default 1
                       let estadoId = ejercicio.estado_id;
@@ -289,6 +312,12 @@ export default function MisRutinas() {
                           color: 'bg-red-500',
                           texto: 'Rechazado por un Instructor',
                           hoverColor: 'hover:bg-red-600'
+                        },
+                        4: { // SUGERIDO
+                          emoji: '💡',
+                          color: 'bg-indigo-500',
+                          texto: 'Sugerido por un instructor',
+                          hoverColor: 'hover:bg-indigo-600'
                         }
                       };
                       
@@ -331,19 +360,24 @@ export default function MisRutinas() {
                               <strong>Descanso:</strong> {ejercicio.descanso}
                             </p>
                           )}
-                          {ejercicio.notas && (
+                          {estadoId !== 4 && ejercicio.notas && (
                             <p>
                               <strong>Notas del Asistente IA:</strong> {ejercicio.notas}
                             </p>
                           )}
                           <p>
-                            <strong>Notas del Instructor:</strong> {ejercicio.descripcion_profesor && ejercicio.descripcion_profesor.trim() 
-                              ? ejercicio.descripcion_profesor 
-                              : 'Sin notas del instructor'}
+                            <strong>Notas del Instructor:</strong>{' '}
+                            {ejercicio.descripcion_profesor && ejercicio.descripcion_profesor.trim()
+                              ? ejercicio.descripcion_profesor
+                              : estadoId === 4 && ejercicio.notas
+                                ? ejercicio.notas
+                                : estadoId === 4 && ejercicio.descripcion
+                                  ? ejercicio.descripcion
+                                  : 'Sin notas del instructor'}
                           </p>
-                          {(estadoId === 2 || estadoId === 3) && ejercicio.instructor_nombre && (
+                          {(estadoId === 2 || estadoId === 3 || estadoId === 4) && ejercicio.instructor_nombre && (
                             <p className="text-gray-500 text-xs mt-1">
-                              Revisado por {ejercicio.instructor_nombre}
+                              {estadoId === 2 ? 'Aprobado por' : estadoId === 3 ? 'Rechazado por' : 'Sugerido por'} {ejercicio.instructor_nombre}
                             </p>
                           )}
                         </div>
@@ -351,6 +385,8 @@ export default function MisRutinas() {
                     );
                     })}
                   </div>
+                    )}
+                  </>
                 );
               })()}
             </div>

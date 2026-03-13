@@ -668,10 +668,11 @@ async function initDatabase() {
       // Insertar estados por defecto
       const estadosExistentes = db.exec("SELECT COUNT(*) as count FROM estado_ejercicios");
       if (!estadosExistentes || !estadosExistentes[0] || !estadosExistentes[0].values || estadosExistentes[0].values[0][0] === 0) {
-        db.run(`INSERT INTO estado_ejercicios (nombre, descripcion) VALUES 
-          ('PENDIENTE', 'Pendiente de revisión por instructor'),
-          ('APROBADO', 'Aprobado por instructor'),
-          ('RECHAZADO', 'Rechazado por instructor')`);
+        db.run(`INSERT INTO estado_ejercicios (id, nombre, descripcion) VALUES 
+          (1, 'PENDIENTE', 'Pendiente de revisión por instructor'),
+          (2, 'APROBADO', 'Aprobado por instructor'),
+          (3, 'RECHAZADO', 'Rechazado por instructor'),
+          (4, 'SUGERIDO', 'Sugerido por instructor')`);
       }
       
       saveDatabase();
@@ -679,6 +680,18 @@ async function initDatabase() {
     } catch (e) {
       console.log('Advertencia: No se pudo crear tabla estado_ejercicios:', e.message);
     }
+  }
+
+  // Migración: agregar estado SUGERIDO (id 4) si no existe
+  try {
+    const sugeridoExiste = db.exec("SELECT id FROM estado_ejercicios WHERE nombre = 'SUGERIDO'");
+    if (!sugeridoExiste || !sugeridoExiste[0] || !sugeridoExiste[0].values || sugeridoExiste[0].values.length === 0) {
+      db.run("INSERT INTO estado_ejercicios (id, nombre, descripcion) VALUES (4, 'SUGERIDO', 'Sugerido por instructor')");
+      saveDatabase();
+      console.log('✅ Estado SUGERIDO agregado a estado_ejercicios');
+    }
+  } catch (e) {
+    console.log('Advertencia: No se pudo agregar estado SUGERIDO:', e.message);
   }
 
   // Verificar si existe la columna estado_id en la tabla ejercicios
