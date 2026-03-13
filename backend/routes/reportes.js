@@ -132,10 +132,21 @@ router.get('/ingresos', (req, res) => {
       }
 
       if (!grupos[clave]) {
-        grupos[clave] = { fecha: etiqueta, monto: 0, cantidad: 0 };
+        grupos[clave] = {
+          fecha: etiqueta,
+          monto: 0,
+          cantidad: 0,
+          efectivo: 0,
+          transferencia: 0,
+        };
       }
       grupos[clave].monto += pago.monto;
       grupos[clave].cantidad++;
+      if (pago.metodo_pago === 'efectivo') {
+        grupos[clave].efectivo += pago.monto;
+      } else if (pago.metodo_pago === 'transferencia') {
+        grupos[clave].transferencia += pago.monto;
+      }
       total += pago.monto;
     });
 
@@ -300,23 +311,43 @@ router.get('/socios_activos', (req, res) => {
   }
 });
 
-// GET /api/reportes/clases_populares
+// GET /api/reportes/clases_populares?desde=YYYY-MM-DD&hasta=YYYY-MM-DD
 router.get('/clases_populares', (req, res) => {
   try {
-    const clases = query(`
-      SELECT 
+    const { desde, hasta } = req.query;
+
+    let sql = `
+      SELECT
         tc.nombre,
         COUNT(DISTINCT c.id) as total_clases,
         COUNT(DISTINCT r.id) as total_reservas,
         AVG(CASE WHEN r.estado = 'asistio' THEN 1 ELSE 0 END) * 100 as porcentaje_asistencia,
         SUM(c.cupo) as total_cupos,
-        SUM((SELECT COUNT(*) FROM reservas r2 WHERE r2.clase_id = c.id AND r2.estado != 'cancelado')) as total_ocupados
+        SUM(
+          (SELECT COUNT(*) FROM reservas r2 WHERE r2.clase_id = c.id AND r2.estado != 'cancelado')
+        ) as total_ocupados
       FROM clases c
       LEFT JOIN tipo_clase tc ON c.tipo_clase_id = tc.id
       LEFT JOIN reservas r ON c.id = r.clase_id
+      WHERE 1=1
+    `;
+    const params = [];
+
+    if (desde) {
+      sql += ' AND c.fecha >= ?';
+      params.push(desde);
+    }
+    if (hasta) {
+      sql += ' AND c.fecha <= ?';
+      params.push(hasta);
+    }
+
+    sql += `
       GROUP BY c.tipo_clase_id, tc.nombre
       ORDER BY total_reservas DESC
-    `);
+    `;
+
+    const clases = query(sql, params);
 
     res.json({ data: clases });
   } catch (error) {
