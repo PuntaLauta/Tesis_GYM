@@ -745,29 +745,65 @@ async function seed() {
   run('DELETE FROM rutina_ejercicio');
   run('DELETE FROM rutinas');
   
-  // Obtener o crear tipos de clase
+  // Obtener o crear tipos de clase (al menos 10 tipos para pruebas de reportes)
   let tipoCrossfit = query('SELECT id FROM tipo_clase WHERE nombre = ?', ['Crossfit']);
   if (tipoCrossfit.length === 0) {
-    const result = insert('INSERT INTO tipo_clase (nombre, descripcion) VALUES (?, ?)', ['Crossfit', null]);
+    const result = insert('INSERT INTO tipo_clase (nombre, descripcion) VALUES (?, ?)', ['Crossfit', 'Entrenamiento funcional de alta intensidad']);
     tipoCrossfit = [{ id: result.lastInsertRowid }];
   }
   
   let tipoZumba = query('SELECT id FROM tipo_clase WHERE nombre = ?', ['Zumba']);
   if (tipoZumba.length === 0) {
-    const result = insert('INSERT INTO tipo_clase (nombre, descripcion) VALUES (?, ?)', ['Zumba', null]);
+    const result = insert('INSERT INTO tipo_clase (nombre, descripcion) VALUES (?, ?)', ['Zumba', 'Clase aeróbica grupal con música']);
     tipoZumba = [{ id: result.lastInsertRowid }];
   }
   
   let tipoFuncional = query('SELECT id FROM tipo_clase WHERE nombre = ?', ['Funcional']);
   if (tipoFuncional.length === 0) {
-    const result = insert('INSERT INTO tipo_clase (nombre, descripcion) VALUES (?, ?)', ['Funcional', null]);
+    const result = insert('INSERT INTO tipo_clase (nombre, descripcion) VALUES (?, ?)', ['Funcional', 'Entrenamiento funcional general']);
     tipoFuncional = [{ id: result.lastInsertRowid }];
   }
   
   let tipoBoxeo = query('SELECT id FROM tipo_clase WHERE nombre = ?', ['Boxeo']);
   if (tipoBoxeo.length === 0) {
-    const result = insert('INSERT INTO tipo_clase (nombre, descripcion) VALUES (?, ?)', ['Boxeo', null]);
+    const result = insert('INSERT INTO tipo_clase (nombre, descripcion) VALUES (?, ?)', ['Boxeo', 'Clase de boxeo y cardio']);
     tipoBoxeo = [{ id: result.lastInsertRowid }];
+  }
+
+  let tipoYoga = query('SELECT id FROM tipo_clase WHERE nombre = ?', ['Yoga']);
+  if (tipoYoga.length === 0) {
+    const result = insert('INSERT INTO tipo_clase (nombre, descripcion) VALUES (?, ?)', ['Yoga', 'Clase de movilidad y relajación']);
+    tipoYoga = [{ id: result.lastInsertRowid }];
+  }
+
+  let tipoPilates = query('SELECT id FROM tipo_clase WHERE nombre = ?', ['Pilates']);
+  if (tipoPilates.length === 0) {
+    const result = insert('INSERT INTO tipo_clase (nombre, descripcion) VALUES (?, ?)', ['Pilates', 'Trabajo de core y control postural']);
+    tipoPilates = [{ id: result.lastInsertRowid }];
+  }
+
+  let tipoSpinning = query('SELECT id FROM tipo_clase WHERE nombre = ?', ['Spinning']);
+  if (tipoSpinning.length === 0) {
+    const result = insert('INSERT INTO tipo_clase (nombre, descripcion) VALUES (?, ?)', ['Spinning', 'Ciclismo indoor']);
+    tipoSpinning = [{ id: result.lastInsertRowid }];
+  }
+
+  let tipoHIIT = query('SELECT id FROM tipo_clase WHERE nombre = ?', ['HIIT']);
+  if (tipoHIIT.length === 0) {
+    const result = insert('INSERT INTO tipo_clase (nombre, descripcion) VALUES (?, ?)', ['HIIT', 'Entrenamiento interválico de alta intensidad']);
+    tipoHIIT = [{ id: result.lastInsertRowid }];
+  }
+
+  let tipoStretching = query('SELECT id FROM tipo_clase WHERE nombre = ?', ['Stretching']);
+  if (tipoStretching.length === 0) {
+    const result = insert('INSERT INTO tipo_clase (nombre, descripcion) VALUES (?, ?)', ['Stretching', 'Clase de estiramientos y recuperación']);
+    tipoStretching = [{ id: result.lastInsertRowid }];
+  }
+
+  let tipoCardio = query('SELECT id FROM tipo_clase WHERE nombre = ?', ['Cardio']);
+  if (tipoCardio.length === 0) {
+    const result = insert('INSERT INTO tipo_clase (nombre, descripcion) VALUES (?, ?)', ['Cardio', 'Entrenamiento aeróbico general']);
+    tipoCardio = [{ id: result.lastInsertRowid }];
   }
 
   // Mapear instructores por nombre a ID
@@ -778,39 +814,52 @@ async function seed() {
   };
 
   const tipoClaseMap = {
-    'Crossfit': tipoCrossfit[0].id,
-    'Zumba': tipoZumba[0].id,
-    'Funcional': tipoFuncional[0].id,
-    'Boxeo': tipoBoxeo[0].id
+    Crossfit: tipoCrossfit[0].id,
+    Zumba: tipoZumba[0].id,
+    Funcional: tipoFuncional[0].id,
+    Boxeo: tipoBoxeo[0].id,
+    Yoga: tipoYoga[0].id,
+    Pilates: tipoPilates[0].id,
+    Spinning: tipoSpinning[0].id,
+    HIIT: tipoHIIT[0].id,
+    Stretching: tipoStretching[0].id,
+    Cardio: tipoCardio[0].id,
   };
   
-  // Crear clases variadas (reducidas: 3-4 por semana por tipo)
-  // Redistribución: Carlos → Funcional y Boxeo, Diego → Crossfit, Sofía → Zumba
+  // Crear clases variadas distribuidas en varios meses y tipos
+  // Redistribución: Carlos → Funcional / Boxeo / HIIT / Spinning, Diego → Crossfit / Cardio, Sofía → Zumba / Yoga / Pilates / Stretching
   const clasesData = [
-    // Clases pasadas (últimos días)
-    { nombre: 'Crossfit', fecha: -7, hora: '08:00', fin: '09:00', cupo: 20, instructor: 'Diego Torres', estado: 'activa' },
-    { nombre: 'Zumba', fecha: -5, hora: '18:00', fin: '19:00', cupo: 15, instructor: 'Sofía Ramírez', estado: 'activa' },
-    { nombre: 'Funcional', fecha: -3, hora: '19:00', fin: '20:00', cupo: 25, instructor: 'Carlos Mendoza', estado: 'activa' },
-    { nombre: 'Boxeo', fecha: -2, hora: '20:00', fin: '21:00', cupo: 15, instructor: 'Carlos Mendoza', estado: 'activa' },
-    
-    // Clases de hoy
-    { nombre: 'Crossfit', fecha: 0, hora: '08:00', fin: '09:00', cupo: 20, instructor: 'Diego Torres', estado: 'activa' },
-    { nombre: 'Zumba', fecha: 0, hora: '18:00', fin: '19:00', cupo: 15, instructor: 'Sofía Ramírez', estado: 'activa' },
-    
-    // Clases futuras (distribuidas en 2 semanas, 3-4 por tipo)
-    // Semana 1
-    { nombre: 'Funcional', fecha: 1, hora: '19:00', fin: '20:00', cupo: 25, instructor: 'Carlos Mendoza', estado: 'activa' },
-    { nombre: 'Boxeo', fecha: 2, hora: '20:00', fin: '21:00', cupo: 15, instructor: 'Carlos Mendoza', estado: 'activa' },
-    { nombre: 'Crossfit', fecha: 3, hora: '08:00', fin: '09:00', cupo: 20, instructor: 'Diego Torres', estado: 'activa' },
-    { nombre: 'Zumba', fecha: 4, hora: '18:00', fin: '19:00', cupo: 15, instructor: 'Sofía Ramírez', estado: 'activa' },
-    { nombre: 'Funcional', fecha: 5, hora: '19:00', fin: '20:00', cupo: 25, instructor: 'Carlos Mendoza', estado: 'activa' },
-    
-    // Semana 2
-    { nombre: 'Crossfit', fecha: 8, hora: '08:00', fin: '09:00', cupo: 20, instructor: 'Diego Torres', estado: 'activa' },
-    { nombre: 'Boxeo', fecha: 9, hora: '20:00', fin: '21:00', cupo: 15, instructor: 'Carlos Mendoza', estado: 'activa' },
-    { nombre: 'Zumba', fecha: 11, hora: '18:00', fin: '19:00', cupo: 15, instructor: 'Sofía Ramírez', estado: 'activa' },
-    { nombre: 'Funcional', fecha: 12, hora: '19:00', fin: '20:00', cupo: 25, instructor: 'Carlos Mendoza', estado: 'activa' },
-    { nombre: 'Crossfit', fecha: 13, hora: '08:00', fin: '09:00', cupo: 20, instructor: 'Diego Torres', estado: 'activa' },
+    // Hace ~3 meses
+    { nombre: 'Crossfit',   fecha: -90, hora: '08:00', fin: '09:00', cupo: 20, instructor: 'Diego Torres',  estado: 'activa' },
+    { nombre: 'Zumba',      fecha: -88, hora: '18:00', fin: '19:00', cupo: 18, instructor: 'Sofía Ramírez', estado: 'activa' },
+    { nombre: 'Yoga',       fecha: -87, hora: '09:00', fin: '10:00', cupo: 16, instructor: 'Sofía Ramírez', estado: 'activa' },
+    { nombre: 'Spinning',   fecha: -85, hora: '19:00', fin: '20:00', cupo: 22, instructor: 'Carlos Mendoza', estado: 'activa' },
+
+    // Hace ~2 meses
+    { nombre: 'Funcional',  fecha: -60, hora: '19:00', fin: '20:00', cupo: 25, instructor: 'Carlos Mendoza', estado: 'activa' },
+    { nombre: 'Boxeo',      fecha: -58, hora: '20:00', fin: '21:00', cupo: 15, instructor: 'Carlos Mendoza', estado: 'activa' },
+    { nombre: 'Pilates',    fecha: -56, hora: '17:00', fin: '18:00', cupo: 14, instructor: 'Sofía Ramírez',  estado: 'activa' },
+    { nombre: 'Cardio',     fecha: -55, hora: '07:00', fin: '08:00', cupo: 20, instructor: 'Diego Torres',   estado: 'activa' },
+
+    // Hace ~1 mes
+    { nombre: 'HIIT',       fecha: -30, hora: '19:30', fin: '20:15', cupo: 18, instructor: 'Carlos Mendoza', estado: 'activa' },
+    { nombre: 'Stretching', fecha: -28, hora: '10:00', fin: '11:00', cupo: 16, instructor: 'Sofía Ramírez',  estado: 'activa' },
+    { nombre: 'Crossfit',   fecha: -25, hora: '08:00', fin: '09:00', cupo: 20, instructor: 'Diego Torres',   estado: 'activa' },
+    { nombre: 'Zumba',      fecha: -24, hora: '18:00', fin: '19:00', cupo: 18, instructor: 'Sofía Ramírez',  estado: 'activa' },
+
+    // Semana actual
+    { nombre: 'Funcional',  fecha: -3,  hora: '19:00', fin: '20:00', cupo: 25, instructor: 'Carlos Mendoza', estado: 'activa' },
+    { nombre: 'Boxeo',      fecha: -2,  hora: '20:00', fin: '21:00', cupo: 15, instructor: 'Carlos Mendoza', estado: 'activa' },
+    { nombre: 'Crossfit',   fecha: 0,   hora: '08:00', fin: '09:00', cupo: 20, instructor: 'Diego Torres',   estado: 'activa' },
+    { nombre: 'Zumba',      fecha: 0,   hora: '18:00', fin: '19:00', cupo: 18, instructor: 'Sofía Ramírez',  estado: 'activa' },
+    { nombre: 'Yoga',       fecha: 1,   hora: '09:00', fin: '10:00', cupo: 16, instructor: 'Sofía Ramírez',  estado: 'activa' },
+
+    // Pr&oacute;ximas semanas
+    { nombre: 'Spinning',   fecha: 3,   hora: '19:00', fin: '20:00', cupo: 22, instructor: 'Carlos Mendoza', estado: 'activa' },
+    { nombre: 'HIIT',       fecha: 5,   hora: '19:30', fin: '20:15', cupo: 18, instructor: 'Carlos Mendoza', estado: 'activa' },
+    { nombre: 'Pilates',    fecha: 7,   hora: '17:00', fin: '18:00', cupo: 14, instructor: 'Sofía Ramírez',  estado: 'activa' },
+    { nombre: 'Stretching', fecha: 10,  hora: '10:00', fin: '11:00', cupo: 16, instructor: 'Sofía Ramírez',  estado: 'activa' },
+    { nombre: 'Cardio',     fecha: 14,  hora: '07:00', fin: '08:00', cupo: 20, instructor: 'Diego Torres',   estado: 'activa' },
   ];
 
   // Verificar si la columna nombre existe en clases (para compatibilidad con migraciones anteriores)

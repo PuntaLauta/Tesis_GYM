@@ -11,6 +11,8 @@ import {
   exportAllReportsToZip
 } from '../services/reports';
 import { listTiposClase } from '../services/tipoClase';
+import { Bar, Pie } from 'react-chartjs-2';
+import 'chart.js/auto';
 import StatCards from '../components/StatCards';
 
 function getMesActualRango() {
@@ -37,11 +39,22 @@ export default function Reports() {
   const mesActual = getMesActualRango();
   const [ingresosFiltro, setIngresosFiltro] = useState(mesActual);
   const [ingresosFiltroAplicado, setIngresosFiltroAplicado] = useState(mesActual);
+  const [ingresosVistaGrafica, setIngresosVistaGrafica] = useState(false);
   const [tiposClase, setTiposClase] = useState([]);
   const [ocupacionTipoClaseId, setOcupacionTipoClaseId] = useState('');
   const [ocupacionPagina, setOcupacionPagina] = useState(1);
   const [ocupacionFiltro, setOcupacionFiltro] = useState(mesActual);
   const [ocupacionFiltroAplicado, setOcupacionFiltroAplicado] = useState(mesActual);
+  const [ocupacionVistaGrafica, setOcupacionVistaGrafica] = useState(false);
+  const [clasesPopularesPagina, setClasesPopularesPagina] = useState(1);
+  const [clasesPopularesFiltro, setClasesPopularesFiltro] = useState(mesActual);
+  const [clasesPopularesFiltroAplicado, setClasesPopularesFiltroAplicado] = useState(mesActual);
+  const [clasesPopularesVistaGrafica, setClasesPopularesVistaGrafica] = useState(false);
+  const [accesosFiltro, setAccesosFiltro] = useState(mesActual);
+  const [accesosFiltroAplicado, setAccesosFiltroAplicado] = useState(null);
+  const [accesosAgrupacion, setAccesosAgrupacion] = useState('semana');
+  const [accesosPagina, setAccesosPagina] = useState(1);
+  const [accesosVistaGrafica, setAccesosVistaGrafica] = useState(false);
   const [filters, setFilters] = useState({
     desde: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // Últimos 30 días
     hasta: new Date().toISOString().split('T')[0],
@@ -85,26 +98,55 @@ export default function Reports() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ocupacionTipoClaseId]);
 
+  useEffect(() => {
+    const loadSoloClasesPopulares = async () => {
+      try {
+        const base = clasesPopularesFiltroAplicado || clasesPopularesFiltro || mesActual;
+        const data = await getClasesPopulares(base);
+        setClasesPopulares(data.data || []);
+        setClasesPopularesPagina(1);
+      } catch (error) {
+        console.error('Error al recargar clases populares:', error);
+      }
+    };
+
+    loadSoloClasesPopulares();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [clasesPopularesFiltroAplicado]);
+
+  useEffect(() => {
+    const loadSoloAccesos = async () => {
+      try {
+        const base = accesosFiltroAplicado || filters;
+        const data = await getAccesos({ ...base, agrupacion: accesosAgrupacion });
+        setAccesos(data.data);
+        setAccesosPagina(1);
+      } catch (error) {
+        console.error('Error al recargar accesos:', error);
+      }
+    };
+
+    if (accesos) loadSoloAccesos();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [accesosAgrupacion]);
+
   const loadReports = async () => {
     setLoading(true);
     try {
       const [
         activosData, 
         accesosData,
-        sociosActivosData,
-        clasesPopularesData,
-        metodosPagoData
+        sociosActivosData
       ] = await Promise.all([
         getActivosInactivos(),
-        getAccesos(filters),
+        getAccesos({ ...(accesosFiltroAplicado || filters), agrupacion: accesosAgrupacion }),
         getSociosActivos(),
-        getClasesPopulares(),
-        getMetodosPago(filters),
       ]);
 
-      const [tiposData, ocupacionData] = await Promise.all([
+      const [tiposData, ocupacionData, clasesPopularesData] = await Promise.all([
         listTiposClase(),
         getOcupacionClases({ ...(ocupacionFiltroAplicado || filters), ...(ocupacionTipoClaseId ? { tipo_clase_id: ocupacionTipoClaseId } : {}) }),
+        getClasesPopulares(),
       ]);
       setTiposClase(tiposData.data || []);
       setOcupacion(ocupacionData.data);
@@ -113,12 +155,14 @@ export default function Reports() {
       setAccesos(accesosData.data);
       setSociosActivos(sociosActivosData.data || []);
       setClasesPopulares(clasesPopularesData.data || []);
-      setMetodosPago(metodosPagoData.data);
 
       // Cargar ingresos con el filtro aplicado (por defecto mes actual)
       const rangoIngresos = ingresosFiltroAplicado || mesActual;
       const ingresosInicial = await getIngresos({ ...rangoIngresos, agrupacion: ingresosAgrupacion });
       setIngresos(ingresosInicial.data);
+
+      const metodosPagoInicial = await getMetodosPago(rangoIngresos);
+      setMetodosPago(metodosPagoInicial.data);
     } catch (error) {
       console.error('Error al cargar reportes:', error);
     } finally {
@@ -327,8 +371,12 @@ export default function Reports() {
                       ...(ingresosFiltro.desde ? { desde: ingresosFiltro.desde } : {}),
                       ...(ingresosFiltro.hasta ? { hasta: ingresosFiltro.hasta } : {}),
                     };
-                    const ingresosData = await getIngresos({ ...base, agrupacion: ingresosAgrupacion });
+                    const [ingresosData, metodosPagoData] = await Promise.all([
+                      getIngresos({ ...base, agrupacion: ingresosAgrupacion }),
+                      getMetodosPago(base),
+                    ]);
                     setIngresos(ingresosData.data);
+                    setMetodosPago(metodosPagoData.data);
                     setIngresosFiltroAplicado(base);
                     setIngresosPagina(1);
                   } catch (error) {
@@ -336,7 +384,119 @@ export default function Reports() {
                   }
                 };
 
-                return (
+                const dataGrafico = {
+                  labels: ingresos.porDia.map(d => d.fecha),
+                  datasets: [
+                    {
+                      label: 'Efectivo',
+                      data: ingresos.porDia.map(d => d.efectivo || 0),
+                      backgroundColor: 'rgba(34, 197, 94, 0.7)', // verde
+                    },
+                    {
+                      label: 'Transferencia',
+                      data: ingresos.porDia.map(d => d.transferencia || 0),
+                      backgroundColor: 'rgba(37, 99, 235, 0.7)', // azul
+                    },
+                  ],
+                };
+
+                const opcionesGrafico = {
+                  responsive: true,
+                  plugins: {
+                    legend: {
+                      display: false,
+                    },
+                    tooltip: {
+                      callbacks: {
+                        label: (context) => {
+                          const valor = context.parsed.y || 0;
+                          return `${context.dataset.label}: $${valor.toFixed(2)}`;
+                        },
+                      },
+                    },
+                  },
+                  scales: {
+                    x: {
+                      stacked: true,
+                    },
+                    y: {
+                      stacked: true,
+                      beginAtZero: true,
+                    },
+                  },
+                };
+
+                return ingresosVistaGrafica ? (
+                  <>
+                    <div className="flex justify-between items-center mb-4">
+                      <h1 className="font-bold text-xl">Ingresos</h1>
+                      <div className="flex flex-col items-end gap-2">
+                        <div className="flex items-center gap-2 text-sm">
+                          <span className="text-gray-600">Filtro:</span>
+                          <input
+                            type="date"
+                            value={ingresosFiltro.desde}
+                            onChange={(e) => handleFiltroChange('desde', e.target.value)}
+                            className="border rounded px-2 py-1 text-xs"
+                          />
+                          <span className="text-gray-500 text-xs">a</span>
+                          <input
+                            type="date"
+                            value={ingresosFiltro.hasta}
+                            onChange={(e) => handleFiltroChange('hasta', e.target.value)}
+                            className="border rounded px-2 py-1 text-xs"
+                          />
+                          <button
+                            onClick={handleAplicarFiltroIngresos}
+                            className="ml-2 px-2 py-1 bg-blue-600 text-white rounded text-xs hover:bg-blue-700"
+                          >
+                            Filtrar
+                          </button>
+                        </div>
+                        <div className="flex items-center gap-2 text-sm">
+                          <span className="text-gray-600">Agrupar por:</span>
+                          <select
+                            value={ingresosAgrupacion}
+                            onChange={(e) => setIngresosAgrupacion(e.target.value)}
+                            className="border rounded px-2 py-1 text-sm"
+                          >
+                            <option value="dia">Día</option>
+                            <option value="semana">Semana</option>
+                            <option value="mes">Mes</option>
+                            <option value="anio">Año</option>
+                          </select>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setIngresosVistaGrafica(false)}
+                          className="mt-1 px-3 py-1 rounded text-xs text-white bg-blue-600 hover:bg-blue-700"
+                        >
+                          Cambiar a Vista Analítica
+                        </button>
+                      </div>
+                    </div>
+                    <div className="mb-2 flex items-baseline gap-1">
+                      <h2 className="text-lg font-bold text-black">Monto Total: </h2>
+                      <span className="text-lg font-bold text-green-600">${totalAgrupacion.toFixed(2)}</span>
+                    </div>
+                    {metodosPago && (
+                      <div className="mb-4 text-xs text-gray-600">
+                        Distribución por método de pago (Efectivo vs Transferencia) en el período seleccionado.
+                      </div>
+                    )}
+                    <div className="mt-2">
+                      <Bar data={dataGrafico} options={opcionesGrafico} />
+                    </div>
+                    <div className="mt-3 text-xs text-gray-600">
+                      <span className="inline-flex items-center mr-4">
+                        <span className="w-3 h-3 mr-1 inline-block rounded-sm bg-green-500" /> Efectivo
+                      </span>
+                      <span className="inline-flex items-center">
+                        <span className="w-3 h-3 mr-1 inline-block rounded-sm bg-blue-500" /> Transferencia
+                      </span>
+                    </div>
+                  </>
+                ) : (
                   <>
               <div className="flex justify-between items-center mb-4">
                 <h1 className="font-bold text-xl">Ingresos</h1>
@@ -376,18 +536,50 @@ export default function Reports() {
                       <option value="anio">Año</option>
                     </select>
                   </div>
+                  <button
+                    type="button"
+                    onClick={() => setIngresosVistaGrafica(true)}
+                    className="mt-1 px-3 py-1 rounded text-xs text-white bg-green-600 hover:bg-green-700"
+                  >
+                    Cambiar a Vista Gráfica
+                  </button>
                 </div>
               </div>
               <div className="mb-2 flex items-baseline gap-1">
                 <h2 className="text-lg font-bold text-black">Monto Total: </h2>
                 <span className="text-lg font-bold text-green-600">${totalAgrupacion.toFixed(2)}</span>
               </div>
+              {metodosPago && (
+                <div className="mt-2 grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                  <div className="border rounded p-3">
+                    <div className="font-semibold text-green-600">Efectivo</div>
+                    <div className="text-lg font-bold">
+                      ${metodosPago.efectivo.total.toFixed(2)}
+                    </div>
+                    <div className="text-xs text-gray-600">
+                      {metodosPago.efectivo.cantidad} pagos ({metodosPago.efectivo.porcentaje}%)
+                    </div>
+                  </div>
+                  <div className="border rounded p-3">
+                    <div className="font-semibold text-blue-600">Transferencia</div>
+                    <div className="text-lg font-bold">
+                      ${metodosPago.transferencia.total.toFixed(2)}
+                    </div>
+                    <div className="text-xs text-gray-600">
+                      {metodosPago.transferencia.cantidad} pagos ({metodosPago.transferencia.porcentaje}%)
+                    </div>
+                  </div>
+                </div>
+              )}
               <div className="mt-4">
-                <div className="text-sm font-semibold mb-2">
-                  {ingresosAgrupacion === 'dia' && 'Por día:'}
-                  {ingresosAgrupacion === 'semana' && 'Por semana:'}
-                  {ingresosAgrupacion === 'mes' && 'Por mes:'}
-                  {ingresosAgrupacion === 'anio' && 'Por año:'}
+                <div className="text-sm font-semibold mb-2 flex justify-between">
+                  <span>
+                    {ingresosAgrupacion === 'dia' && 'Por día:'}
+                    {ingresosAgrupacion === 'semana' && 'Por semana:'}
+                    {ingresosAgrupacion === 'mes' && 'Por mes:'}
+                    {ingresosAgrupacion === 'anio' && 'Por año:'}
+                  </span>
+                  <span>Monto</span>
                 </div>
                 {itemsPagina.map((dia, idx) => (
                   <div key={idx} className="flex justify-between text-sm border-b py-1">
@@ -447,6 +639,210 @@ export default function Reports() {
             </div>
           )}
 
+          {/* Clases Más Populares (debajo de Ingresos) */}
+          {clasesPopulares && (() => {
+            const totalItems = clasesPopulares.length || 0;
+            const pageSize = 8;
+            const totalPages = totalItems > 0 ? Math.ceil(totalItems / pageSize) : 1;
+            const paginaActual = Math.min(clasesPopularesPagina, totalPages);
+            const inicio = (paginaActual - 1) * pageSize;
+            const fin = inicio + pageSize;
+            const itemsPagina = clasesPopulares.slice(inicio, fin);
+            const blanks = pageSize - itemsPagina.length;
+
+            const handlePaginaClasesChange = (e) => {
+              const value = parseInt(e.target.value, 10);
+              if (Number.isNaN(value)) return;
+              const nuevaPagina = Math.min(Math.max(1, value), totalPages);
+              setClasesPopularesPagina(nuevaPagina);
+            };
+
+            const handleFiltrarClasesPopulares = async () => {
+              try {
+                const params = { ...clasesPopularesFiltro };
+                const data = await getClasesPopulares(params);
+                setClasesPopulares(data.data || []);
+                setClasesPopularesFiltroAplicado(clasesPopularesFiltro);
+                setClasesPopularesPagina(1);
+              } catch (error) {
+                console.error('Error al filtrar clases populares:', error);
+              }
+            };
+
+            const coloresTorta = [
+              'rgba(34, 197, 94, 0.8)', 'rgba(37, 99, 235, 0.8)', 'rgba(234, 179, 8, 0.8)',
+              'rgba(239, 68, 68, 0.8)', 'rgba(168, 85, 247, 0.8)', 'rgba(236, 72, 153, 0.8)',
+              'rgba(20, 184, 166, 0.8)', 'rgba(249, 115, 22, 0.8)', 'rgba(99, 102, 241, 0.8)',
+              'rgba(34, 211, 238, 0.8)',
+            ];
+            const dataTorta = {
+              labels: clasesPopulares.map(c => c.nombre || 'Sin nombre'),
+              datasets: [{
+                data: clasesPopulares.map(c => c.total_reservas || 0),
+                backgroundColor: clasesPopulares.map((_, i) => coloresTorta[i % coloresTorta.length]),
+                borderWidth: 1,
+              }],
+            };
+            const totalReservasTorta = clasesPopulares.reduce((s, c) => s + (c.total_reservas || 0), 0);
+            const opcionesTorta = {
+              responsive: true,
+              plugins: {
+                legend: { display: false },
+                tooltip: {
+                  callbacks: {
+                    label: (ctx) => {
+                      const total = ctx.dataset.data.reduce((a, b) => a + b, 0);
+                      const pct = total ? ((ctx.raw / total) * 100).toFixed(1) : 0;
+                      return `${ctx.label}: ${ctx.raw} reservas (${pct}%)`;
+                    },
+                  },
+                },
+              },
+            };
+
+            return (
+              <div className="bg-white p-4 rounded-lg shadow mt-6">
+                <div className="flex justify-between items-center mb-4">
+                  <h1 className="font-bold text-xl">Clases Más Populares</h1>
+                  <div className="flex flex-col items-end gap-2 ml-auto">
+                    <div className="flex items-center gap-2 text-sm">
+                      <span className="text-gray-600">Filtro:</span>
+                      <input
+                        type="date"
+                        value={clasesPopularesFiltro.desde}
+                        onChange={(e) => setClasesPopularesFiltro(f => ({ ...f, desde: e.target.value }))}
+                        className="border rounded px-2 py-1 text-xs"
+                      />
+                      <span className="text-gray-500 text-xs">a</span>
+                      <input
+                        type="date"
+                        value={clasesPopularesFiltro.hasta}
+                        onChange={(e) => setClasesPopularesFiltro(f => ({ ...f, hasta: e.target.value }))}
+                        className="border rounded px-2 py-1 text-xs"
+                      />
+                      <button
+                        type="button"
+                        onClick={handleFiltrarClasesPopulares}
+                        className="ml-2 px-2 py-1 bg-blue-600 text-white rounded text-xs hover:bg-blue-700"
+                      >
+                        Filtrar
+                      </button>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setClasesPopularesVistaGrafica(!clasesPopularesVistaGrafica)}
+                      className={`mt-1 px-3 py-1 rounded text-xs text-white ${clasesPopularesVistaGrafica ? 'bg-blue-600 hover:bg-blue-700' : 'bg-green-600 hover:bg-green-700'}`}
+                    >
+                      {clasesPopularesVistaGrafica ? 'Cambiar a Vista Analítica' : 'Cambiar a Vista Gráfica'}
+                    </button>
+                  </div>
+                </div>
+                {clasesPopularesVistaGrafica ? (
+                  <>
+                  <div className="mt-4 flex gap-6 w-full items-start">
+                    <div className="flex-shrink-0 flex flex-col gap-1.5 text-sm">
+                      {clasesPopulares.map((c, i) => {
+                        const reservas = c.total_reservas || 0;
+                        const pct = totalReservasTorta ? ((reservas / totalReservasTorta) * 100).toFixed(1) : '0';
+                        return (
+                          <div key={i} className="flex items-center gap-2">
+                            <span
+                              className="w-3 h-3 rounded-sm flex-shrink-0"
+                              style={{ backgroundColor: coloresTorta[i % coloresTorta.length] }}
+                            />
+                            <span className="text-gray-700">{c.nombre || 'Sin nombre'}</span>
+                            <span className="text-gray-600 font-medium">{pct}%</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    <div className="flex-1 min-w-0 flex justify-center items-center">
+                      <div className="max-w-md max-h-80 w-full">
+                        <Pie data={dataTorta} options={opcionesTorta} />
+                      </div>
+                    </div>
+                  </div>
+                  <p className="mt-2 text-xs text-gray-600">Distribución de reservas por tipo de clase en el período seleccionado.</p>
+                  </>
+                ) : (
+                <>
+                <div className="mt-4">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b">
+                        <th className="text-left py-2">Clase</th>
+                        <th className="text-right py-2">Total Clases</th>
+                        <th className="text-right py-2">Reservas</th>
+                        <th className="text-right py-2">Ocupación</th>
+                        <th className="text-right py-2">% Asistencia</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {itemsPagina.map((clase, idx) => (
+                        <tr key={idx} className="border-b">
+                          <td className="py-2 font-medium">{clase.nombre}</td>
+                          <td className="text-right py-2">{clase.total_clases || 0}</td>
+                          <td className="text-right py-2">{clase.total_reservas || 0}</td>
+                          <td className="text-right py-2">
+                            {clase.total_ocupados || 0}/{clase.total_cupos || 0}
+                          </td>
+                          <td className="text-right py-2">
+                            {clase.porcentaje_asistencia ? Math.round(clase.porcentaje_asistencia) : 0}%
+                          </td>
+                        </tr>
+                      ))}
+                      {blanks > 0 &&
+                        Array.from({ length: blanks }).map((_, idx) => (
+                          <tr key={`blank-clase-${idx}`} className="border-b">
+                            <td className="py-2 text-transparent">-</td>
+                            <td className="text-right py-2 text-transparent">-</td>
+                            <td className="text-right py-2 text-transparent">-</td>
+                            <td className="text-right py-2 text-transparent">-</td>
+                            <td className="text-right py-2 text-transparent">-</td>
+                          </tr>
+                        ))}
+                    </tbody>
+                  </table>
+                </div>
+                <div className="mt-3 flex items-center justify-between text-xs text-gray-600">
+                  <span>
+                    Mostrando {totalItems === 0 ? 0 : inicio + 1}-{Math.min(fin, totalItems)} de {totalItems}
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setClasesPopularesPagina(p => Math.max(1, p - 1))}
+                      disabled={paginaActual === 1}
+                      className="px-2 py-1 border rounded disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      Anterior
+                    </button>
+                    <span className="flex items-center gap-1">
+                      <span>Página</span>
+                      <input
+                        type="number"
+                        min={1}
+                        max={totalPages}
+                        value={paginaActual}
+                        onChange={handlePaginaClasesChange}
+                        className="w-12 border rounded px-1 py-0.5 text-center"
+                      />
+                      <span>de {totalPages}</span>
+                    </span>
+                    <button
+                      onClick={() => setClasesPopularesPagina(p => Math.min(totalPages, p + 1))}
+                      disabled={paginaActual === totalPages}
+                      className="px-2 py-1 border rounded disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      Siguiente
+                    </button>
+                  </div>
+                </div>
+                </>
+                )}
+              </div>
+            );
+          })()}
+
           {/* Ocupación de clases */}
           {ocupacion && (() => {
             const totalItems = ocupacion.clases?.length || 0;
@@ -476,6 +872,58 @@ export default function Reports() {
               } catch (err) {
                 console.error('Error al filtrar ocupación:', err);
               }
+            };
+
+            // Agregar por disciplina (nombre), ordenar por % descendente para el gráfico
+            const porDisciplina = (ocupacion.clases || []).reduce((acc, c) => {
+              const n = c.nombre ?? 'Sin nombre';
+              if (!acc[n]) acc[n] = { nombre: n, cupo: 0, ocupados: 0 };
+              acc[n].cupo += c.cupo ?? 0;
+              acc[n].ocupados += c.ocupados ?? 0;
+              return acc;
+            }, {});
+            const barrasOrdenadas = Object.values(porDisciplina)
+              .map((d) => ({
+                ...d,
+                porcentaje: d.cupo > 0 ? Math.round((d.ocupados / d.cupo) * 100) : 0,
+                disponibles: d.cupo - d.ocupados,
+              }))
+              .sort((a, b) => b.porcentaje - a.porcentaje);
+            const dataBarrasOcupacion = {
+              labels: barrasOrdenadas.map((d) => d.nombre),
+              datasets: [
+                {
+                  label: 'Ocupados',
+                  data: barrasOrdenadas.map((d) => d.ocupados),
+                  backgroundColor: 'rgba(37, 99, 235, 0.8)',
+                  borderWidth: 1,
+                },
+                {
+                  label: 'Disponibles (límite restante)',
+                  data: barrasOrdenadas.map((d) => d.disponibles),
+                  backgroundColor: 'rgba(209, 213, 219, 0.8)',
+                  borderWidth: 1,
+                },
+              ],
+            };
+            const opcionesBarrasOcupacion = {
+              indexAxis: 'y',
+              responsive: true,
+              scales: {
+                x: { stacked: true, beginAtZero: true, title: { display: true, text: 'Cupos' } },
+                y: { stacked: true },
+              },
+              plugins: {
+                legend: { position: 'bottom' },
+                tooltip: {
+                  callbacks: {
+                    afterLabel: (ctx) => {
+                      const d = barrasOrdenadas[ctx.dataIndex];
+                      return d ? `Ocupación: ${d.ocupados}/${d.cupo} (${d.porcentaje}%)` : '';
+                    },
+                  },
+                },
+              },
             };
 
             return (
@@ -519,12 +967,28 @@ export default function Reports() {
                         ))}
                       </select>
                     </div>
+                    <button
+                      type="button"
+                      onClick={() => setOcupacionVistaGrafica(!ocupacionVistaGrafica)}
+                      className={`mt-1 px-3 py-1 rounded text-xs text-white ${ocupacionVistaGrafica ? 'bg-blue-600 hover:bg-blue-700' : 'bg-green-600 hover:bg-green-700'}`}
+                    >
+                      {ocupacionVistaGrafica ? 'Cambiar a Vista Analítica' : 'Cambiar a Vista Gráfica'}
+                    </button>
                   </div>
                 </div>
                 <div className="mb-2">
                   <h2 className="text-lg font-semibold">Promedio de Ocupación: {ocupacion.promedio}%</h2>
                   <div className="text-sm text-gray-600">Total de clases: {ocupacion.total}</div>
                 </div>
+                {ocupacionVistaGrafica ? (
+                  <div className="mt-4 w-full">
+                    <div className="w-full">
+                      <Bar data={dataBarrasOcupacion} options={opcionesBarrasOcupacion} />
+                    </div>
+                    <p className="mt-2 text-xs text-gray-600">Límite (gris) vs. ocupación real (azul). Ordenado de mayor a menor % de ocupación.</p>
+                  </div>
+                ) : (
+                <>
                 <div className="mt-4">
                   <table className="w-full text-sm">
                     <thead>
@@ -591,83 +1055,184 @@ export default function Reports() {
                       </button>
                     </div>
                 </div>
+                </>
+                )}
               </div>
             );
           })()}
 
           {/* Accesos */}
-          {accesos && (
-            <div className="bg-white p-4 rounded-lg shadow mt-6">
-              <div className="flex justify-between items-center mb-4">
-                <h1 className="font-bold text-xl">Control de Accesos</h1>
-                <button
-                  onClick={() => exportReportToCSV('accesos', filters)}
-                  className="px-3 py-1 bg-green-600 text-white rounded text-sm hover:bg-green-700"
-                >
-                  Exportar CSV
-                </button>
-              </div>
-              <div className="grid grid-cols-3 gap-4 mb-4">
-                <div>
-                  <div className="text-2xl font-bold text-blue-600">{accesos.total}</div>
-                  <div className="text-sm text-gray-600">Total accesos</div>
-                </div>
-                <div>
-                  <div className="text-2xl font-bold text-green-600">{accesos.permitidos}</div>
-                  <div className="text-sm text-gray-600">Permitidos ({accesos.porcentajePermitidos}%)</div>
-                </div>
-                <div>
-                  <div className="text-2xl font-bold text-red-600">{accesos.denegados}</div>
-                  <div className="text-sm text-gray-600">Denegados</div>
-                </div>
-              </div>
-              {accesos.porDia.length > 0 && (
-                <div className="mt-4 max-h-48 overflow-y-auto">
-                  <div className="text-sm font-semibold mb-2">Por día:</div>
-                  {accesos.porDia.map((dia, idx) => (
-                    <div key={idx} className="flex justify-between text-sm border-b py-1">
-                      <span>{dia.fecha}</span>
-                      <span className="flex gap-4">
-                        <span className="text-green-600">{dia.permitidos} permitidos</span>
-                        <span className="text-red-600">{dia.denegados} denegados</span>
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
+          {accesos && (() => {
+            const items = accesos.porDia || [];
+            const totalItems = items.length;
+            const pageSize = 8;
+            const totalPages = totalItems > 0 ? Math.ceil(totalItems / pageSize) : 1;
+            const paginaActual = Math.min(accesosPagina, totalPages);
+            const inicio = (paginaActual - 1) * pageSize;
+            const fin = inicio + pageSize;
+            const itemsPagina = items.slice(inicio, fin);
+            const blanks = pageSize - itemsPagina.length;
 
-          {/* Métodos de Pago */}
-          {metodosPago && (
-            <div className="bg-white p-4 rounded-lg shadow mt-6">
-              <div className="flex justify-between items-center mb-4">
-                <h1 className="font-bold text-xl">Métodos de Pago</h1>
-                <button
-                  onClick={() => exportReportToCSV('metodos_pago', filters)}
-                  className="px-3 py-1 bg-green-600 text-white rounded text-sm hover:bg-green-700"
-                >
-                  Exportar CSV
-                </button>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="border rounded p-3">
-                  <div className="font-semibold text-green-600">Efectivo</div>
-                  <div className="text-2xl font-bold">${metodosPago.efectivo.total.toFixed(2)}</div>
-                  <div className="text-sm text-gray-600">
-                    {metodosPago.efectivo.cantidad} pagos ({metodosPago.efectivo.porcentaje}%)
+            const handleAccesosPaginaChange = (e) => {
+              const value = parseInt(e.target.value, 10);
+              if (Number.isNaN(value)) return;
+              setAccesosPagina(Math.min(Math.max(1, value), totalPages));
+            };
+
+            const handleFiltrarAccesos = async () => {
+              try {
+                const data = await getAccesos({ ...accesosFiltro, agrupacion: accesosAgrupacion });
+                setAccesos(data.data);
+                setAccesosFiltroAplicado(accesosFiltro);
+                setAccesosPagina(1);
+              } catch (err) {
+                console.error('Error al filtrar accesos:', err);
+              }
+            };
+
+            const dataBarrasAccesos = {
+              labels: items.map((d) => d.fecha),
+              datasets: [
+                { label: 'Permitidos', data: items.map((d) => d.permitidos || 0), backgroundColor: 'rgba(34, 197, 94, 0.8)', borderWidth: 1 },
+                { label: 'Denegados', data: items.map((d) => d.denegados || 0), backgroundColor: 'rgba(239, 68, 68, 0.8)', borderWidth: 1 },
+              ],
+            };
+            const opcionesBarrasAccesos = {
+              responsive: true,
+              scales: { x: { stacked: true, beginAtZero: true }, y: { stacked: true, beginAtZero: true } },
+              plugins: { legend: { position: 'bottom' } },
+            };
+
+            return (
+              <div className="bg-white p-4 rounded-lg shadow mt-6">
+                <div className="flex justify-between items-center mb-4">
+                  <h1 className="font-bold text-xl">Control de Accesos</h1>
+                  <div className="flex flex-col items-end gap-2 ml-auto">
+                    <div className="flex items-center gap-2 text-sm">
+                      <span className="text-gray-600">Filtro:</span>
+                      <input
+                        type="date"
+                        value={accesosFiltro.desde}
+                        onChange={(e) => setAccesosFiltro((f) => ({ ...f, desde: e.target.value }))}
+                        className="border rounded px-2 py-1 text-xs"
+                      />
+                      <span className="text-gray-500 text-xs">a</span>
+                      <input
+                        type="date"
+                        value={accesosFiltro.hasta}
+                        onChange={(e) => setAccesosFiltro((f) => ({ ...f, hasta: e.target.value }))}
+                        className="border rounded px-2 py-1 text-xs"
+                      />
+                      <button type="button" onClick={handleFiltrarAccesos} className="ml-2 px-2 py-1 bg-blue-600 text-white rounded text-xs hover:bg-blue-700">
+                        Filtrar
+                      </button>
+                    </div>
+                    <div className="flex items-center gap-2 text-sm">
+                      <span className="text-gray-600">Agrupar por:</span>
+                      <select
+                        value={accesosAgrupacion}
+                        onChange={(e) => setAccesosAgrupacion(e.target.value)}
+                        className="border rounded px-2 py-1 text-sm"
+                      >
+                        <option value="dia">Día</option>
+                        <option value="semana">Semana</option>
+                        <option value="mes">Mes</option>
+                        <option value="anio">Año</option>
+                      </select>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setAccesosVistaGrafica(!accesosVistaGrafica)}
+                      className={`mt-1 px-3 py-1 rounded text-xs text-white ${accesosVistaGrafica ? 'bg-blue-600 hover:bg-blue-700' : 'bg-green-600 hover:bg-green-700'}`}
+                    >
+                      {accesosVistaGrafica ? 'Cambiar a Vista Analítica' : 'Cambiar a Vista Gráfica'}
+                    </button>
                   </div>
                 </div>
-                <div className="border rounded p-3">
-                  <div className="font-semibold text-blue-600">Transferencia</div>
-                  <div className="text-2xl font-bold">${metodosPago.transferencia.total.toFixed(2)}</div>
-                  <div className="text-sm text-gray-600">
-                    {metodosPago.transferencia.cantidad} pagos ({metodosPago.transferencia.porcentaje}%)
+                <div className="grid grid-cols-3 gap-4 mb-4">
+                  <div>
+                    <div className="text-2xl font-bold text-blue-600">{accesos.total}</div>
+                    <div className="text-sm text-gray-600">Total accesos</div>
+                  </div>
+                  <div>
+                    <div className="text-2xl font-bold text-green-600">{accesos.permitidos}</div>
+                    <div className="text-sm text-gray-600">Permitidos ({accesos.porcentajePermitidos}%)</div>
+                  </div>
+                  <div>
+                    <div className="text-2xl font-bold text-red-600">{accesos.denegados}</div>
+                    <div className="text-sm text-gray-600">Denegados</div>
                   </div>
                 </div>
+                {accesosVistaGrafica ? (
+                  <div className="mt-4 w-full">
+                    <Bar data={dataBarrasAccesos} options={opcionesBarrasAccesos} />
+                    <p className="mt-2 text-xs text-gray-600">Permitidos (verde) y denegados (rojo) por período.</p>
+                  </div>
+                ) : (
+                  <>
+                    <div className="mt-4">
+                      <div className="text-sm font-semibold mb-2 flex justify-between">
+                        <span>Período</span>
+                        <span className="flex gap-4">
+                          <span className="text-green-600">Permitidos</span>
+                          <span className="text-red-600">Denegados</span>
+                        </span>
+                      </div>
+                      {itemsPagina.map((dia, idx) => (
+                        <div key={idx} className="flex justify-between text-sm border-b py-1">
+                          <span>{dia.fecha}</span>
+                          <span className="flex gap-4">
+                            <span className="text-green-600">{dia.permitidos ?? 0}</span>
+                            <span className="text-red-600">{dia.denegados ?? 0}</span>
+                          </span>
+                        </div>
+                      ))}
+                      {blanks > 0 &&
+                        Array.from({ length: blanks }).map((_, idx) => (
+                          <div key={`blank-acc-${idx}`} className="flex justify-between text-sm border-b py-1 text-transparent">
+                            <span>-</span>
+                            <span className="flex gap-4"><span>-</span><span>-</span></span>
+                          </div>
+                        ))}
+                    </div>
+                    <div className="mt-3 flex items-center justify-between text-xs text-gray-600">
+                      <span>
+                        Mostrando {totalItems === 0 ? 0 : inicio + 1}-{Math.min(fin, totalItems)} de {totalItems}
+                      </span>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => setAccesosPagina((p) => Math.max(1, p - 1))}
+                          disabled={paginaActual === 1}
+                          className="px-2 py-1 border rounded disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          Anterior
+                        </button>
+                        <span className="flex items-center gap-1">
+                          <span>Página</span>
+                          <input
+                            type="number"
+                            min={1}
+                            max={totalPages}
+                            value={paginaActual}
+                            onChange={handleAccesosPaginaChange}
+                            className="w-12 border rounded px-1 py-0.5 text-center"
+                          />
+                          <span>de {totalPages}</span>
+                        </span>
+                        <button
+                          onClick={() => setAccesosPagina((p) => Math.min(totalPages, p + 1))}
+                          disabled={paginaActual === totalPages}
+                          className="px-2 py-1 border rounded disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          Siguiente
+                        </button>
+                      </div>
+                    </div>
+                  </>
+                )}
               </div>
-            </div>
-          )}
+            );
+          })()}
 
           {/* Socios Más Activos */}
           {sociosActivos.length > 0 && (
@@ -708,48 +1273,6 @@ export default function Reports() {
             </div>
           )}
 
-          {/* Clases Más Populares */}
-          {clasesPopulares.length > 0 && (
-            <div className="bg-white p-4 rounded-lg shadow mt-6">
-              <div className="flex justify-between items-center mb-4">
-                <h1 className="font-bold text-xl">Clases Más Populares</h1>
-                <button
-                  onClick={() => exportReportToCSV('clases_populares', {})}
-                  className="px-3 py-1 bg-green-600 text-white rounded text-sm hover:bg-green-700"
-                >
-                  Exportar CSV
-                </button>
-              </div>
-              <div className="max-h-64 overflow-y-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b">
-                      <th className="text-left py-2">Clase</th>
-                      <th className="text-right py-2">Total Clases</th>
-                      <th className="text-right py-2">Reservas</th>
-                      <th className="text-right py-2">Ocupación</th>
-                      <th className="text-right py-2">% Asistencia</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {clasesPopulares.map((clase, idx) => (
-                      <tr key={idx} className="border-b">
-                        <td className="py-2 font-medium">{clase.nombre}</td>
-                        <td className="text-right py-2">{clase.total_clases || 0}</td>
-                        <td className="text-right py-2">{clase.total_reservas || 0}</td>
-                        <td className="text-right py-2">
-                          {clase.total_ocupados || 0}/{clase.total_cupos || 0}
-                        </td>
-                        <td className="text-right py-2">
-                          {clase.porcentaje_asistencia ? Math.round(clase.porcentaje_asistencia) : 0}%
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
         </>
       )}
     </div>
