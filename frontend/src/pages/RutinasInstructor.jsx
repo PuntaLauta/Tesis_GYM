@@ -17,6 +17,8 @@ export default function RutinasInstructor() {
   // Estados para filtros
   const [ocultarInactivas, setOcultarInactivas] = useState(false);
   const [socioFiltro, setSocioFiltro] = useState('');
+  const [socioFiltroTexto, setSocioFiltroTexto] = useState('');
+  const [socioDropdownAbierto, setSocioDropdownAbierto] = useState(false);
   const [soloPendientes, setSoloPendientes] = useState(false);
 
   useEffect(() => {
@@ -236,6 +238,8 @@ export default function RutinasInstructor() {
   const handleLimpiarFiltros = () => {
     setOcultarInactivas(false);
     setSocioFiltro('');
+    setSocioFiltroTexto('');
+    setSocioDropdownAbierto(false);
     setSoloPendientes(false);
   };
 
@@ -433,24 +437,73 @@ export default function RutinasInstructor() {
             </div>
             
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-              {/* Select: Filtrar por socio - PRIMERO */}
+              {/* Buscador con dropdown custom para socio - PRIMERO */}
               <div>
                 <label htmlFor="filtro-socio" className="block text-xs font-medium text-gray-700 mb-1">
                   Filtrar por socio
                 </label>
-                <select
-                  id="filtro-socio"
-                  value={socioFiltro}
-                  onChange={(e) => setSocioFiltro(e.target.value)}
-                  className="w-full px-2.5 py-1.5 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-                >
-                  <option value="">Todos los socios</option>
-                  {getSociosConRutinasActivas().map((socio) => (
-                    <option key={socio.id} value={socio.id}>
-                      {socio.nombre} (ID: {socio.id})
-                    </option>
-                  ))}
-                </select>
+                <div className="relative">
+                  <input
+                    id="filtro-socio"
+                    type="text"
+                    placeholder="Todos los socios (escribí para buscar...)"
+                    value={socioFiltroTexto}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      setSocioFiltroTexto(value);
+                      setSocioDropdownAbierto(true);
+                      if (value.trim() === '') {
+                        setSocioFiltro('');
+                      }
+                    }}
+                    onFocus={() => setSocioDropdownAbierto(true)}
+                    onBlur={() => {
+                      // Cerrar con pequeño delay para permitir click en opción
+                      setTimeout(() => setSocioDropdownAbierto(false), 100);
+                    }}
+                    className="w-full px-2.5 py-1.5 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                  />
+                  {socioDropdownAbierto && (
+                    <div className="absolute z-20 mt-1 w-full max-h-56 overflow-auto rounded-md border border-gray-200 bg-white shadow-lg">
+                      <button
+                        type="button"
+                        className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                        onMouseDown={(e) => {
+                          e.preventDefault();
+                          setSocioFiltro('');
+                          setSocioFiltroTexto('');
+                          setSocioDropdownAbierto(false);
+                        }}
+                      >
+                        Todos los socios
+                      </button>
+                      {getSociosConRutinasActivas()
+                        .filter((socio) => {
+                          if (!socioFiltroTexto.trim()) return true;
+                          const term = socioFiltroTexto.toLowerCase();
+                          return (
+                            socio.nombre.toLowerCase().includes(term) ||
+                            String(socio.id).includes(term)
+                          );
+                        })
+                        .map((socio) => (
+                          <button
+                            key={socio.id}
+                            type="button"
+                            className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-blue-50"
+                            onMouseDown={(e) => {
+                              e.preventDefault();
+                              setSocioFiltro(String(socio.id));
+                              setSocioFiltroTexto(`${socio.id} - ${socio.nombre}`);
+                              setSocioDropdownAbierto(false);
+                            }}
+                          >
+                            {socio.id} - {socio.nombre}
+                          </button>
+                        ))}
+                    </div>
+                  )}
+                </div>
               </div>
 
               {/* Checkbox: Solo rutinas pendientes - SEGUNDO */}
@@ -511,11 +564,20 @@ export default function RutinasInstructor() {
                 const tienePendientes = ejerciciosPendientes > 0;
                 const todosCompletos = ejerciciosCard.length > 0 && ejerciciosPendientes === 0;
 
+                const rutinaActiva = rutina.activa === 1 || rutina.activa === true;
+
                 return (
                   <div
                     key={rutina.id}
-                    className="bg-white border rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow cursor-pointer"
-                    onClick={() => handleVerEjercicios(rutina)}
+                    className={`bg-white border rounded-lg p-4 shadow-sm transition-shadow ${
+                      rutinaActiva
+                        ? 'hover:shadow-md cursor-pointer'
+                        : 'opacity-60 cursor-not-allowed'
+                    }`}
+                    onClick={() => {
+                      if (!rutinaActiva) return;
+                      handleVerEjercicios(rutina);
+                    }}
                   >
                     <div className="flex items-start justify-between mb-2">
                       <h3 className="text-lg font-semibold text-gray-800 flex-1">
@@ -558,12 +620,12 @@ export default function RutinasInstructor() {
                       </p>
                       <span
                         className={`inline-block px-2 py-1 rounded text-xs font-medium ${
-                          rutina.activa === 1 || rutina.activa === true
+                          rutinaActiva
                             ? 'bg-green-100 text-green-800'
                             : 'bg-gray-100 text-gray-800'
                         }`}
                       >
-                        {rutina.activa === 1 || rutina.activa === true ? 'Activa' : 'Inactiva'}
+                        {rutinaActiva ? 'Activa' : 'Inactiva'}
                       </span>
                     </div>
                   </div>
