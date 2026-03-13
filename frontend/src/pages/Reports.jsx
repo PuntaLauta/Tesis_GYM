@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { 
   getActivosInactivos, 
-  getVencenSemana, 
   getIngresos, 
   getOcupacionClases,
   getAccesos,
@@ -11,11 +10,21 @@ import {
   exportReportToCSV,
   exportAllReportsToZip
 } from '../services/reports';
+import { listTiposClase } from '../services/tipoClase';
 import StatCards from '../components/StatCards';
+
+function getMesActualRango() {
+  const now = new Date();
+  const primero = new Date(now.getFullYear(), now.getMonth(), 1);
+  const ultimo = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+  return {
+    desde: primero.toISOString().split('T')[0],
+    hasta: ultimo.toISOString().split('T')[0],
+  };
+}
 
 export default function Reports() {
   const [stats, setStats] = useState(null);
-  const [vencen, setVencen] = useState([]);
   const [ingresos, setIngresos] = useState(null);
   const [ocupacion, setOcupacion] = useState(null);
   const [accesos, setAccesos] = useState(null);
@@ -23,6 +32,16 @@ export default function Reports() {
   const [clasesPopulares, setClasesPopulares] = useState([]);
   const [metodosPago, setMetodosPago] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [ingresosAgrupacion, setIngresosAgrupacion] = useState('semana');
+  const [ingresosPagina, setIngresosPagina] = useState(1);
+  const mesActual = getMesActualRango();
+  const [ingresosFiltro, setIngresosFiltro] = useState(mesActual);
+  const [ingresosFiltroAplicado, setIngresosFiltroAplicado] = useState(mesActual);
+  const [tiposClase, setTiposClase] = useState([]);
+  const [ocupacionTipoClaseId, setOcupacionTipoClaseId] = useState('');
+  const [ocupacionPagina, setOcupacionPagina] = useState(1);
+  const [ocupacionFiltro, setOcupacionFiltro] = useState(mesActual);
+  const [ocupacionFiltroAplicado, setOcupacionFiltroAplicado] = useState(mesActual);
   const [filters, setFilters] = useState({
     desde: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // Últimos 30 días
     hasta: new Date().toISOString().split('T')[0],
@@ -32,37 +51,74 @@ export default function Reports() {
     loadReports();
   }, [filters]);
 
+  useEffect(() => {
+    const loadSoloIngresos = async () => {
+      try {
+        const base = ingresosFiltroAplicado || filters;
+        const ingresosData = await getIngresos({ ...base, agrupacion: ingresosAgrupacion });
+        setIngresos(ingresosData.data);
+        setIngresosPagina(1);
+      } catch (error) {
+        console.error('Error al recargar ingresos:', error);
+      }
+    };
+
+    loadSoloIngresos();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ingresosAgrupacion]);
+
+  useEffect(() => {
+    const loadSoloOcupacion = async () => {
+      try {
+        const base = ocupacionFiltroAplicado || filters;
+        const params = { ...base };
+        if (ocupacionTipoClaseId) params.tipo_clase_id = ocupacionTipoClaseId;
+        const ocupacionData = await getOcupacionClases(params);
+        setOcupacion(ocupacionData.data);
+      } catch (error) {
+        console.error('Error al recargar ocupación:', error);
+      }
+    };
+
+    loadSoloOcupacion();
+    setOcupacionPagina(1);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ocupacionTipoClaseId]);
+
   const loadReports = async () => {
     setLoading(true);
     try {
       const [
         activosData, 
-        vencenData, 
-        ingresosData, 
-        ocupacionData,
         accesosData,
         sociosActivosData,
         clasesPopularesData,
         metodosPagoData
       ] = await Promise.all([
         getActivosInactivos(),
-        getVencenSemana(),
-        getIngresos(filters),
-        getOcupacionClases(filters),
         getAccesos(filters),
         getSociosActivos(),
         getClasesPopulares(),
         getMetodosPago(filters),
       ]);
 
-      setStats(activosData.data);
-      setVencen(vencenData.data || []);
-      setIngresos(ingresosData.data);
+      const [tiposData, ocupacionData] = await Promise.all([
+        listTiposClase(),
+        getOcupacionClases({ ...(ocupacionFiltroAplicado || filters), ...(ocupacionTipoClaseId ? { tipo_clase_id: ocupacionTipoClaseId } : {}) }),
+      ]);
+      setTiposClase(tiposData.data || []);
       setOcupacion(ocupacionData.data);
+
+      setStats(activosData.data);
       setAccesos(accesosData.data);
       setSociosActivos(sociosActivosData.data || []);
       setClasesPopulares(clasesPopularesData.data || []);
       setMetodosPago(metodosPagoData.data);
+
+      // Cargar ingresos con el filtro aplicado (por defecto mes actual)
+      const rangoIngresos = ingresosFiltroAplicado || mesActual;
+      const ingresosInicial = await getIngresos({ ...rangoIngresos, agrupacion: ingresosAgrupacion });
+      setIngresos(ingresosInicial.data);
     } catch (error) {
       console.error('Error al cargar reportes:', error);
     } finally {
@@ -109,16 +165,6 @@ export default function Reports() {
     ${ocupacion ? `<div class="stat-box">Ocupación Promedio: <strong>${ocupacion.promedio ?? 0}%</strong></div>` : ''}
   </div>
 
-  <h2>Vencen esta semana</h2>
-  ${vencen?.length > 0 ? `
-  <table>
-    <thead><tr><th>Socio</th><th>Vencimiento</th><th>Plan</th></tr></thead>
-    <tbody>
-      ${vencen.map(s => `<tr><td>${s.nombre || '-'}</td><td>${s.fecha_vencimiento || '-'}</td><td>${s.plan_nombre || '-'}</td></tr>`).join('')}
-    </tbody>
-  </table>
-  ` : '<p class="empty">No hay vencimientos esta semana</p>'}
-
   <h2>Ingresos</h2>
   ${ingresos ? `
   <p><strong>Total: $${ingresos.total?.toFixed(2) ?? '0.00'}</strong> | ${ingresos.resumen?.totalPagos ?? 0} pagos | Promedio: $${ingresos.resumen?.promedio?.toFixed(2) ?? '0.00'}</p>
@@ -134,7 +180,7 @@ export default function Reports() {
 
   <h2>Ocupación de Clases</h2>
   ${ocupacion ? `
-  <p>Promedio: ${ocupacion.promedio ?? 0}% | Total clases: ${ocupacion.total ?? 0}</p>
+  <p>Promedio de Ocupación: ${ocupacion.promedio ?? 0}% | Total clases: ${ocupacion.total ?? 0}</p>
   ${ocupacion.clases?.length > 0 ? `
   <table>
     <thead><tr><th>Clase</th><th>Fecha</th><th>Ocupación</th><th>%</th></tr></thead>
@@ -249,79 +295,237 @@ export default function Reports() {
             }}
           />
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Vencen esta semana */}
-            <div className="bg-white p-4 rounded-lg shadow">
-              <h2 className="font-bold mb-4">Vencen esta semana</h2>
-              {vencen.length === 0 ? (
-                <div className="text-gray-500 text-sm">No hay vencimientos esta semana</div>
-              ) : (
-                <div className="space-y-2">
-                  {vencen.map((socio) => (
-                    <div key={socio.id} className="border-b pb-2">
-                      <div className="font-medium">{socio.nombre}</div>
-                      <div className="text-sm text-gray-600">
-                        Vence: {socio.fecha_vencimiento} • Plan: {socio.plan_nombre}
-                      </div>
+          {/* Ingresos - primer bloque debajo de las cards */}
+          {ingresos && (
+            <div className="bg-white p-4 rounded-lg shadow mt-6">
+              {(() => {
+                const totalItems = ingresos.porDia?.length || 0;
+                const totalAgrupacion = (ingresos.porDia || []).reduce((sum, item) => sum + (item.monto || 0), 0);
+                const pageSize = 8;
+                const totalPages = totalItems > 0 ? Math.ceil(totalItems / pageSize) : 1;
+                const paginaActual = Math.min(ingresosPagina, totalPages);
+                const inicio = (paginaActual - 1) * pageSize;
+                const fin = inicio + pageSize;
+                const itemsPagina = ingresos.porDia?.slice(inicio, fin) || [];
+                const blanks = pageSize - itemsPagina.length;
+
+                const handlePaginaInputChange = (e) => {
+                  const value = parseInt(e.target.value, 10);
+                  if (Number.isNaN(value)) return;
+                  const nuevaPagina = Math.min(Math.max(1, value), totalPages);
+                  setIngresosPagina(nuevaPagina);
+                };
+
+                const handleFiltroChange = (campo, valor) => {
+                  setIngresosFiltro(prev => ({ ...prev, [campo]: valor }));
+                };
+
+                const handleAplicarFiltroIngresos = async () => {
+                  try {
+                    const base = {
+                      ...filters,
+                      ...(ingresosFiltro.desde ? { desde: ingresosFiltro.desde } : {}),
+                      ...(ingresosFiltro.hasta ? { hasta: ingresosFiltro.hasta } : {}),
+                    };
+                    const ingresosData = await getIngresos({ ...base, agrupacion: ingresosAgrupacion });
+                    setIngresos(ingresosData.data);
+                    setIngresosFiltroAplicado(base);
+                    setIngresosPagina(1);
+                  } catch (error) {
+                    console.error('Error al filtrar ingresos:', error);
+                  }
+                };
+
+                return (
+                  <>
+              <div className="flex justify-between items-center mb-4">
+                <h1 className="font-bold text-xl">Ingresos</h1>
+                <div className="flex flex-col items-end gap-2">
+                  <div className="flex items-center gap-2 text-sm">
+                    <span className="text-gray-600">Filtro:</span>
+                    <input
+                      type="date"
+                      value={ingresosFiltro.desde}
+                      onChange={(e) => handleFiltroChange('desde', e.target.value)}
+                      className="border rounded px-2 py-1 text-xs"
+                    />
+                    <span className="text-gray-500 text-xs">a</span>
+                    <input
+                      type="date"
+                      value={ingresosFiltro.hasta}
+                      onChange={(e) => handleFiltroChange('hasta', e.target.value)}
+                      className="border rounded px-2 py-1 text-xs"
+                    />
+                    <button
+                      onClick={handleAplicarFiltroIngresos}
+                      className="ml-2 px-2 py-1 bg-blue-600 text-white rounded text-xs hover:bg-blue-700"
+                    >
+                      Filtrar
+                    </button>
+                  </div>
+                  <div className="flex items-center gap-2 text-sm">
+                    <span className="text-gray-600">Agrupar por:</span>
+                    <select
+                      value={ingresosAgrupacion}
+                      onChange={(e) => setIngresosAgrupacion(e.target.value)}
+                      className="border rounded px-2 py-1 text-sm"
+                    >
+                      <option value="dia">Día</option>
+                      <option value="semana">Semana</option>
+                      <option value="mes">Mes</option>
+                      <option value="anio">Año</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+              <div className="mb-2 flex items-baseline gap-1">
+                <h2 className="text-lg font-bold text-black">Monto Total: </h2>
+                <span className="text-lg font-bold text-green-600">${totalAgrupacion.toFixed(2)}</span>
+              </div>
+              <div className="mt-4">
+                <div className="text-sm font-semibold mb-2">
+                  {ingresosAgrupacion === 'dia' && 'Por día:'}
+                  {ingresosAgrupacion === 'semana' && 'Por semana:'}
+                  {ingresosAgrupacion === 'mes' && 'Por mes:'}
+                  {ingresosAgrupacion === 'anio' && 'Por año:'}
+                </div>
+                {itemsPagina.map((dia, idx) => (
+                  <div key={idx} className="flex justify-between text-sm border-b py-1">
+                    <span>{dia.fecha}</span>
+                    <span className="font-medium">${dia.monto.toFixed(2)}</span>
+                  </div>
+                ))}
+                {blanks > 0 &&
+                  Array.from({ length: blanks }).map((_, idx) => (
+                    <div
+                      key={`blank-${idx}`}
+                      className="flex justify-between text-sm border-b py-1 text-transparent"
+                    >
+                      <span>-</span>
+                      <span>-</span>
                     </div>
                   ))}
+              </div>
+              {totalItems > 0 && (
+                <div className="mt-3 flex items-center justify-between text-xs text-gray-600">
+                  <span>
+                    Mostrando {inicio + 1}-{Math.min(fin, totalItems)} de {totalItems}
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setIngresosPagina(prev => Math.max(1, prev - 1))}
+                      disabled={paginaActual === 1}
+                      className="px-2 py-1 border rounded disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      Anterior
+                    </button>
+                    <span className="flex items-center gap-1">
+                      <span>Página</span>
+                      <input
+                        type="number"
+                        min={1}
+                        max={totalPages}
+                        value={paginaActual}
+                        onChange={handlePaginaInputChange}
+                        className="w-12 border rounded px-1 py-0.5 text-center"
+                      />
+                      <span>de {totalPages}</span>
+                    </span>
+                    <button
+                      onClick={() => setIngresosPagina(prev => Math.min(totalPages, prev + 1))}
+                      disabled={paginaActual === totalPages}
+                      className="px-2 py-1 border rounded disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      Siguiente
+                    </button>
+                  </div>
                 </div>
               )}
+                  </>
+                );
+              })()}
             </div>
-
-            {/* Ingresos */}
-            {ingresos && (
-              <div className="bg-white p-4 rounded-lg shadow">
-                <div className="flex justify-between items-center mb-4">
-                  <h2 className="font-bold">Ingresos</h2>
-                  <button
-                    onClick={() => exportReportToCSV('ingresos', filters)}
-                    className="px-3 py-1 bg-green-600 text-white rounded text-sm hover:bg-green-700"
-                  >
-                    Exportar CSV
-                  </button>
-                </div>
-                <div className="mb-2">
-                  <div className="text-2xl font-bold text-green-600">
-                    ${ingresos.total.toFixed(2)}
-                  </div>
-                  <div className="text-sm text-gray-600">
-                    {ingresos.resumen.totalPagos} pagos • Promedio: ${ingresos.resumen.promedio.toFixed(2)}
-                  </div>
-                </div>
-                {ingresos.porDia.length > 0 && (
-                  <div className="mt-4 max-h-48 overflow-y-auto">
-                    <div className="text-sm font-semibold mb-2">Por día:</div>
-                    {ingresos.porDia.map((dia, idx) => (
-                      <div key={idx} className="flex justify-between text-sm border-b py-1">
-                        <span>{dia.fecha}</span>
-                        <span className="font-medium">${dia.monto.toFixed(2)}</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
+          )}
 
           {/* Ocupación de clases */}
-          {ocupacion && (
-            <div className="bg-white p-4 rounded-lg shadow mt-6">
-              <div className="flex justify-between items-center mb-4">
-                <h2 className="font-bold">Ocupación de Clases</h2>
-                <button
-                  onClick={() => exportReportToCSV('ocupacion', filters)}
-                  className="px-3 py-1 bg-green-600 text-white rounded text-sm hover:bg-green-700"
-                >
-                  Exportar CSV
-                </button>
-              </div>
-              <div className="mb-2">
-                <div className="text-lg font-semibold">Promedio: {ocupacion.promedio}%</div>
-                <div className="text-sm text-gray-600">Total de clases: {ocupacion.total}</div>
-              </div>
-              {ocupacion.clases.length > 0 && (
-                <div className="mt-4 max-h-64 overflow-y-auto">
+          {ocupacion && (() => {
+            const totalItems = ocupacion.clases?.length || 0;
+            const pageSize = 8;
+            const totalPages = totalItems > 0 ? Math.ceil(totalItems / pageSize) : 1;
+            const paginaActual = Math.min(ocupacionPagina, totalPages);
+            const inicio = (paginaActual - 1) * pageSize;
+            const fin = inicio + pageSize;
+            const itemsPagina = ocupacion.clases?.slice(inicio, fin) || [];
+            const blanks = pageSize - itemsPagina.length;
+
+            const handleOcupacionPaginaChange = (e) => {
+              const value = parseInt(e.target.value, 10);
+              if (Number.isNaN(value)) return;
+              const nuevaPagina = Math.min(Math.max(1, value), totalPages);
+              setOcupacionPagina(nuevaPagina);
+            };
+
+            const handleAplicarFiltroOcupacion = async () => {
+              try {
+                const params = { ...ocupacionFiltro };
+                if (ocupacionTipoClaseId) params.tipo_clase_id = ocupacionTipoClaseId;
+                const data = await getOcupacionClases(params);
+                setOcupacion(data.data);
+                setOcupacionFiltroAplicado(ocupacionFiltro);
+                setOcupacionPagina(1);
+              } catch (err) {
+                console.error('Error al filtrar ocupación:', err);
+              }
+            };
+
+            return (
+              <div className="bg-white p-4 rounded-lg shadow mt-6">
+                <div className="flex justify-between items-center mb-4">
+                  <h1 className="font-bold text-xl">Ocupación de Clases</h1>
+                  <div className="flex flex-col items-end gap-2 ml-auto">
+                    <div className="flex items-center gap-2 text-sm">
+                      <span className="text-gray-600">Filtro:</span>
+                      <input
+                        type="date"
+                        value={ocupacionFiltro.desde}
+                        onChange={(e) => setOcupacionFiltro((f) => ({ ...f, desde: e.target.value }))}
+                        className="border rounded px-2 py-1 text-xs"
+                      />
+                      <span className="text-gray-500 text-xs">a</span>
+                      <input
+                        type="date"
+                        value={ocupacionFiltro.hasta}
+                        onChange={(e) => setOcupacionFiltro((f) => ({ ...f, hasta: e.target.value }))}
+                        className="border rounded px-2 py-1 text-xs"
+                      />
+                      <button
+                        type="button"
+                        onClick={handleAplicarFiltroOcupacion}
+                        className="ml-2 px-2 py-1 bg-blue-600 text-white rounded text-xs hover:bg-blue-700"
+                      >
+                        Filtrar
+                      </button>
+                    </div>
+                    <div className="flex items-center gap-2 text-sm">
+                      <span className="text-gray-600">Filtro tipo de clase:</span>
+                      <select
+                        value={ocupacionTipoClaseId}
+                        onChange={(e) => setOcupacionTipoClaseId(e.target.value)}
+                        className="border rounded px-2 py-1 text-sm"
+                      >
+                        <option value="">Todos</option>
+                        {tiposClase.map((t) => (
+                          <option key={t.id} value={t.id}>{t.nombre}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                </div>
+                <div className="mb-2">
+                  <h2 className="text-lg font-semibold">Promedio de Ocupación: {ocupacion.promedio}%</h2>
+                  <div className="text-sm text-gray-600">Total de clases: {ocupacion.total}</div>
+                </div>
+                <div className="mt-4">
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="border-b">
@@ -332,28 +536,70 @@ export default function Reports() {
                       </tr>
                     </thead>
                     <tbody>
-                      {ocupacion.clases.map((clase) => (
+                      {itemsPagina.map((clase) => (
                         <tr key={clase.id} className="border-b">
-                          <td className="py-2">{clase.nombre}</td>
-                          <td className="py-2">{clase.fecha}</td>
+                          <td className="py-2">{clase.nombre ?? '-'}</td>
+                          <td className="py-2">{clase.fecha ?? '-'}</td>
                           <td className="text-right py-2">
                             {clase.ocupados}/{clase.cupo}
                           </td>
                           <td className="text-right py-2">{clase.porcentaje}%</td>
                         </tr>
                       ))}
+                      {blanks > 0 &&
+                        Array.from({ length: blanks }).map((_, idx) => (
+                          <tr key={`blank-${idx}`} className="border-b">
+                            <td className="py-2 text-transparent">-</td>
+                            <td className="py-2 text-transparent">-</td>
+                            <td className="text-right py-2 text-transparent">-</td>
+                            <td className="text-right py-2 text-transparent">-</td>
+                          </tr>
+                        ))}
                     </tbody>
                   </table>
                 </div>
-              )}
-            </div>
-          )}
+                <div className="mt-3 flex items-center justify-between text-xs text-gray-600">
+                  <span>
+                    Mostrando {totalItems === 0 ? 0 : inicio + 1}-{Math.min(fin, totalItems)} de {totalItems}
+                  </span>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => setOcupacionPagina((p) => Math.max(1, p - 1))}
+                        disabled={paginaActual === 1}
+                        className="px-2 py-1 border rounded disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        Anterior
+                      </button>
+                      <span className="flex items-center gap-1">
+                        <span>Página</span>
+                        <input
+                          type="number"
+                          min={1}
+                          max={totalPages}
+                          value={paginaActual}
+                          onChange={handleOcupacionPaginaChange}
+                          className="w-12 border rounded px-1 py-0.5 text-center"
+                        />
+                        <span>de {totalPages}</span>
+                      </span>
+                      <button
+                        onClick={() => setOcupacionPagina((p) => Math.min(totalPages, p + 1))}
+                        disabled={paginaActual === totalPages}
+                        className="px-2 py-1 border rounded disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        Siguiente
+                      </button>
+                    </div>
+                </div>
+              </div>
+            );
+          })()}
 
           {/* Accesos */}
           {accesos && (
             <div className="bg-white p-4 rounded-lg shadow mt-6">
               <div className="flex justify-between items-center mb-4">
-                <h2 className="font-bold">Control de Accesos</h2>
+                <h1 className="font-bold text-xl">Control de Accesos</h1>
                 <button
                   onClick={() => exportReportToCSV('accesos', filters)}
                   className="px-3 py-1 bg-green-600 text-white rounded text-sm hover:bg-green-700"
@@ -396,7 +642,7 @@ export default function Reports() {
           {metodosPago && (
             <div className="bg-white p-4 rounded-lg shadow mt-6">
               <div className="flex justify-between items-center mb-4">
-                <h2 className="font-bold">Métodos de Pago</h2>
+                <h1 className="font-bold text-xl">Métodos de Pago</h1>
                 <button
                   onClick={() => exportReportToCSV('metodos_pago', filters)}
                   className="px-3 py-1 bg-green-600 text-white rounded text-sm hover:bg-green-700"
@@ -427,7 +673,7 @@ export default function Reports() {
           {sociosActivos.length > 0 && (
             <div className="bg-white p-4 rounded-lg shadow mt-6">
               <div className="flex justify-between items-center mb-4">
-                <h2 className="font-bold">Socios Más Activos</h2>
+                <h1 className="font-bold text-xl">Socios Más Activos</h1>
                 <button
                   onClick={() => exportReportToCSV('socios_activos', {})}
                   className="px-3 py-1 bg-green-600 text-white rounded text-sm hover:bg-green-700"
@@ -466,7 +712,7 @@ export default function Reports() {
           {clasesPopulares.length > 0 && (
             <div className="bg-white p-4 rounded-lg shadow mt-6">
               <div className="flex justify-between items-center mb-4">
-                <h2 className="font-bold">Clases Más Populares</h2>
+                <h1 className="font-bold text-xl">Clases Más Populares</h1>
                 <button
                   onClick={() => exportReportToCSV('clases_populares', {})}
                   className="px-3 py-1 bg-green-600 text-white rounded text-sm hover:bg-green-700"

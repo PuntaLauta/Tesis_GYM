@@ -709,6 +709,30 @@ async function seed() {
     }
   });
 
+  // Crear 40 pagos de prueba adicionales distribuidos entre los socios
+  const sociosParaPagosExtra = query('SELECT id FROM socios');
+  if (sociosParaPagosExtra.length > 0) {
+    const hoyParaPagosExtra = new Date();
+    for (let i = 0; i < 40; i++) {
+      const socioRandom = sociosParaPagosExtra[Math.floor(Math.random() * sociosParaPagosExtra.length)];
+      const diasAtrasRandom = Math.floor(Math.random() * 90); // últimos 90 días
+      const fechaExtra = new Date(hoyParaPagosExtra);
+      fechaExtra.setDate(fechaExtra.getDate() - diasAtrasRandom);
+      const montoRandom = 4000 + Math.floor(Math.random() * 5000); // entre 4000 y 9000 aprox.
+      const metodoRandom = Math.random() > 0.5 ? 'efectivo' : 'transferencia';
+
+      insert(
+        'INSERT INTO pagos (socio_id, monto, fecha, metodo_pago) VALUES (?, ?, ?, ?)',
+        [
+          socioRandom.id,
+          montoRandom,
+          fechaExtra.toISOString().split('T')[0],
+          metodoRandom
+        ]
+      );
+    }
+  }
+
   // Obtener todos los IDs de socios para usar en accesos, reservas y rutinas
   const todosLosSocios = query('SELECT id, estado FROM socios ORDER BY id');
   const sociosActivos = todosLosSocios.filter(s => s.estado === 'activo');

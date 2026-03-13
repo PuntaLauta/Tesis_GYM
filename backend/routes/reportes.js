@@ -78,10 +78,10 @@ router.get('/vencen_semana', (req, res) => {
   }
 });
 
-// GET /api/reportes/ingresos?desde=YYYY-MM-DD&hasta=YYYY-MM-DD
+// GET /api/reportes/ingresos?desde=YYYY-MM-DD&hasta=YYYY-MM-DD&agrupacion=dia|semana|mes|anio
 router.get('/ingresos', (req, res) => {
   try {
-    const { desde, hasta } = req.query;
+    const { desde, hasta, agrupacion = 'dia' } = req.query;
     let sql = 'SELECT * FROM pagos WHERE 1=1';
     const params = [];
 
@@ -100,24 +100,49 @@ router.get('/ingresos', (req, res) => {
 
     const pagos = query(sql, params);
 
-    // Agrupar por día
-    const porDia = {};
+    // Agrupar según la configuración solicitada
+    const grupos = {};
     let total = 0;
 
     pagos.forEach(pago => {
       const fecha = pago.fecha.split('T')[0];
-      if (!porDia[fecha]) {
-        porDia[fecha] = { fecha, monto: 0, cantidad: 0 };
+      let clave = fecha;
+      let etiqueta = fecha;
+
+      if (agrupacion === 'semana') {
+        const d = new Date(fecha);
+        const day = d.getDay(); // 0 = domingo, 1 = lunes, ...
+        // Calcular el lunes de esa semana
+        const diff = day === 0 ? -6 : 1 - day;
+        const monday = new Date(d);
+        monday.setDate(d.getDate() + diff);
+        const year = monday.getFullYear();
+        const month = String(monday.getMonth() + 1).padStart(2, '0');
+        const dayOfMonth = String(monday.getDate()).padStart(2, '0');
+        clave = monday.toISOString().split('T')[0];
+        etiqueta = `Semana del ${dayOfMonth}/${month}`;
+      } else if (agrupacion === 'mes') {
+        const [y, m] = fecha.split('-');
+        clave = `${y}-${m}`;
+        etiqueta = `${m}/${y}`;
+      } else if (agrupacion === 'anio') {
+        const [y] = fecha.split('-');
+        clave = y;
+        etiqueta = y;
       }
-      porDia[fecha].monto += pago.monto;
-      porDia[fecha].cantidad++;
+
+      if (!grupos[clave]) {
+        grupos[clave] = { fecha: etiqueta, monto: 0, cantidad: 0 };
+      }
+      grupos[clave].monto += pago.monto;
+      grupos[clave].cantidad++;
       total += pago.monto;
     });
 
     res.json({
       data: {
         total,
-        porDia: Object.values(porDia),
+        porDia: Object.values(grupos),
         resumen: {
           totalPagos: pagos.length,
           promedio: pagos.length > 0 ? total / pagos.length : 0,
@@ -130,10 +155,10 @@ router.get('/ingresos', (req, res) => {
   }
 });
 
-// GET /api/reportes/ocupacion_clases?desde=YYYY-MM-DD&hasta=YYYY-MM-DD
+// GET /api/reportes/ocupacion_clases?desde=YYYY-MM-DD&hasta=YYYY-MM-DD&tipo_clase_id=1
 router.get('/ocupacion_clases', (req, res) => {
   try {
-    const { desde, hasta } = req.query;
+    const { desde, hasta, tipo_clase_id } = req.query;
     let sql = `SELECT c.*, tc.nombre as nombre 
                FROM clases c 
                LEFT JOIN tipo_clase tc ON c.tipo_clase_id = tc.id 
@@ -147,6 +172,10 @@ router.get('/ocupacion_clases', (req, res) => {
     if (hasta) {
       sql += ' AND c.fecha <= ?';
       params.push(hasta);
+    }
+    if (tipo_clase_id) {
+      sql += ' AND c.tipo_clase_id = ?';
+      params.push(tipo_clase_id);
     }
 
     sql += ' ORDER BY c.fecha';
