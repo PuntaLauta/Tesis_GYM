@@ -50,6 +50,11 @@ export default function Reports() {
   const [clasesPopularesFiltro, setClasesPopularesFiltro] = useState(mesActual);
   const [clasesPopularesFiltroAplicado, setClasesPopularesFiltroAplicado] = useState(mesActual);
   const [clasesPopularesVistaGrafica, setClasesPopularesVistaGrafica] = useState(false);
+  const [accesosFiltro, setAccesosFiltro] = useState(mesActual);
+  const [accesosFiltroAplicado, setAccesosFiltroAplicado] = useState(null);
+  const [accesosAgrupacion, setAccesosAgrupacion] = useState('semana');
+  const [accesosPagina, setAccesosPagina] = useState(1);
+  const [accesosVistaGrafica, setAccesosVistaGrafica] = useState(false);
   const [filters, setFilters] = useState({
     desde: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // Últimos 30 días
     hasta: new Date().toISOString().split('T')[0],
@@ -109,6 +114,22 @@ export default function Reports() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [clasesPopularesFiltroAplicado]);
 
+  useEffect(() => {
+    const loadSoloAccesos = async () => {
+      try {
+        const base = accesosFiltroAplicado || filters;
+        const data = await getAccesos({ ...base, agrupacion: accesosAgrupacion });
+        setAccesos(data.data);
+        setAccesosPagina(1);
+      } catch (error) {
+        console.error('Error al recargar accesos:', error);
+      }
+    };
+
+    if (accesos) loadSoloAccesos();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [accesosAgrupacion]);
+
   const loadReports = async () => {
     setLoading(true);
     try {
@@ -118,7 +139,7 @@ export default function Reports() {
         sociosActivosData
       ] = await Promise.all([
         getActivosInactivos(),
-        getAccesos(filters),
+        getAccesos({ ...(accesosFiltroAplicado || filters), agrupacion: accesosAgrupacion }),
         getSociosActivos(),
       ]);
 
@@ -1041,47 +1062,177 @@ export default function Reports() {
           })()}
 
           {/* Accesos */}
-          {accesos && (
-            <div className="bg-white p-4 rounded-lg shadow mt-6">
-              <div className="flex justify-between items-center mb-4">
-                <h1 className="font-bold text-xl">Control de Accesos</h1>
-                <button
-                  onClick={() => exportReportToCSV('accesos', filters)}
-                  className="px-3 py-1 bg-green-600 text-white rounded text-sm hover:bg-green-700"
-                >
-                  Exportar CSV
-                </button>
-              </div>
-              <div className="grid grid-cols-3 gap-4 mb-4">
-                <div>
-                  <div className="text-2xl font-bold text-blue-600">{accesos.total}</div>
-                  <div className="text-sm text-gray-600">Total accesos</div>
-                </div>
-                <div>
-                  <div className="text-2xl font-bold text-green-600">{accesos.permitidos}</div>
-                  <div className="text-sm text-gray-600">Permitidos ({accesos.porcentajePermitidos}%)</div>
-                </div>
-                <div>
-                  <div className="text-2xl font-bold text-red-600">{accesos.denegados}</div>
-                  <div className="text-sm text-gray-600">Denegados</div>
-                </div>
-              </div>
-              {accesos.porDia.length > 0 && (
-                <div className="mt-4 max-h-48 overflow-y-auto">
-                  <div className="text-sm font-semibold mb-2">Por día:</div>
-                  {accesos.porDia.map((dia, idx) => (
-                    <div key={idx} className="flex justify-between text-sm border-b py-1">
-                      <span>{dia.fecha}</span>
-                      <span className="flex gap-4">
-                        <span className="text-green-600">{dia.permitidos} permitidos</span>
-                        <span className="text-red-600">{dia.denegados} denegados</span>
-                      </span>
+          {accesos && (() => {
+            const items = accesos.porDia || [];
+            const totalItems = items.length;
+            const pageSize = 8;
+            const totalPages = totalItems > 0 ? Math.ceil(totalItems / pageSize) : 1;
+            const paginaActual = Math.min(accesosPagina, totalPages);
+            const inicio = (paginaActual - 1) * pageSize;
+            const fin = inicio + pageSize;
+            const itemsPagina = items.slice(inicio, fin);
+            const blanks = pageSize - itemsPagina.length;
+
+            const handleAccesosPaginaChange = (e) => {
+              const value = parseInt(e.target.value, 10);
+              if (Number.isNaN(value)) return;
+              setAccesosPagina(Math.min(Math.max(1, value), totalPages));
+            };
+
+            const handleFiltrarAccesos = async () => {
+              try {
+                const data = await getAccesos({ ...accesosFiltro, agrupacion: accesosAgrupacion });
+                setAccesos(data.data);
+                setAccesosFiltroAplicado(accesosFiltro);
+                setAccesosPagina(1);
+              } catch (err) {
+                console.error('Error al filtrar accesos:', err);
+              }
+            };
+
+            const dataBarrasAccesos = {
+              labels: items.map((d) => d.fecha),
+              datasets: [
+                { label: 'Permitidos', data: items.map((d) => d.permitidos || 0), backgroundColor: 'rgba(34, 197, 94, 0.8)', borderWidth: 1 },
+                { label: 'Denegados', data: items.map((d) => d.denegados || 0), backgroundColor: 'rgba(239, 68, 68, 0.8)', borderWidth: 1 },
+              ],
+            };
+            const opcionesBarrasAccesos = {
+              responsive: true,
+              scales: { x: { stacked: true, beginAtZero: true }, y: { stacked: true, beginAtZero: true } },
+              plugins: { legend: { position: 'bottom' } },
+            };
+
+            return (
+              <div className="bg-white p-4 rounded-lg shadow mt-6">
+                <div className="flex justify-between items-center mb-4">
+                  <h1 className="font-bold text-xl">Control de Accesos</h1>
+                  <div className="flex flex-col items-end gap-2 ml-auto">
+                    <div className="flex items-center gap-2 text-sm">
+                      <span className="text-gray-600">Filtro:</span>
+                      <input
+                        type="date"
+                        value={accesosFiltro.desde}
+                        onChange={(e) => setAccesosFiltro((f) => ({ ...f, desde: e.target.value }))}
+                        className="border rounded px-2 py-1 text-xs"
+                      />
+                      <span className="text-gray-500 text-xs">a</span>
+                      <input
+                        type="date"
+                        value={accesosFiltro.hasta}
+                        onChange={(e) => setAccesosFiltro((f) => ({ ...f, hasta: e.target.value }))}
+                        className="border rounded px-2 py-1 text-xs"
+                      />
+                      <button type="button" onClick={handleFiltrarAccesos} className="ml-2 px-2 py-1 bg-blue-600 text-white rounded text-xs hover:bg-blue-700">
+                        Filtrar
+                      </button>
                     </div>
-                  ))}
+                    <div className="flex items-center gap-2 text-sm">
+                      <span className="text-gray-600">Agrupar por:</span>
+                      <select
+                        value={accesosAgrupacion}
+                        onChange={(e) => setAccesosAgrupacion(e.target.value)}
+                        className="border rounded px-2 py-1 text-sm"
+                      >
+                        <option value="dia">Día</option>
+                        <option value="semana">Semana</option>
+                        <option value="mes">Mes</option>
+                        <option value="anio">Año</option>
+                      </select>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setAccesosVistaGrafica(!accesosVistaGrafica)}
+                      className={`mt-1 px-3 py-1 rounded text-xs text-white ${accesosVistaGrafica ? 'bg-blue-600 hover:bg-blue-700' : 'bg-green-600 hover:bg-green-700'}`}
+                    >
+                      {accesosVistaGrafica ? 'Cambiar a Vista Analítica' : 'Cambiar a Vista Gráfica'}
+                    </button>
+                  </div>
                 </div>
-              )}
-            </div>
-          )}
+                <div className="grid grid-cols-3 gap-4 mb-4">
+                  <div>
+                    <div className="text-2xl font-bold text-blue-600">{accesos.total}</div>
+                    <div className="text-sm text-gray-600">Total accesos</div>
+                  </div>
+                  <div>
+                    <div className="text-2xl font-bold text-green-600">{accesos.permitidos}</div>
+                    <div className="text-sm text-gray-600">Permitidos ({accesos.porcentajePermitidos}%)</div>
+                  </div>
+                  <div>
+                    <div className="text-2xl font-bold text-red-600">{accesos.denegados}</div>
+                    <div className="text-sm text-gray-600">Denegados</div>
+                  </div>
+                </div>
+                {accesosVistaGrafica ? (
+                  <div className="mt-4 w-full">
+                    <Bar data={dataBarrasAccesos} options={opcionesBarrasAccesos} />
+                    <p className="mt-2 text-xs text-gray-600">Permitidos (verde) y denegados (rojo) por período.</p>
+                  </div>
+                ) : (
+                  <>
+                    <div className="mt-4">
+                      <div className="text-sm font-semibold mb-2 flex justify-between">
+                        <span>Período</span>
+                        <span className="flex gap-4">
+                          <span className="text-green-600">Permitidos</span>
+                          <span className="text-red-600">Denegados</span>
+                        </span>
+                      </div>
+                      {itemsPagina.map((dia, idx) => (
+                        <div key={idx} className="flex justify-between text-sm border-b py-1">
+                          <span>{dia.fecha}</span>
+                          <span className="flex gap-4">
+                            <span className="text-green-600">{dia.permitidos ?? 0}</span>
+                            <span className="text-red-600">{dia.denegados ?? 0}</span>
+                          </span>
+                        </div>
+                      ))}
+                      {blanks > 0 &&
+                        Array.from({ length: blanks }).map((_, idx) => (
+                          <div key={`blank-acc-${idx}`} className="flex justify-between text-sm border-b py-1 text-transparent">
+                            <span>-</span>
+                            <span className="flex gap-4"><span>-</span><span>-</span></span>
+                          </div>
+                        ))}
+                    </div>
+                    <div className="mt-3 flex items-center justify-between text-xs text-gray-600">
+                      <span>
+                        Mostrando {totalItems === 0 ? 0 : inicio + 1}-{Math.min(fin, totalItems)} de {totalItems}
+                      </span>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => setAccesosPagina((p) => Math.max(1, p - 1))}
+                          disabled={paginaActual === 1}
+                          className="px-2 py-1 border rounded disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          Anterior
+                        </button>
+                        <span className="flex items-center gap-1">
+                          <span>Página</span>
+                          <input
+                            type="number"
+                            min={1}
+                            max={totalPages}
+                            value={paginaActual}
+                            onChange={handleAccesosPaginaChange}
+                            className="w-12 border rounded px-1 py-0.5 text-center"
+                          />
+                          <span>de {totalPages}</span>
+                        </span>
+                        <button
+                          onClick={() => setAccesosPagina((p) => Math.min(totalPages, p + 1))}
+                          disabled={paginaActual === totalPages}
+                          className="px-2 py-1 border rounded disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          Siguiente
+                        </button>
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+            );
+          })()}
 
           {/* Socios Más Activos */}
           {sociosActivos.length > 0 && (

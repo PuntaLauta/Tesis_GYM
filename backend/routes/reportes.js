@@ -224,10 +224,10 @@ router.get('/ocupacion_clases', (req, res) => {
   }
 });
 
-// GET /api/reportes/accesos?desde=YYYY-MM-DD&hasta=YYYY-MM-DD
+// GET /api/reportes/accesos?desde=YYYY-MM-DD&hasta=YYYY-MM-DD&agrupacion=dia|semana|mes|anio
 router.get('/accesos', (req, res) => {
   try {
-    const { desde, hasta } = req.query;
+    const { desde, hasta, agrupacion = 'dia' } = req.query;
     let sql = `
       SELECT a.*, s.nombre as socio_nombre 
       FROM accesos a
@@ -245,7 +245,7 @@ router.get('/accesos', (req, res) => {
       params.push(hasta);
     }
 
-    sql += ' ORDER BY a.fecha_hora DESC';
+    sql += ' ORDER BY a.fecha_hora';
 
     const accesos = query(sql, params);
 
@@ -253,18 +253,40 @@ router.get('/accesos', (req, res) => {
     const permitidos = accesos.filter(a => a.permitido === 1).length;
     const denegados = accesos.filter(a => a.permitido === 0).length;
 
-    // Agrupar por día
-    const porDia = {};
+    const grupos = {};
     accesos.forEach(acceso => {
-      const fecha = acceso.fecha_hora.split('T')[0];
-      if (!porDia[fecha]) {
-        porDia[fecha] = { fecha, total: 0, permitidos: 0, denegados: 0 };
+      const fechaStr = acceso.fecha_hora.split('T')[0];
+      let clave = fechaStr;
+      let etiqueta = fechaStr;
+
+      if (agrupacion === 'semana') {
+        const d = new Date(fechaStr);
+        const day = d.getDay();
+        const diff = day === 0 ? -6 : 1 - day;
+        const monday = new Date(d);
+        monday.setDate(d.getDate() + diff);
+        const month = String(monday.getMonth() + 1).padStart(2, '0');
+        const dayOfMonth = String(monday.getDate()).padStart(2, '0');
+        clave = monday.toISOString().split('T')[0];
+        etiqueta = `Semana del ${dayOfMonth}/${month}`;
+      } else if (agrupacion === 'mes') {
+        const [y, m] = fechaStr.split('-');
+        clave = `${y}-${m}`;
+        const meses = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+        etiqueta = `${meses[parseInt(m, 10) - 1]} ${y}`;
+      } else if (agrupacion === 'anio') {
+        const [y] = fechaStr.split('-');
+        clave = y;
+        etiqueta = y;
       }
-      porDia[fecha].total++;
+
+      if (!grupos[clave]) {
+        grupos[clave] = { fecha: etiqueta, permitidos: 0, denegados: 0 };
+      }
       if (acceso.permitido === 1) {
-        porDia[fecha].permitidos++;
+        grupos[clave].permitidos++;
       } else {
-        porDia[fecha].denegados++;
+        grupos[clave].denegados++;
       }
     });
 
@@ -274,7 +296,7 @@ router.get('/accesos', (req, res) => {
         permitidos,
         denegados,
         porcentajePermitidos: total > 0 ? Math.round((permitidos / total) * 100) : 0,
-        porDia: Object.values(porDia),
+        porDia: Object.values(grupos),
       },
     });
   } catch (error) {
