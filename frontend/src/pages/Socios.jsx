@@ -349,19 +349,39 @@ export default function Socios() {
             </div>
             <div className="mb-4">
               <h2 className="text-sm font-semibold text-gray-700 mb-2">Guía de estados</h2>
-              <div className="flex flex-wrap gap-2">
-                <span className="px-2 py-1 rounded text-xs bg-green-100 text-green-800">
-                  Activo
-                </span>
-                <span className="px-2 py-1 rounded text-xs bg-yellow-100 text-yellow-800">
-                  Suspendido
-                </span>
-                <span className="px-2 py-1 rounded text-xs bg-red-100 text-red-800">
-                  Inactivo
-                </span>
-                <span className="px-2 py-1 rounded text-xs bg-orange-100 text-orange-800">
-                  Abandono
-                </span>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div className="flex flex-col border rounded-lg bg-green-50 border-green-200 p-3">
+                  <span className="text-xs font-semibold text-green-800 mb-1">
+                    Activo
+                  </span>
+                  <span className="text-xs text-gray-700">
+                    Socio con la cuota al día.
+                  </span>
+                </div>
+                <div className="flex flex-col border rounded-lg bg-yellow-50 border-yellow-200 p-3">
+                  <span className="text-xs font-semibold text-yellow-800 mb-1">
+                    Suspendido
+                  </span>
+                  <span className="text-xs text-gray-700">
+                    Socio suspendido manualmente por un administrador.
+                  </span>
+                </div>
+                <div className="flex flex-col border rounded-lg bg-red-50 border-red-200 p-3">
+                  <span className="text-xs font-semibold text-red-800 mb-1">
+                    Inactivo
+                  </span>
+                  <span className="text-xs text-gray-700">
+                    Socio con la cuota vencida hace menos de 90 días.
+                  </span>
+                </div>
+                <div className="flex flex-col border rounded-lg bg-orange-50 border-orange-200 p-3">
+                  <span className="text-xs font-semibold text-orange-800 mb-1">
+                    Abandono
+                  </span>
+                  <span className="text-xs text-gray-700">
+                    Socio en estado de abandono, con más de 90 días de cuota vencida.
+                  </span>
+                </div>
               </div>
             </div>
             <div className="space-y-4">
