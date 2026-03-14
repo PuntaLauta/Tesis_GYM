@@ -35,6 +35,17 @@ router.post('/login', async (req, res) => {
       return res.status(401).json({ error: 'Credenciales inválidas' });
     }
 
+    // Admin/root: permitir login siempre; guardar estado_activo para restringir funciones en frontend
+    let estadoActivo = true;
+    if (user.rol === 'admin') {
+      const adminRow = get('SELECT estado FROM admins WHERE usuario_id = ?', [user.id]);
+      estadoActivo = !!(adminRow && adminRow.estado === 1);
+    }
+    if (user.rol === 'root') {
+      const rootRow = get('SELECT estado FROM roots WHERE usuario_id = ?', [user.id]);
+      estadoActivo = !!(rootRow && rootRow.estado === 1);
+    }
+
     // Si es cliente, obtener su socio asignado
     let socioId = null;
     let socioCanceladoPorAdmin = false;
@@ -80,16 +91,16 @@ router.post('/login', async (req, res) => {
       // No asignar automáticamente socios sin usuario - deben estar correctamente asociados desde el seed
     }
 
-    // Si es instructor, obtener su instructor_id
+    // Si es instructor, obtener su instructor_id por usuario_id (FK)
     let instructorId = null;
     if (user.rol === 'instructor') {
-      const instructorExistente = get('SELECT id FROM instructores WHERE email = ?', [user.email]);
+      const instructorExistente = get('SELECT id FROM instructores WHERE usuario_id = ?', [user.id]);
       if (instructorExistente) {
         instructorId = instructorExistente.id;
       }
     }
 
-    // Guardar en sesión
+    // Guardar en sesión (estado_activo para admin/root: si es false, pueden entrar pero sin funciones)
     req.session.user = {
       id: user.id,
       nombre: user.nombre,
@@ -98,6 +109,7 @@ router.post('/login', async (req, res) => {
       socio_id: socioId,
       instructor_id: instructorId,
       cancelado_por_admin: socioCanceladoPorAdmin,
+      estado_activo: user.rol === 'admin' || user.rol === 'root' ? estadoActivo : true,
     };
 
     res.json({
@@ -109,6 +121,7 @@ router.post('/login', async (req, res) => {
         socio_id: socioId,
         instructor_id: instructorId,
         cancelado_por_admin: socioCanceladoPorAdmin,
+        estado_activo: user.rol === 'admin' || user.rol === 'root' ? estadoActivo : true,
       },
     });
   } catch (error) {
@@ -128,13 +141,21 @@ router.post('/logout', (req, res) => {
   });
 });
 
-// GET /auth/me
+// GET /auth/me (incluye estado_activo para admin/root)
 router.get('/me', (req, res) => {
-  if (req.session && req.session.user) {
-    res.json({ user: req.session.user });
-  } else {
-    res.json({ user: null });
+  if (!req.session || !req.session.user) {
+    return res.json({ user: null });
   }
+  const user = req.session.user;
+  if (user.rol === 'admin' || user.rol === 'root') {
+    const table = user.rol === 'admin' ? 'admins' : 'roots';
+    const row = get(`SELECT estado FROM ${table} WHERE usuario_id = ?`, [user.id]);
+    const estadoActivo = !!(row && row.estado === 1);
+    if (user.estado_activo !== estadoActivo) {
+      req.session.user = { ...user, estado_activo: estadoActivo };
+    }
+  }
+  res.json({ user: req.session.user });
 });
 
 // PUT /auth/me/password - Cambiar contraseña (cliente o admin)

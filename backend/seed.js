@@ -192,15 +192,17 @@ async function seed() {
     ['Demo Abandono 3', 'demoabandono3@clientes.com', demoAbandono3Hash, 'cliente']
   );
 
-  insert(
+  const adminUsuario = insert(
     `INSERT INTO usuarios (nombre, email, pass_hash, rol) VALUES (?, ?, ?, ?)`,
     ['Admin Demo', 'admin@gym.com', adminHash, 'admin']
   );
+  insert('INSERT INTO admins (usuario_id, estado) VALUES (?, 1)', [adminUsuario.lastInsertRowid]);
 
-  insert(
+  const rootUsuario = insert(
     `INSERT INTO usuarios (nombre, email, pass_hash, rol) VALUES (?, ?, ?, ?)`,
     ['Root Demo', 'root@gym.com', rootHash, 'root']
   );
+  insert('INSERT INTO roots (usuario_id, estado) VALUES (?, 1)', [rootUsuario.lastInsertRowid]);
 
   // Eliminar instructores demo anteriores
   // Primero eliminar clases asociadas a instructores demo
@@ -219,41 +221,36 @@ async function seed() {
   // Eliminar instructores demo
   run("DELETE FROM instructores WHERE email LIKE '%@instructores.com' OR email IN ('carlos', 'sofia', 'diego')");
 
-  // Crear instructores y usuarios de instructores
+  // Crear instructores: primero usuario, luego instructor con usuario_id
   const carlosMendozaHash = await bcrypt.hash('carlos123', 10);
   const sofiaRamirezHash = await bcrypt.hash('sofia123', 10);
   const diegoTorresHash = await bcrypt.hash('diego123', 10);
 
-  // Crear instructores en tabla instructores
-  const carlosMendozaInstructor = insert(
-    'INSERT INTO instructores (nombre, email, telefono, activo) VALUES (?, ?, ?, ?)',
-    ['Carlos Mendoza', 'carlos@instructores.com', '3811234567', 1]
-  );
-
-  const sofiaRamirezInstructor = insert(
-    'INSERT INTO instructores (nombre, email, telefono, activo) VALUES (?, ?, ?, ?)',
-    ['Sofía Ramírez', 'sofia@instructores.com', '3812345678', 1]
-  );
-
-  const diegoTorresInstructor = insert(
-    'INSERT INTO instructores (nombre, email, telefono, activo) VALUES (?, ?, ?, ?)',
-    ['Diego Torres', 'diego@instructores.com', '3813456789', 1]
-  );
-
-  // Crear usuarios para instructores
   const carlosUsuarioInstructor = insert(
     `INSERT INTO usuarios (nombre, email, pass_hash, rol) VALUES (?, ?, ?, ?)`,
     ['Carlos Mendoza', 'carlos@instructores.com', carlosMendozaHash, 'instructor']
+  );
+  insert(
+    'INSERT INTO instructores (usuario_id, nombre, email, telefono, activo) VALUES (?, ?, ?, ?, ?)',
+    [carlosUsuarioInstructor.lastInsertRowid, 'Carlos Mendoza', 'carlos@instructores.com', '3811234567', 1]
   );
 
   const sofiaUsuarioInstructor = insert(
     `INSERT INTO usuarios (nombre, email, pass_hash, rol) VALUES (?, ?, ?, ?)`,
     ['Sofía Ramírez', 'sofia@instructores.com', sofiaRamirezHash, 'instructor']
   );
+  insert(
+    'INSERT INTO instructores (usuario_id, nombre, email, telefono, activo) VALUES (?, ?, ?, ?, ?)',
+    [sofiaUsuarioInstructor.lastInsertRowid, 'Sofía Ramírez', 'sofia@instructores.com', '3812345678', 1]
+  );
 
   const diegoUsuarioInstructor = insert(
     `INSERT INTO usuarios (nombre, email, pass_hash, rol) VALUES (?, ?, ?, ?)`,
     ['Diego Torres', 'diego@instructores.com', diegoTorresHash, 'instructor']
+  );
+  insert(
+    'INSERT INTO instructores (usuario_id, nombre, email, telefono, activo) VALUES (?, ?, ?, ?, ?)',
+    [diegoUsuarioInstructor.lastInsertRowid, 'Diego Torres', 'diego@instructores.com', '3813456789', 1]
   );
 
   // Crear preguntas de seguridad para usuarios demo
@@ -827,11 +824,14 @@ async function seed() {
     tipoCardio = [{ id: result.lastInsertRowid }];
   }
 
-  // Mapear instructores por nombre a ID
+  // Mapear instructores por nombre a ID (ya insertados con usuario_id)
+  const carlosRow = query('SELECT id FROM instructores WHERE email = ?', ['carlos@instructores.com']);
+  const sofiaRow = query('SELECT id FROM instructores WHERE email = ?', ['sofia@instructores.com']);
+  const diegoRow = query('SELECT id FROM instructores WHERE email = ?', ['diego@instructores.com']);
   const instructorMap = {
-    'Carlos Mendoza': carlosMendozaInstructor.lastInsertRowid,
-    'Sofía Ramírez': sofiaRamirezInstructor.lastInsertRowid,
-    'Diego Torres': diegoTorresInstructor.lastInsertRowid
+    'Carlos Mendoza': carlosRow[0]?.id,
+    'Sofía Ramírez': sofiaRow[0]?.id,
+    'Diego Torres': diegoRow[0]?.id
   };
 
   const tipoClaseMap = {

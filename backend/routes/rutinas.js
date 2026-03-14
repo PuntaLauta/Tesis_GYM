@@ -387,10 +387,14 @@ router.put('/ejercicios/:id/revisar', requireAuth, requireRole('instructor'), (r
       return res.status(400).json({ error: 'Estado inválido' });
     }
 
-    // Obtener el instructor_id del usuario actual
+    // Obtener el instructor_id del usuario actual (por sesión o por usuario_id)
     const user = req.session.user;
-    const instructor = get('SELECT id FROM instructores WHERE email = ?', [user.email]);
-    if (!instructor) {
+    let instructorId = user.instructor_id;
+    if (!instructorId) {
+      const instructor = get('SELECT id FROM instructores WHERE usuario_id = ?', [user.id]);
+      instructorId = instructor ? instructor.id : null;
+    }
+    if (!instructorId) {
       return res.status(404).json({ error: 'Instructor no encontrado' });
     }
 
@@ -400,7 +404,7 @@ router.put('/ejercicios/:id/revisar', requireAuth, requireRole('instructor'), (r
     // Actualizar descripcion_profesor e instructor_id en la tabla ejercicios
     run(
       'UPDATE ejercicios SET descripcion_profesor = ?, instructor_id = ? WHERE id = ?',
-      [notas || null, instructor.id, rutinaEjercicio.ejercicio_id]
+      [notas || null, instructorId, rutinaEjercicio.ejercicio_id]
     );
 
     res.json({ 
@@ -445,11 +449,11 @@ router.post('/:id/ejercicios', requireAuth, requireRole('instructor'), (req, res
       return res.status(404).json({ error: 'Rutina no encontrada' });
     }
 
-    // Asegurar que se guarde el ID del instructor que sugiere (para mostrar "Sugerido por X" en la tarjeta del socio)
+    // Asegurar que se guarde el ID del instructor que sugiere (por sesión o por usuario_id)
     const user = req.session.user;
     let instructorId = user.instructor_id || null;
-    if (!instructorId && user.email) {
-      const instructor = get('SELECT id FROM instructores WHERE email = ?', [user.email]);
+    if (!instructorId && user.id) {
+      const instructor = get('SELECT id FROM instructores WHERE usuario_id = ?', [user.id]);
       instructorId = instructor ? instructor.id : null;
     }
 

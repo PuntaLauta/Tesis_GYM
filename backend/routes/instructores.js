@@ -3,19 +3,11 @@ const { query, get, insert, run } = require('../db/database');
 const { requireAuth, requireRole } = require('../middleware/auth');
 const router = express.Router();
 
-// GET /api/instructores - Listar instructores (admin/root)
+// GET /api/instructores - Listar instructores (admin/root); usuario_id viene de la tabla instructores
 router.get('/', requireAuth, requireRole('admin', 'root'), (req, res) => {
   try {
     const instructores = query('SELECT * FROM instructores ORDER BY nombre');
-    // Agregar usuario_id a cada instructor si existe
-    const instructoresConUsuario = instructores.map(instructor => {
-      const usuario = get('SELECT id FROM usuarios WHERE email = ? AND rol = ?', [instructor.email, 'instructor']);
-      return {
-        ...instructor,
-        usuario_id: usuario ? usuario.id : null
-      };
-    });
-    res.json({ data: instructoresConUsuario });
+    res.json({ data: instructores });
   } catch (error) {
     console.error('Error al listar instructores:', error);
     res.status(500).json({ error: 'Error interno del servidor' });
@@ -100,35 +92,27 @@ router.post('/', requireAuth, requireRole('admin', 'root'), async (req, res) => 
       return res.status(400).json({ error: 'El email ya está en uso' });
     }
 
-    // Crear instructor
-    const result = insert(
-      'INSERT INTO instructores (nombre, email, telefono, activo) VALUES (?, ?, ?, ?)',
-      [nombre, email, telefono || null, activo !== undefined ? activo : 1]
-    );
-
-    const nuevoInstructor = get('SELECT * FROM instructores WHERE id = ?', [result.lastInsertRowid]);
-
-    // Si se solicita crear usuario, crear también el usuario
+    // Crear instructor (con o sin usuario_id según si se crea usuario)
+    let usuarioId = null;
     if (crear_usuario && password) {
-      // Verificar que el email no exista en usuarios
       const usuarioExistente = get('SELECT id FROM usuarios WHERE email = ?', [email]);
       if (usuarioExistente) {
         return res.status(400).json({ error: 'El email ya está en uso en usuarios' });
       }
-
-      // Hashear contraseña
       const passHash = await bcrypt.hash(password, 10);
-      
-      // Crear usuario
       const usuarioResult = insert(
         'INSERT INTO usuarios (nombre, email, pass_hash, rol) VALUES (?, ?, ?, ?)',
         [nombre, email, passHash, 'instructor']
       );
-
-      // Actualizar instructor con usuario_id si es necesario (aunque no lo tenemos en la tabla)
-      // Por ahora, la relación se hace por email
+      usuarioId = usuarioResult.lastInsertRowid;
     }
 
+    const result = insert(
+      'INSERT INTO instructores (usuario_id, nombre, email, telefono, activo) VALUES (?, ?, ?, ?, ?)',
+      [usuarioId, nombre, email, telefono || null, activo !== undefined ? activo : 1]
+    );
+
+    const nuevoInstructor = get('SELECT * FROM instructores WHERE id = ?', [result.lastInsertRowid]);
     res.status(201).json({ data: nuevoInstructor });
   } catch (error) {
     console.error('Error al crear instructor:', error);

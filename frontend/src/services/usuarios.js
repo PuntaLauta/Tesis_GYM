@@ -24,5 +24,9 @@ export const deleteUsuario = (id) => {
   return api.delete(`/api/usuarios/${id}`).then(r => r.data);
 };
 
+export const updateUsuarioEstado = (id, estado) => {
+  return api.put(`/api/usuarios/${id}/estado`, { estado }).then(r => r.data);
+};
+
 
 

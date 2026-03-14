@@ -63,9 +63,22 @@ CREATE TABLE IF NOT EXISTS tipo_rutina (
   descripcion TEXT
 );
 
--- Tabla de instructores
+-- Tablas admins y roots (FK a usuarios; nombre/email se obtienen por JOIN con usuarios)
+CREATE TABLE IF NOT EXISTS admins (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  usuario_id INTEGER NOT NULL UNIQUE REFERENCES usuarios(id),
+  estado INTEGER NOT NULL DEFAULT 1 CHECK(estado IN (0, 1))
+);
+CREATE TABLE IF NOT EXISTS roots (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  usuario_id INTEGER NOT NULL UNIQUE REFERENCES usuarios(id),
+  estado INTEGER NOT NULL DEFAULT 1 CHECK(estado IN (0, 1))
+);
+
+-- Tabla de instructores (usuario_id conecta con usuarios)
 CREATE TABLE IF NOT EXISTS instructores (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
+  usuario_id INTEGER UNIQUE REFERENCES usuarios(id),
   nombre TEXT NOT NULL,
   email TEXT UNIQUE NOT NULL,
   telefono TEXT,
