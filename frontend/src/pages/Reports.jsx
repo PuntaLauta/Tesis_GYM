@@ -330,20 +330,33 @@ export default function Reports() {
 
   const sentinelRef = useRef(null);
   const [isSticky, setIsSticky] = useState(false);
+  const isStickyRef = useRef(false);
+  isStickyRef.current = isSticky;
+
   useEffect(() => {
     if (loading) return;
     const sentinel = sentinelRef.current;
     if (!sentinel) return;
-    const observer = new IntersectionObserver(
-      ([e]) => setIsSticky(!e.isIntersecting),
-      { threshold: 0, root: null, rootMargin: '0px' }
+    const ENTER_HYSTERESIS_PX = 60;
+    const LEAVE_HYSTERESIS_PX = 140;
+    const enterSticky = new IntersectionObserver(
+      ([e]) => { if (!e.isIntersecting && !isStickyRef.current) setIsSticky(true); },
+      { threshold: 0, root: null, rootMargin: `-${ENTER_HYSTERESIS_PX}px 0px 0px 0px` }
     );
-    observer.observe(sentinel);
-    return () => observer.disconnect();
+    const leaveSticky = new IntersectionObserver(
+      ([e]) => { if (e.isIntersecting && isStickyRef.current) setIsSticky(false); },
+      { threshold: 0, root: null, rootMargin: `${LEAVE_HYSTERESIS_PX}px 0px 0px 0px` }
+    );
+    enterSticky.observe(sentinel);
+    leaveSticky.observe(sentinel);
+    return () => {
+      enterSticky.disconnect();
+      leaveSticky.disconnect();
+    };
   }, [loading]);
 
   return (
-    <div className="w-full overflow-x-hidden">
+    <div className="w-full">
       <div className="max-w-6xl mx-auto p-6">
         <h1 className="text-2xl font-bold mb-6">Reportes</h1>
       </div>
@@ -353,8 +366,20 @@ export default function Reports() {
       ) : (
         <>
           <div ref={sentinelRef} className="h-px w-full" aria-hidden />
-          <div className="sticky top-0 z-10 bg-white shadow-sm border-b border-gray-100 py-2 w-screen ml-[calc(-50vw+50%)]">
-            <div className="max-w-6xl mx-auto px-6">
+          <div
+            className={
+              isSticky
+                ? 'sticky top-0 z-10 w-full bg-white shadow-sm border-b border-gray-100 py-2 transition-[padding,box-shadow,background-color,border-color] duration-300 ease-out'
+                : 'sticky top-0 z-10 py-4 transition-[padding,box-shadow,background-color,border-color] duration-300 ease-out'
+            }
+          >
+            <div
+              className={
+                isSticky
+                  ? 'max-w-6xl mx-auto px-6 transition-[padding,border-radius,box-shadow] duration-300 ease-out'
+                  : 'max-w-6xl mx-auto px-6 rounded-xl shadow-md bg-white p-4 transition-[padding,border-radius,box-shadow] duration-300 ease-out'
+              }
+            >
               {isSticky ? (
                 <div className="flex items-center justify-between gap-4">
                   <StatCards isSticky />
