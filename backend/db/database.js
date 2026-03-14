@@ -540,6 +540,88 @@ async function initDatabase() {
     }
   }
 
+  // Tablas admins y roots (FK a usuarios, estado activo/inactivo)
+  let tablaAdminsExiste = false;
+  let tablaRootsExiste = false;
+  try {
+    const tAdmins = db.exec("SELECT name FROM sqlite_master WHERE type='table' AND name='admins'");
+    const tRoots = db.exec("SELECT name FROM sqlite_master WHERE type='table' AND name='roots'");
+    tablaAdminsExiste = tAdmins && tAdmins[0] && tAdmins[0].values && tAdmins[0].values.length > 0;
+    tablaRootsExiste = tRoots && tRoots[0] && tRoots[0].values && tRoots[0].values.length > 0;
+  } catch (e) {}
+  if (!tablaAdminsExiste) {
+    try {
+      db.run(`
+        CREATE TABLE admins (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          usuario_id INTEGER NOT NULL UNIQUE REFERENCES usuarios(id),
+          estado INTEGER NOT NULL DEFAULT 1 CHECK(estado IN (0, 1))
+        )
+      `);
+      saveDatabase();
+      console.log('✅ Tabla admins creada');
+    } catch (e) {
+      console.log('Advertencia: No se pudo crear tabla admins:', e.message);
+    }
+  }
+  if (!tablaRootsExiste) {
+    try {
+      db.run(`
+        CREATE TABLE roots (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          usuario_id INTEGER NOT NULL UNIQUE REFERENCES usuarios(id),
+          estado INTEGER NOT NULL DEFAULT 1 CHECK(estado IN (0, 1))
+        )
+      `);
+      saveDatabase();
+      console.log('✅ Tabla roots creada');
+    } catch (e) {
+      console.log('Advertencia: No se pudo crear tabla roots:', e.message);
+    }
+  }
+  // Poblar admins y roots desde usuarios (evitar duplicados con INSERT OR IGNORE por UNIQUE usuario_id)
+  try {
+    db.run("INSERT OR IGNORE INTO admins (usuario_id, estado) SELECT id, 1 FROM usuarios WHERE rol = 'admin'");
+    db.run("INSERT OR IGNORE INTO roots (usuario_id, estado) SELECT id, 1 FROM usuarios WHERE rol = 'root'");
+    saveDatabase();
+    console.log('✅ Tablas admins y roots pobladas desde usuarios');
+  } catch (e) {
+    console.log('Advertencia: No se pudieron poblar admins/roots:', e.message);
+  }
+
+  // Columna usuario_id en instructores (FK a usuarios)
+  let columnaUsuarioIdInstructoresExiste = false;
+  try {
+    const tableInfo = db.exec("PRAGMA table_info(instructores)");
+    if (tableInfo && tableInfo[0] && tableInfo[0].values) {
+      columnaUsuarioIdInstructoresExiste = tableInfo[0].values.some(row => row[1] === 'usuario_id');
+    }
+  } catch (e) {}
+  if (!columnaUsuarioIdInstructoresExiste) {
+    try {
+      db.run('ALTER TABLE instructores ADD COLUMN usuario_id INTEGER REFERENCES usuarios(id)');
+      saveDatabase();
+      console.log('✅ Columna usuario_id agregada a la tabla instructores');
+    } catch (e) {
+      console.log('Advertencia: No se pudo agregar usuario_id a instructores:', e.message);
+    }
+  }
+  // Migrar instructores: vincular por email con usuarios (rol = instructor)
+  try {
+    const rows = db.exec("SELECT id, email FROM instructores WHERE usuario_id IS NULL");
+    if (rows && rows[0] && rows[0].values && rows[0].values.length > 0) {
+      const stmt = db.prepare('UPDATE instructores SET usuario_id = (SELECT id FROM usuarios WHERE email = ? AND rol = ?) WHERE id = ?');
+      rows[0].values.forEach(([id, email]) => {
+        if (email) stmt.run([email, 'instructor', id]);
+      });
+      stmt.free();
+      saveDatabase();
+      console.log('✅ Instructores vinculados a usuarios por usuario_id');
+    }
+  } catch (e) {
+    console.log('Advertencia: No se pudo vincular instructores a usuarios:', e.message);
+  }
+
   // Verificar si existe la columna instructor_id en la tabla clases
   let columnaInstructorIdExiste = false;
   try {

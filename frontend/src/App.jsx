@@ -55,12 +55,17 @@ import MisRutinas from "./pages/MisRutinas";
 import DetalleRutina from "./pages/DetalleRutina";
 import RutinasInstructor from "./pages/RutinasInstructor";
 import NotFound from "./pages/NotFound";
+import AccesoDeshabilitado from "./pages/AccesoDeshabilitado";
 
 function DashboardRouter() {
   const { user } = useAuth();
   
   if (!user) {
     return <Navigate to="/" replace />;
+  }
+
+  if ((user.rol === 'admin' || user.rol === 'root') && user.estado_activo === false) {
+    return <Navigate to="/acceso-deshabilitado" replace />;
   }
   
   if (user.rol === 'admin') {
@@ -102,6 +107,14 @@ export default function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
 
+        <Route path="/acceso-deshabilitado" element={
+          <ProtectedRoute>
+            <RoleRoute roles={["admin", "root"]}>
+              <AccesoDeshabilitado />
+            </RoleRoute>
+          </ProtectedRoute>
+        } />
+
         <Route path="/client" element={
           <ProtectedRoute>
             <RoleRoute roles={["cliente"]}>
@@ -134,7 +147,9 @@ export default function App() {
 
         <Route path="/classes" element={
           <ProtectedRoute>
-            <Classes />
+            <RoleRoute roles={["cliente", "admin", "root"]}>
+              <Classes />
+            </RoleRoute>
           </ProtectedRoute>
         }/>
 

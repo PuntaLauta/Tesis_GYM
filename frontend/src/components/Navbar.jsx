@@ -46,7 +46,7 @@ export default function Navbar() {
     return (
       <>
         {/* Inicio y Asistente ya están fuera del menú en mobile, solo mostrar otros enlaces */}
-        {user.rol === 'root' ? (
+        {user.rol === 'root' && user.estado_activo !== false ? (
           <>
             <Link to="/socios" className="text-sm block py-2" onClick={closeMobileMenu}>Socios</Link>
             <Link to="/root/staff" className="text-sm block py-2" onClick={closeMobileMenu}>Staff</Link>
@@ -58,6 +58,9 @@ export default function Navbar() {
             <Link to="/instructor/rutinas" className="text-sm block py-2" onClick={closeMobileMenu}>Rutinas</Link>
             <Link to="/instructor/profile" className="text-sm block py-2" onClick={closeMobileMenu}>Mi Perfil</Link>
           </>
+        ) : (user.rol === 'admin' || user.rol === 'root') && user.estado_activo === false ? (
+          /* Admin/root desactivado: solo Inicio y Cerrar sesión (sin Clases ni otros paneles) */
+          null
         ) : (
           <>
             <Link to="/classes" className="text-sm block py-2" onClick={closeMobileMenu}>Clases</Link>
@@ -123,7 +126,7 @@ export default function Navbar() {
           ) : (
             <>
               <Link to={user.rol === 'cliente' ? "/" : "/dashboard"} className="text-sm">Inicio</Link>
-              {user.rol === 'root' ? (
+              {user.rol === 'root' && user.estado_activo !== false ? (
                 <>
                   <Link to="/socios" className="text-sm">Socios</Link>
                   <Link to="/root/staff" className="text-sm">Staff</Link>
@@ -135,6 +138,9 @@ export default function Navbar() {
                   <Link to="/instructor/rutinas" className="text-sm">Rutinas</Link>
                   <Link to="/instructor/profile" className="text-sm">Mi Perfil</Link>
                 </>
+              ) : (user.rol === 'admin' || user.rol === 'root') && user.estado_activo === false ? (
+                /* Admin/root desactivado: sin enlaces a Clases ni otros paneles */
+                null
               ) : (
                 <>
                   {user.rol === 'cliente' && (
