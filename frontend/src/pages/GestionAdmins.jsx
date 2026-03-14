@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { listUsuarios, createUsuario, updateUsuario, deleteUsuario, changePasswordUsuario } from '../services/usuarios';
-import { listInstructores, changePasswordInstructor } from '../services/instructores';
+import { listInstructores } from '../services/instructores';
 
 export default function GestionAdmins() {
   const navigate = useNavigate();
@@ -11,7 +11,6 @@ export default function GestionAdmins() {
   const [showForm, setShowForm] = useState(false);
   const [editingUsuario, setEditingUsuario] = useState(null);
   const [changingPassword, setChangingPassword] = useState(null);
-  const [changingPasswordInstructor, setChangingPasswordInstructor] = useState(null);
   const [formData, setFormData] = useState({
     nombre: '',
     email: '',
@@ -19,10 +18,6 @@ export default function GestionAdmins() {
     rol: 'admin'
   });
   const [passwordData, setPasswordData] = useState({
-    password: '',
-    confirmPassword: ''
-  });
-  const [passwordDataInstructor, setPasswordDataInstructor] = useState({
     password: '',
     confirmPassword: ''
   });
@@ -317,27 +312,6 @@ export default function GestionAdmins() {
                         </td>
                         <td className="px-4 py-3 text-right">
                           <div className="flex justify-end gap-2">
-                            {instructor.usuario_id && (
-                              <button
-                                onClick={() => {
-                                  setChangingPasswordInstructor(instructor);
-                                  setPasswordDataInstructor({ password: '', confirmPassword: '' });
-                                  setError('');
-                                  setSuccess('');
-                                  
-                                  // Scroll automático al modal después de un pequeño delay
-                                  setTimeout(() => {
-                                    const modalElement = document.getElementById('modal-password-instructor-staff');
-                                    if (modalElement) {
-                                      modalElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                                    }
-                                  }, 100);
-                                }}
-                                className="px-3 py-1 bg-indigo-600 text-white rounded text-sm hover:bg-indigo-700"
-                              >
-                                Cambiar contraseña
-                              </button>
-                            )}
                             <Link
                               to="/admin/instructores"
                               className="px-3 py-1 bg-indigo-600 text-white rounded text-sm hover:bg-indigo-700 inline-block"
@@ -428,62 +402,6 @@ export default function GestionAdmins() {
               </button>
             </div>
           </form>
-        </div>
-      )}
-
-      {/* Modal para cambiar contraseña de instructor */}
-      {changingPasswordInstructor && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div id="modal-password-instructor-staff" className="bg-white p-6 rounded-lg shadow-lg max-w-md w-full mx-4">
-            <h2 className="text-xl font-semibold mb-4">
-              Cambiar Contraseña - {changingPasswordInstructor.nombre}
-            </h2>
-            <form onSubmit={handleChangePasswordInstructor} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium mb-1">Nueva Contraseña *</label>
-                <input
-                  type="password"
-                  value={passwordDataInstructor.password}
-                  onChange={(e) => setPasswordDataInstructor({ ...passwordDataInstructor, password: e.target.value })}
-                  className="w-full border rounded px-3 py-2"
-                  required
-                  minLength={6}
-                />
-                <p className="text-xs text-gray-500 mt-1">Mínimo 6 caracteres</p>
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">Confirmar Contraseña *</label>
-                <input
-                  type="password"
-                  value={passwordDataInstructor.confirmPassword}
-                  onChange={(e) => setPasswordDataInstructor({ ...passwordDataInstructor, confirmPassword: e.target.value })}
-                  className="w-full border rounded px-3 py-2"
-                  required
-                  minLength={6}
-                />
-              </div>
-              <div className="flex gap-3">
-                <button
-                  type="submit"
-                  className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
-                >
-                  Cambiar Contraseña
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setChangingPasswordInstructor(null);
-                    setPasswordDataInstructor({ password: '', confirmPassword: '' });
-                    setError('');
-                    setSuccess('');
-                  }}
-                  className="px-4 py-2 border border-gray-300 rounded hover:bg-gray-50"
-                >
-                  Cancelar
-                </button>
-              </div>
-            </form>
-          </div>
         </div>
       )}
 

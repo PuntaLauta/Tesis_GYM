@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { listSocios, createSocio, updateSocio, updateSocioEstadoAdmin } from '../services/socios';
 import { listPlanes } from '../services/planes';
-import SocioQrCard from '../components/SocioQrCard';
 
 export default function Socios() {
   const [socios, setSocios] = useState([]);
@@ -13,7 +12,6 @@ export default function Socios() {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingSocio, setEditingSocio] = useState(null);
-  const [selectedSocioId, setSelectedSocioId] = useState(null);
   const [successMessage, setSuccessMessage] = useState('');
   const [formData, setFormData] = useState({
     nombre: '',
@@ -439,12 +437,6 @@ export default function Socios() {
                       </div>
                       <div className="flex flex-col md:flex-row gap-2 ml-4">
                         <button
-                          onClick={() => setSelectedSocioId(socio.id)}
-                          className="px-3 py-1 bg-blue-600 text-white rounded text-sm hover:bg-blue-700 whitespace-nowrap"
-                        >
-                          Ver QR
-                        </button>
-                        <button
                           onClick={() => handleEdit(socio)}
                           className="px-3 py-1 bg-yellow-600 text-white rounded text-sm hover:bg-yellow-700 whitespace-nowrap"
                         >
@@ -464,18 +456,6 @@ export default function Socios() {
               )}
             </div>
           </div>
-
-          {selectedSocioId && (
-            <div>
-              <SocioQrCard socioId={selectedSocioId} />
-              <button
-                onClick={() => setSelectedSocioId(null)}
-                className="mt-2 w-full px-3 py-2 bg-gray-600 text-white rounded hover:bg-gray-700"
-              >
-                Cerrar
-              </button>
-            </div>
-          )}
         </div>
       )}
     </div>
