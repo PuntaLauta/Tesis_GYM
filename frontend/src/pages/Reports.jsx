@@ -7,14 +7,15 @@ import {
   getEstadoSocios,
   getClasesPopulares,
   getMetodosPago,
-  exportReportToCSV,
-  exportAllReportsToZip
+  exportReportToCSV
 } from '../services/reports';
 import { listTiposClase } from '../services/tipoClase';
 import { listSocios } from '../services/socios';
 import { Bar, Pie } from 'react-chartjs-2';
 import 'chart.js/auto';
 import StatCards from '../components/StatCards';
+import ReportPdfModal from '../components/ReportPdfModal';
+import { generateReportPdf } from '../utils/reportPdf';
 
 const ESTADO_SOCIOS_PAGE_SIZE = 10;
 
@@ -68,6 +69,7 @@ export default function Reports() {
     desde: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // Últimos 30 días
     hasta: new Date().toISOString().split('T')[0],
   });
+  const [reportPdfModalOpen, setReportPdfModalOpen] = useState(false);
 
   useEffect(() => {
     loadReports();
@@ -318,13 +320,28 @@ export default function Reports() {
     }
   };
 
-  const handleGuardarEImprimir = async () => {
+  const handleGuardarEImprimir = () => {
     if (loading) return;
+    setReportPdfModalOpen(true);
+  };
+
+  const defaultFiltersForModal = filters?.desde && filters?.hasta
+    ? { desde: filters.desde, hasta: filters.hasta }
+    : getMesActualRango();
+
+  const handleGeneratePdf = async (config) => {
     try {
-      await exportAllReportsToZip(filters);
-      openPrintView();
-    } catch (error) {
-      console.error('Error al guardar o imprimir reportes:', error);
+      await generateReportPdf(config, {
+        getIngresos,
+        getClasesPopulares,
+        getOcupacionClases,
+        getAccesos,
+        getEstadoSocios,
+        getMetodosPago,
+        getMetodosPago,
+      });
+    } catch (err) {
+      console.error('Error al generar PDF:', err);
     }
   };
 
@@ -1641,6 +1658,13 @@ export default function Reports() {
 
         </>
       )}
+      <ReportPdfModal
+        open={reportPdfModalOpen}
+        onClose={() => setReportPdfModalOpen(false)}
+        onGenerate={handleGeneratePdf}
+        defaultFilters={defaultFiltersForModal}
+        tiposClase={tiposClase}
+      />
     </div>
   );
 }
