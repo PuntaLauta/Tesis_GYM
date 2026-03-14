@@ -15,13 +15,21 @@ CREATE TABLE IF NOT EXISTS planes (
   precio REAL NOT NULL
 );
 
+-- Catálogo de estados de socio
+CREATE TABLE IF NOT EXISTS socio_estado (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  nombre TEXT UNIQUE NOT NULL
+);
+INSERT OR IGNORE INTO socio_estado (id, nombre) VALUES (1, 'activo'), (2, 'inactivo'), (3, 'suspendido'), (4, 'abandono');
+
 -- Tabla de socios
 CREATE TABLE IF NOT EXISTS socios (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   nombre TEXT NOT NULL,
   documento TEXT,
   telefono TEXT,
-  estado TEXT NOT NULL DEFAULT 'activo' CHECK(estado IN ('activo', 'suspendido', 'inactivo', 'abandono')),
+  socio_estado_id INTEGER NOT NULL DEFAULT 1 REFERENCES socio_estado(id),
+  fecha_cambio TEXT,
   cancelado_por_admin INTEGER NOT NULL DEFAULT 0,
   plan_id INTEGER,
   usuario_id INTEGER,

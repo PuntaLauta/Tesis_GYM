@@ -295,9 +295,10 @@ router.get('/:id/clases/:clase_id/socios', requireAuth, (req, res) => {
         s.nombre as socio_nombre,
         s.documento as socio_documento,
         s.telefono as socio_telefono,
-        s.estado as socio_estado
+        se.nombre as socio_estado
       FROM reservas r
       JOIN socios s ON r.socio_id = s.id
+      LEFT JOIN socio_estado se ON s.socio_estado_id = se.id
       WHERE r.clase_id = ? AND r.estado != 'cancelado'
       ORDER BY s.nombre
     `, [claseId]);

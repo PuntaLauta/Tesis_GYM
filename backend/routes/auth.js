@@ -40,7 +40,7 @@ router.post('/login', async (req, res) => {
     let socioCanceladoPorAdmin = false;
     if (user.rol === 'cliente') {
       const socioExistente = get(
-        'SELECT id, cancelado_por_admin FROM socios WHERE usuario_id = ?',
+        'SELECT id, cancelado_por_admin, socio_estado_id FROM socios WHERE usuario_id = ?',
         [user.id]
       );
       if (socioExistente) {
@@ -55,15 +55,18 @@ router.post('/login', async (req, res) => {
             const resultadoEstado = calcularEstadoSocioConPagos(socioId);
             const { estadoRecomendado } = resultadoEstado;
 
-            // 3) Actualizar estado en base al cálculo (solo estos valores)
+            // 3) Actualizar estado y fecha_cambio solo si el estado recomendado es distinto al actual
             if (
               estadoRecomendado &&
               ['activo', 'inactivo', 'abandono'].includes(estadoRecomendado)
             ) {
-              run('UPDATE socios SET estado = ? WHERE id = ?', [
-                estadoRecomendado,
-                socioId,
-              ]);
+              const estadoRow = get('SELECT id FROM socio_estado WHERE nombre = ?', [estadoRecomendado]);
+              if (estadoRow && estadoRow.id !== socioExistente.socio_estado_id) {
+                run("UPDATE socios SET socio_estado_id = ?, fecha_cambio = datetime('now') WHERE id = ?", [
+                  estadoRow.id,
+                  socioId,
+                ]);
+              }
             }
           } catch (error) {
             // Si hay error en la verificación, no afectar el proceso de login

@@ -15,8 +15,9 @@ router.get('/', requireAuth, (req, res) => {
     if (user.rol === 'admin' || user.rol === 'root') {
       // Admin/root ven todos los socios con email del usuario asociado
       let sql = `
-        SELECT s.*, p.nombre as plan_nombre, p.precio as plan_precio, p.duracion as plan_duracion, u.email as usuario_email
-        FROM socios s 
+        SELECT s.*, se.nombre as estado, p.nombre as plan_nombre, p.precio as plan_precio, p.duracion as plan_duracion, u.email as usuario_email
+        FROM socios s
+        LEFT JOIN socio_estado se ON s.socio_estado_id = se.id
         LEFT JOIN planes p ON s.plan_id = p.id
         LEFT JOIN usuarios u ON s.usuario_id = u.id
       `;
@@ -34,8 +35,9 @@ router.get('/', requireAuth, (req, res) => {
     } else {
       // Cliente ve solo su socio
       const socio = get(`
-        SELECT s.*, p.nombre as plan_nombre, p.duracion as plan_duracion, p.precio as plan_precio
-        FROM socios s 
+        SELECT s.*, se.nombre as estado, p.nombre as plan_nombre, p.duracion as plan_duracion, p.precio as plan_precio
+        FROM socios s
+        LEFT JOIN socio_estado se ON s.socio_estado_id = se.id
         LEFT JOIN planes p ON s.plan_id = p.id
         WHERE s.usuario_id = ?
       `, [user.id]);
@@ -73,8 +75,9 @@ router.get('/:id', requireAuth, (req, res) => {
   try {
     const user = req.session.user;
     const socio = get(`
-      SELECT s.*, p.nombre as plan_nombre, u.email as usuario_email
-      FROM socios s 
+      SELECT s.*, se.nombre as estado, p.nombre as plan_nombre, u.email as usuario_email
+      FROM socios s
+      LEFT JOIN socio_estado se ON s.socio_estado_id = se.id
       LEFT JOIN planes p ON s.plan_id = p.id
       LEFT JOIN usuarios u ON s.usuario_id = u.id
       WHERE s.id = ?
@@ -142,14 +145,19 @@ router.post('/', requireAdmin, async (req, res) => {
     // Generar qr_token de 6 dígitos si no viene
     const token = qr_token || generarToken6Digitos();
 
+    const estadoNombre = estado || 'activo';
+    const estadoRow = get('SELECT id FROM socio_estado WHERE nombre = ?', [estadoNombre]);
+    const socioEstadoId = estadoRow ? estadoRow.id : 1;
+
     const result = insert(
-      `INSERT INTO socios (nombre, documento, telefono, estado, plan_id, qr_token, usuario_id, notas) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      [nombre, documento, telefono || null, estado || 'activo', plan_id || null, token, usuarioId, notas || null]
+      `INSERT INTO socios (nombre, documento, telefono, socio_estado_id, fecha_cambio, plan_id, qr_token, usuario_id, notas) VALUES (?, ?, ?, ?, datetime('now'), ?, ?, ?, ?)`,
+      [nombre, documento, telefono || null, socioEstadoId, plan_id || null, token, usuarioId, notas || null]
     );
 
     const nuevoSocio = get(`
-      SELECT s.*, p.nombre as plan_nombre, u.email as usuario_email
-      FROM socios s 
+      SELECT s.*, se.nombre as estado, p.nombre as plan_nombre, u.email as usuario_email
+      FROM socios s
+      LEFT JOIN socio_estado se ON s.socio_estado_id = se.id
       LEFT JOIN planes p ON s.plan_id = p.id
       LEFT JOIN usuarios u ON s.usuario_id = u.id
       WHERE s.id = ?
@@ -224,8 +232,9 @@ router.put('/:id', requireAuth, async (req, res) => {
     }
 
     const socioActualizado = get(`
-      SELECT s.*, p.nombre as plan_nombre, u.email as usuario_email
-      FROM socios s 
+      SELECT s.*, se.nombre as estado, p.nombre as plan_nombre, u.email as usuario_email
+      FROM socios s
+      LEFT JOIN socio_estado se ON s.socio_estado_id = se.id
       LEFT JOIN planes p ON s.plan_id = p.id
       LEFT JOIN usuarios u ON s.usuario_id = u.id
       WHERE s.id = ?
@@ -272,15 +281,23 @@ router.put('/:id/estado-admin', requireAdmin, (req, res) => {
     }
 
     const canceladoPorAdmin = estado === 'activo' ? 0 : 1;
+    const estadoRow = get('SELECT id FROM socio_estado WHERE nombre = ?', [estado]);
+    const socioEstadoId = estadoRow ? estadoRow.id : 1;
 
-    run(
-      'UPDATE socios SET estado = ?, cancelado_por_admin = ? WHERE id = ?',
-      [estado, canceladoPorAdmin, req.params.id]
-    );
+    // Actualizar socio_estado_id y fecha_cambio solo cuando el estado cambie
+    if (socioEstadoId !== socio.socio_estado_id) {
+      run(
+        "UPDATE socios SET socio_estado_id = ?, fecha_cambio = datetime('now'), cancelado_por_admin = ? WHERE id = ?",
+        [socioEstadoId, canceladoPorAdmin, req.params.id]
+      );
+    } else if (canceladoPorAdmin !== socio.cancelado_por_admin) {
+      run('UPDATE socios SET cancelado_por_admin = ? WHERE id = ?', [canceladoPorAdmin, req.params.id]);
+    }
 
     const socioActualizado = get(`
-      SELECT s.*, p.nombre as plan_nombre, u.email as usuario_email
-      FROM socios s 
+      SELECT s.*, se.nombre as estado, p.nombre as plan_nombre, u.email as usuario_email
+      FROM socios s
+      LEFT JOIN socio_estado se ON s.socio_estado_id = se.id
       LEFT JOIN planes p ON s.plan_id = p.id
       LEFT JOIN usuarios u ON s.usuario_id = u.id
       WHERE s.id = ?

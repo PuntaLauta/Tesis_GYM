@@ -31,6 +31,58 @@ router.get('/activos_inactivos', (req, res) => {
   }
 });
 
+// GET /api/reportes/estado_socios - Total y cantidad por estado. Query: desde, hasta (filtro fecha_cambio), estado (opcional)
+router.get('/estado_socios', (req, res) => {
+  try {
+    const { desde, hasta, estado } = req.query;
+    let sql = `
+      SELECT se.nombre, COUNT(*) as cantidad
+      FROM socios s
+      LEFT JOIN socio_estado se ON s.socio_estado_id = se.id
+      WHERE 1=1
+    `;
+    const params = [];
+
+    if (desde) {
+      sql += ' AND s.fecha_cambio IS NOT NULL AND DATE(s.fecha_cambio) >= DATE(?)';
+      params.push(desde);
+    }
+    if (hasta) {
+      sql += ' AND s.fecha_cambio IS NOT NULL AND DATE(s.fecha_cambio) <= DATE(?)';
+      params.push(hasta);
+    }
+    if (estado) {
+      sql += ' AND se.nombre = ?';
+      params.push(estado);
+    }
+
+    sql += ' GROUP BY s.socio_estado_id';
+
+    const rows = query(sql, params);
+    const counts = { activo: 0, inactivo: 0, suspendido: 0, abandono: 0 };
+    let total = 0;
+    rows.forEach((row) => {
+      const key = (row.nombre || '').toLowerCase();
+      if (counts[key] !== undefined) {
+        counts[key] = row.cantidad;
+      }
+      total += row.cantidad;
+    });
+    res.json({
+      data: {
+        total,
+        activo: counts.activo,
+        inactivo: counts.inactivo,
+        suspendido: counts.suspendido,
+        abandono: counts.abandono,
+      },
+    });
+  } catch (error) {
+    console.error('Error al obtener estado de socios:', error);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
 // GET /api/reportes/vencen_semana
 router.get('/vencen_semana', (req, res) => {
   try {
@@ -553,17 +605,18 @@ router.get('/export/:tipo', (req, res) => {
             s.id,
             s.nombre,
             s.documento,
-            s.estado,
+            se.nombre as estado,
             COUNT(DISTINCT r.id) as total_reservas,
             COUNT(DISTINCT a.id) as total_accesos,
             COUNT(DISTINCT CASE WHEN a.permitido = 1 THEN a.id END) as accesos_permitidos,
             COUNT(DISTINCT p.id) as total_pagos,
             COALESCE(SUM(p.monto), 0) as total_pagado
           FROM socios s
+          LEFT JOIN socio_estado se ON s.socio_estado_id = se.id
           LEFT JOIN reservas r ON s.id = r.socio_id
           LEFT JOIN accesos a ON s.id = a.socio_id
           LEFT JOIN pagos p ON s.id = p.socio_id
-          GROUP BY s.id, s.nombre, s.documento, s.estado
+          GROUP BY s.id, s.nombre, s.documento, s.socio_estado_id, se.nombre
           ORDER BY total_reservas DESC, total_accesos DESC
         `);
         csv = convertirACSV(socios, ['id', 'nombre', 'documento', 'estado', 'total_reservas', 'total_accesos', 'accesos_permitidos', 'total_pagos', 'total_pagado']);

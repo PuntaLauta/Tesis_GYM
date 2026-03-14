@@ -1,3 +1,4 @@
+import { Component, Suspense, lazy } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
@@ -13,8 +14,33 @@ import DashboardAdmin from "./pages/DashboardAdmin";
 import DashboardRoot from "./pages/DashboardRoot";
 import Classes from "./pages/Classes";
 import AccessControl from "./pages/AccessControl";
-import Reports from "./pages/Reports";
+const Reports = lazy(() => import("./pages/Reports"));
 import Socios from "./pages/Socios";
+
+class ReportsErrorBoundary extends Component {
+  state = { hasError: false, error: null };
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error };
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="p-6 max-w-xl mx-auto">
+          <h2 className="text-xl font-semibold text-red-700 mb-2">Error al cargar reportes</h2>
+          <p className="text-gray-600 mb-4">Algo falló al mostrar esta página. Revisa la consola del navegador para más detalles.</p>
+          <button
+            type="button"
+            onClick={() => this.setState({ hasError: false, error: null })}
+            className="px-4 py-2 bg-gray-800 text-white rounded hover:bg-gray-700"
+          >
+            Reintentar
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 import Profile from "./pages/Profile";
 import GestionPagos from "./pages/GestionPagos";
 import GestionAdmins from "./pages/GestionAdmins";
@@ -123,7 +149,11 @@ export default function App() {
             <Route path="/reports" element={
               <ProtectedRoute>
                 <RoleRoute roles={["admin", "root"]}>
-                  <Reports />
+                  <ReportsErrorBoundary>
+                    <Suspense fallback={<div className="p-4">Cargando reportes...</div>}>
+                      <Reports />
+                    </Suspense>
+                  </ReportsErrorBoundary>
                 </RoleRoute>
               </ProtectedRoute>
             }/>

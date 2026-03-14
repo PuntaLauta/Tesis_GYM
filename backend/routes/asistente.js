@@ -21,8 +21,8 @@ router.post('/chat', requireAuth, requireRole('cliente'), async (req, res) => {
     }
 
     // Verificar que el socio esté activo
-    const socioCompleto = get('SELECT estado FROM socios WHERE id = ?', [socio.id]);
-    if (socioCompleto.estado !== 'activo') {
+    const socioCompleto = get('SELECT se.nombre as estado FROM socios s LEFT JOIN socio_estado se ON s.socio_estado_id = se.id WHERE s.id = ?', [socio.id]);
+    if (socioCompleto && socioCompleto.estado !== 'activo') {
       return res.status(403).json({ error: 'Tu cuenta debe estar activa para usar el asistente' });
     }
 

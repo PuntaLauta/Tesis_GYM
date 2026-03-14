@@ -374,6 +374,75 @@ async function initDatabase() {
     console.log('Advertencia: No se pudo migrar constraint de estado en socios:', e.message);
   }
 
+  // Migrar estado de socios a tabla socio_estado (socio_estado_id + fecha_cambio)
+  try {
+    const tableInfo = db.exec("PRAGMA table_info(socios)");
+    const hasEstado = tableInfo && tableInfo[0] && tableInfo[0].values && tableInfo[0].values.some((row) => row[1] === 'estado');
+    const hasSocioEstadoId = tableInfo && tableInfo[0] && tableInfo[0].values && tableInfo[0].values.some((row) => row[1] === 'socio_estado_id');
+
+    if (hasEstado && !hasSocioEstadoId) {
+      console.log('🔄 Migrando estado de socios a tabla socio_estado...');
+
+      db.run('PRAGMA foreign_keys = OFF');
+
+      // Crear tabla catálogo socio_estado
+      db.run(`
+        CREATE TABLE IF NOT EXISTS socio_estado (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          nombre TEXT UNIQUE NOT NULL
+        )
+      `);
+      const countResult = db.exec("SELECT COUNT(*) FROM socio_estado");
+      const count = countResult && countResult[0] && countResult[0].values && countResult[0].values[0] ? countResult[0].values[0][0] : 0;
+      if (count === 0) {
+        db.run(`INSERT INTO socio_estado (id, nombre) VALUES (1, 'activo'), (2, 'inactivo'), (3, 'suspendido'), (4, 'abandono')`);
+      }
+
+      // Crear socios_new con socio_estado_id y fecha_cambio, sin estado
+      db.run(`
+        CREATE TABLE socios_new (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          nombre TEXT NOT NULL,
+          documento TEXT,
+          telefono TEXT,
+          socio_estado_id INTEGER NOT NULL DEFAULT 1,
+          fecha_cambio TEXT,
+          cancelado_por_admin INTEGER NOT NULL DEFAULT 0,
+          plan_id INTEGER,
+          usuario_id INTEGER,
+          qr_token TEXT UNIQUE,
+          notas TEXT,
+          FOREIGN KEY (plan_id) REFERENCES planes(id),
+          FOREIGN KEY (usuario_id) REFERENCES usuarios(id),
+          FOREIGN KEY (socio_estado_id) REFERENCES socio_estado(id)
+        )
+      `);
+
+      db.run(`
+        INSERT INTO socios_new (id, nombre, documento, telefono, socio_estado_id, fecha_cambio, cancelado_por_admin, plan_id, usuario_id, qr_token, notas)
+        SELECT s.id, s.nombre, s.documento, s.telefono,
+               COALESCE((SELECT id FROM socio_estado WHERE nombre = s.estado), 1),
+               datetime('now'),
+               COALESCE(s.cancelado_por_admin, 0),
+               s.plan_id, s.usuario_id, s.qr_token, s.notas
+        FROM socios s
+      `);
+
+      db.run('DROP TABLE socios');
+      db.run('ALTER TABLE socios_new RENAME TO socios');
+
+      try {
+        db.run('CREATE UNIQUE INDEX IF NOT EXISTS idx_socios_documento ON socios(documento)');
+      } catch (idxError) {}
+
+      db.run('PRAGMA foreign_keys = ON');
+      saveDatabase();
+      console.log('✅ Estado de socios migrado a socio_estado');
+    }
+  } catch (e) {
+    console.log('Advertencia: No se pudo migrar estado de socios a socio_estado:', e.message);
+  }
+
   // Ejecutar migración de tipo_clase
   try {
     const { migrateTipoClase } = require('./migrate_tipo_clase');

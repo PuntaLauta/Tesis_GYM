@@ -1,19 +1,22 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { 
   getActivosInactivos, 
   getIngresos, 
   getOcupacionClases,
   getAccesos,
-  getSociosActivos,
+  getEstadoSocios,
   getClasesPopulares,
   getMetodosPago,
   exportReportToCSV,
   exportAllReportsToZip
 } from '../services/reports';
 import { listTiposClase } from '../services/tipoClase';
+import { listSocios } from '../services/socios';
 import { Bar, Pie } from 'react-chartjs-2';
 import 'chart.js/auto';
 import StatCards from '../components/StatCards';
+
+const ESTADO_SOCIOS_PAGE_SIZE = 10;
 
 function getMesActualRango() {
   const now = new Date();
@@ -30,7 +33,7 @@ export default function Reports() {
   const [ingresos, setIngresos] = useState(null);
   const [ocupacion, setOcupacion] = useState(null);
   const [accesos, setAccesos] = useState(null);
-  const [sociosActivos, setSociosActivos] = useState([]);
+  const [estadoSocios, setEstadoSocios] = useState(null);
   const [clasesPopulares, setClasesPopulares] = useState([]);
   const [metodosPago, setMetodosPago] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -55,6 +58,12 @@ export default function Reports() {
   const [accesosAgrupacion, setAccesosAgrupacion] = useState('semana');
   const [accesosPagina, setAccesosPagina] = useState(1);
   const [accesosVistaGrafica, setAccesosVistaGrafica] = useState(false);
+  const [estadoSociosFiltro, setEstadoSociosFiltro] = useState({ desde: '', hasta: '' });
+  const [estadoSociosFiltroAplicado, setEstadoSociosFiltroAplicado] = useState(null);
+  const [estadoSociosVistaGrafica, setEstadoSociosVistaGrafica] = useState(false);
+  const [estadoSociosListaFiltroEstado, setEstadoSociosListaFiltroEstado] = useState(null);
+  const [sociosParaEstadoReport, setSociosParaEstadoReport] = useState([]);
+  const [estadoSociosPagina, setEstadoSociosPagina] = useState(1);
   const [filters, setFilters] = useState({
     desde: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // Últimos 30 días
     hasta: new Date().toISOString().split('T')[0],
@@ -63,6 +72,10 @@ export default function Reports() {
   useEffect(() => {
     loadReports();
   }, [filters]);
+
+  useEffect(() => {
+    setEstadoSociosPagina(1);
+  }, [estadoSociosFiltroAplicado, estadoSociosListaFiltroEstado]);
 
   useEffect(() => {
     const loadSoloIngresos = async () => {
@@ -130,17 +143,31 @@ export default function Reports() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [accesosAgrupacion]);
 
+  const aplicarFiltroEstadoSocios = async () => {
+    setEstadoSociosFiltroAplicado(estadoSociosFiltro.desde || estadoSociosFiltro.hasta ? estadoSociosFiltro : null);
+    const params = estadoSociosFiltro.desde || estadoSociosFiltro.hasta ? { ...estadoSociosFiltro } : {};
+    try {
+      const r = await getEstadoSocios(params);
+      setEstadoSocios(r.data || null);
+    } catch (e) {
+      console.error('Error al filtrar estado socios:', e);
+    }
+  };
+
   const loadReports = async () => {
     setLoading(true);
     try {
+      const paramsEstadoSocios = estadoSociosFiltroAplicado || {};
       const [
         activosData, 
         accesosData,
-        sociosActivosData
+        estadoSociosData,
+        sociosData
       ] = await Promise.all([
         getActivosInactivos(),
         getAccesos({ ...(accesosFiltroAplicado || filters), agrupacion: accesosAgrupacion }),
-        getSociosActivos(),
+        getEstadoSocios(paramsEstadoSocios),
+        listSocios(),
       ]);
 
       const [tiposData, ocupacionData, clasesPopularesData] = await Promise.all([
@@ -153,7 +180,8 @@ export default function Reports() {
 
       setStats(activosData.data);
       setAccesos(accesosData.data);
-      setSociosActivos(sociosActivosData.data || []);
+      setEstadoSocios(estadoSociosData.data || null);
+      setSociosParaEstadoReport(sociosData?.data || []);
       setClasesPopulares(clasesPopularesData.data || []);
 
       // Cargar ingresos con el filtro aplicado (por defecto mes actual)
@@ -256,12 +284,16 @@ export default function Reports() {
   </table>
   ` : '<p class="empty">Sin datos</p>'}
 
-  <h2>Socios Más Activos</h2>
-  ${sociosActivos?.length > 0 ? `
+  <h2>Estado de Socios</h2>
+  ${estadoSocios ? `
+  <p><strong>Total:</strong> ${estadoSocios.total ?? 0}</p>
   <table>
-    <thead><tr><th>Socio</th><th>Reservas</th><th>Accesos</th><th>Pagos</th><th>Total Pagado</th></tr></thead>
+    <thead><tr><th>Estado</th><th>Cantidad</th></tr></thead>
     <tbody>
-      ${sociosActivos.map(s => `<tr><td>${s.nombre}</td><td>${s.total_reservas ?? 0}</td><td>${s.total_accesos ?? 0}</td><td>${s.total_pagos ?? 0}</td><td>$${(s.total_pagado ?? 0).toFixed(2)}</td></tr>`).join('')}
+      <tr><td>Activo</td><td>${estadoSocios.activo ?? 0}</td></tr>
+      <tr><td>Inactivo</td><td>${estadoSocios.inactivo ?? 0}</td></tr>
+      <tr><td>Suspendido</td><td>${estadoSocios.suspendido ?? 0}</td></tr>
+      <tr><td>Abandono</td><td>${estadoSocios.abandono ?? 0}</td></tr>
     </tbody>
   </table>
   ` : '<p class="empty">Sin datos</p>'}
@@ -296,52 +328,55 @@ export default function Reports() {
     }
   };
 
-  return (
-    <div className="max-w-6xl mx-auto p-6">
-      <h1 className="text-2xl font-bold mb-6">Reportes</h1>
+  const sentinelRef = useRef(null);
+  const [isSticky, setIsSticky] = useState(false);
+  useEffect(() => {
+    if (loading) return;
+    const sentinel = sentinelRef.current;
+    if (!sentinel) return;
+    const observer = new IntersectionObserver(
+      ([e]) => setIsSticky(!e.isIntersecting),
+      { threshold: 0, root: null, rootMargin: '0px' }
+    );
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [loading]);
 
-      <div className="bg-white p-4 rounded-lg shadow mb-6">
-        <h3 className="font-semibold mb-3">Filtros de fecha</h3>
-        <div className="flex flex-col sm:flex-row sm:items-end gap-3">
-          <div className="grid grid-cols-2 gap-3 flex-1">
-            <input
-              type="date"
-              value={filters.desde}
-              onChange={(e) => setFilters({ ...filters, desde: e.target.value })}
-              className="border rounded px-3 py-2"
-            />
-            <input
-              type="date"
-              value={filters.hasta}
-              onChange={(e) => setFilters({ ...filters, hasta: e.target.value })}
-              className="border rounded px-3 py-2"
-            />
-          </div>
-          <button
-            onClick={handleGuardarEImprimir}
-            disabled={loading}
-            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
-          >
-            Guardar e imprimir todos los reportes
-          </button>
-        </div>
+  return (
+    <div className="w-full overflow-x-hidden">
+      <div className="max-w-6xl mx-auto p-6">
+        <h1 className="text-2xl font-bold mb-6">Reportes</h1>
       </div>
 
       {loading ? (
-        <div className="text-center py-8">Cargando...</div>
+        <div className="max-w-6xl mx-auto p-6 text-center py-8">Cargando...</div>
       ) : (
         <>
-          <StatCards
-            stats={{
-              ...stats,
-              totalIngresos: ingresos?.total || 0,
-              promedioOcupacion: ocupacion?.promedio || 0,
-            }}
-          />
+          <div ref={sentinelRef} className="h-px w-full" aria-hidden />
+          <div className="sticky top-0 z-10 bg-white shadow-sm border-b border-gray-100 py-2 w-screen ml-[calc(-50vw+50%)]">
+            <div className="max-w-6xl mx-auto px-6">
+              {isSticky ? (
+                <div className="flex items-center justify-between gap-4">
+                  <StatCards isSticky />
+                  <button
+                    onClick={handleGuardarEImprimir}
+                    disabled={loading}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap flex-shrink-0"
+                  >
+                    Generar e imprimir un reporte personalizado
+                  </button>
+                </div>
+              ) : (
+                <StatCards onPrint={handleGuardarEImprimir} />
+              )}
+            </div>
+          </div>
+
+          <div className="max-w-6xl mx-auto p-6 pt-4">
 
           {/* Ingresos - primer bloque debajo de las cards */}
           {ingresos && (
-            <div className="bg-white p-4 rounded-lg shadow mt-6">
+            <div id="reporte-ingresos" className="bg-white p-4 rounded-lg shadow mt-6">
               {(() => {
                 const totalItems = ingresos.porDia?.length || 0;
                 const totalAgrupacion = (ingresos.porDia || []).reduce((sum, item) => sum + (item.monto || 0), 0);
@@ -640,7 +675,9 @@ export default function Reports() {
           )}
 
           {/* Clases Más Populares (debajo de Ingresos) */}
-          {clasesPopulares && (() => {
+          {clasesPopulares && (
+          <div id="reporte-clases-populares">
+          {(() => {
             const totalItems = clasesPopulares.length || 0;
             const pageSize = 8;
             const totalPages = totalItems > 0 ? Math.ceil(totalItems / pageSize) : 1;
@@ -842,9 +879,13 @@ export default function Reports() {
               </div>
             );
           })()}
+          </div>
+          )}
 
           {/* Ocupación de clases */}
-          {ocupacion && (() => {
+          {ocupacion && (
+          <div id="reporte-ocupacion">
+          {(() => {
             const totalItems = ocupacion.clases?.length || 0;
             const pageSize = 8;
             const totalPages = totalItems > 0 ? Math.ceil(totalItems / pageSize) : 1;
@@ -1060,9 +1101,13 @@ export default function Reports() {
               </div>
             );
           })()}
+          </div>
+          )}
 
           {/* Accesos */}
-          {accesos && (() => {
+          {accesos && (
+          <div id="reporte-accesos">
+          {(() => {
             const items = accesos.porDia || [];
             const totalItems = items.length;
             const pageSize = 8;
@@ -1233,45 +1278,341 @@ export default function Reports() {
               </div>
             );
           })()}
+          </div>
+          )}
 
-          {/* Socios Más Activos */}
-          {sociosActivos.length > 0 && (
-            <div className="bg-white p-4 rounded-lg shadow mt-6">
+          {/* Estado de Socios */}
+          {estadoSocios && (
+            <div id="reporte-estado-socios" className="bg-white p-4 rounded-lg shadow mt-6">
               <div className="flex justify-between items-center mb-4">
-                <h1 className="font-bold text-xl">Socios Más Activos</h1>
-                <button
-                  onClick={() => exportReportToCSV('socios_activos', {})}
-                  className="px-3 py-1 bg-green-600 text-white rounded text-sm hover:bg-green-700"
-                >
-                  Exportar CSV
-                </button>
+                <h1 className="font-bold text-xl">Estado de Socios</h1>
+                <div className="flex flex-col items-end gap-2 ml-auto">
+                  <div className="flex items-center gap-2 text-sm">
+                    <span className="text-gray-600">Filtro:</span>
+                    <input
+                      type="date"
+                      value={estadoSociosFiltro.desde}
+                      onChange={(e) => setEstadoSociosFiltro((f) => ({ ...f, desde: e.target.value }))}
+                      className="border rounded px-2 py-1 text-xs"
+                    />
+                    <span className="text-gray-500 text-xs">a</span>
+                    <input
+                      type="date"
+                      value={estadoSociosFiltro.hasta}
+                      onChange={(e) => setEstadoSociosFiltro((f) => ({ ...f, hasta: e.target.value }))}
+                      className="border rounded px-2 py-1 text-xs"
+                    />
+                    <button
+                      type="button"
+                      onClick={aplicarFiltroEstadoSocios}
+                      className="ml-2 px-2 py-1 bg-blue-600 text-white rounded text-xs hover:bg-blue-700"
+                    >
+                      Filtrar
+                    </button>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setEstadoSociosVistaGrafica((v) => !v)}
+                    className={`mt-1 px-3 py-1 rounded text-xs text-white ${estadoSociosVistaGrafica ? 'bg-blue-600 hover:bg-blue-700' : 'bg-green-600 hover:bg-green-700'}`}
+                  >
+                    {estadoSociosVistaGrafica ? 'Cambiar a Vista Analítica' : 'Cambiar a Vista Gráfica'}
+                  </button>
+                </div>
               </div>
-              <div className="max-h-64 overflow-y-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b">
-                      <th className="text-left py-2">Socio</th>
-                      <th className="text-right py-2">Reservas</th>
-                      <th className="text-right py-2">Accesos</th>
-                      <th className="text-right py-2">Pagos</th>
-                      <th className="text-right py-2">Total Pagado</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {sociosActivos.map((socio) => (
-                      <tr key={socio.id} className="border-b">
-                        <td className="py-2">{socio.nombre}</td>
-                        <td className="text-right py-2">{socio.total_reservas || 0}</td>
-                        <td className="text-right py-2">{socio.total_accesos || 0}</td>
-                        <td className="text-right py-2">{socio.total_pagos || 0}</td>
-                        <td className="text-right py-2">${(socio.total_pagado || 0).toFixed(2)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+              {!estadoSociosVistaGrafica ? (
+                <>
+                  <h2 className="text-lg font-semibold mb-4">Total: {estadoSocios.total ?? 0}</h2>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div className="rounded-lg p-4 border border-[#99e699] bg-[#e6ffe6]">
+                      <div className="font-semibold text-gray-700">Socios Activos</div>
+                      <div className="text-xl font-bold text-green-700">{estadoSocios.activo ?? 0}</div>
+                    </div>
+                    <div className="rounded-lg p-4 border border-[#ffb3b3] bg-[#ffe6e6]">
+                      <div className="font-semibold text-gray-700">Socios Inactivos</div>
+                      <div className="text-xl font-bold text-red-700">{estadoSocios.inactivo ?? 0}</div>
+                    </div>
+                    <div className="rounded-lg p-4 border border-[#eab308] bg-[#fef9c3]">
+                      <div className="font-semibold text-gray-700">Suspendidos</div>
+                      <div className="text-xl font-bold text-yellow-800">{estadoSocios.suspendido ?? 0}</div>
+                    </div>
+                    <div className="rounded-lg p-4 border border-[#ea580c] bg-[#fff0e6]">
+                      <div className="font-semibold text-gray-700">Abandono</div>
+                      <div className="text-xl font-bold text-orange-700">{estadoSocios.abandono ?? 0}</div>
+                    </div>
+                  </div>
+                  {(() => {
+                    const aplicado = estadoSociosFiltroAplicado || {};
+                    const estadoLista = estadoSociosListaFiltroEstado;
+                    const listaFiltrada = (sociosParaEstadoReport || []).filter((s) => {
+                      if (aplicado.desde || aplicado.hasta) {
+                        const fc = s.fecha_cambio ? String(s.fecha_cambio).split('T')[0] : null;
+                        if (!fc) return false;
+                        if (aplicado.desde && fc < aplicado.desde) return false;
+                        if (aplicado.hasta && fc > aplicado.hasta) return false;
+                      }
+                      if (estadoLista && (s.estado || '').toLowerCase() !== estadoLista.toLowerCase()) return false;
+                      return true;
+                    });
+                    const total = listaFiltrada.length;
+                    const totalPages = Math.max(1, Math.ceil(total / ESTADO_SOCIOS_PAGE_SIZE));
+                    const pagina = Math.min(Math.max(1, estadoSociosPagina), totalPages);
+                    const start = (pagina - 1) * ESTADO_SOCIOS_PAGE_SIZE;
+                    const pageItems = listaFiltrada.slice(start, start + ESTADO_SOCIOS_PAGE_SIZE);
+                    const from = total === 0 ? 0 : start + 1;
+                    const to = total === 0 ? 0 : Math.min(start + ESTADO_SOCIOS_PAGE_SIZE, total);
+                    return (
+                      <div className="mt-4">
+                        <div className="text-sm font-semibold mb-2">Socios ({total})</div>
+                        <div className="overflow-x-auto border rounded">
+                          <table className="w-full text-sm table-fixed">
+                            <thead className="bg-gray-100">
+                              <tr>
+                                <th className="text-left p-2">Nombre</th>
+                                <th className="text-left p-2">Estado</th>
+                                <th className="text-left p-2">Fecha cambio</th>
+                                <th className="text-left p-2">Documento</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {Array.from({ length: ESTADO_SOCIOS_PAGE_SIZE }, (_, i) => {
+                                const s = pageItems[i];
+                                if (!s) {
+                                  return <tr key={`empty-${i}`} className="border-t h-10 min-h-[40px]"><td colSpan={4} className="p-2 h-10 min-h-[40px]">&nbsp;</td></tr>;
+                                }
+                                return (
+                                  <tr key={s.id} className="border-t h-10">
+                                    <td className="p-2 truncate">{s.nombre}</td>
+                                    <td className="p-2">{s.estado ?? '-'}</td>
+                                    <td className="p-2">{s.fecha_cambio ? String(s.fecha_cambio).split('T')[0] : '-'}</td>
+                                    <td className="p-2">{s.documento ?? '-'}</td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
+                        <div className="mt-3 flex items-center justify-between text-xs text-gray-600">
+                          <span>Mostrando {from}-{to} de {total}</span>
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => setEstadoSociosPagina((p) => Math.max(1, p - 1))}
+                              disabled={pagina <= 1}
+                              className="px-2 py-1 border rounded disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              Anterior
+                            </button>
+                            <span className="flex items-center gap-1">
+                              <span>Página</span>
+                              <input
+                                type="number"
+                                min={1}
+                                max={totalPages}
+                                value={pagina}
+                                onChange={(e) => {
+                                  const v = parseInt(e.target.value, 10);
+                                  if (!Number.isNaN(v)) setEstadoSociosPagina(Math.min(totalPages, Math.max(1, v)));
+                                }}
+                                className="w-12 border rounded px-1 py-0.5 text-center"
+                              />
+                              <span>de {totalPages}</span>
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => setEstadoSociosPagina((p) => Math.min(totalPages, p + 1))}
+                              disabled={pagina >= totalPages}
+                              className="px-2 py-1 border rounded disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              Siguiente
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })()}
+                </>
+              ) : (
+                <div className="space-y-4">
+                  <div className="flex gap-6 w-full items-start">
+                    <div className="flex-shrink-0 flex flex-col gap-1.5 text-sm">
+                      {(() => {
+                        const total = estadoSocios.total || 0;
+                        const colores = { activo: '#22c55e', inactivo: '#dc2626', suspendido: '#eab308', abandono: '#ea580c' };
+                        const etiquetas = [
+                          { key: 'activo', label: 'Activo', value: estadoSocios.activo ?? 0 },
+                          { key: 'inactivo', label: 'Inactivo', value: estadoSocios.inactivo ?? 0 },
+                          { key: 'suspendido', label: 'Suspendido', value: estadoSocios.suspendido ?? 0 },
+                          { key: 'abandono', label: 'Abandono', value: estadoSocios.abandono ?? 0 },
+                        ];
+                        return etiquetas.map(({ key, label, value }) => {
+                          const pct = total ? ((value / total) * 100).toFixed(1) : '0';
+                          return (
+                            <div key={key} className="flex items-center gap-2">
+                              <span
+                                className="w-3 h-3 rounded-sm flex-shrink-0"
+                                style={{ backgroundColor: colores[key] }}
+                              />
+                              <span className="text-gray-700">{label}</span>
+                              <span className="text-gray-600 font-medium">{pct}%</span>
+                            </div>
+                          );
+                        });
+                      })()}
+                    </div>
+                    <div className="flex-1 min-w-0 flex justify-center items-center">
+                      <div className="h-80 max-w-md w-full">
+                        <Pie
+                          data={{
+                            labels: ['Activo', 'Inactivo', 'Suspendido', 'Abandono'],
+                            datasets: [{
+                              data: [
+                                estadoSocios.activo ?? 0,
+                                estadoSocios.inactivo ?? 0,
+                                estadoSocios.suspendido ?? 0,
+                                estadoSocios.abandono ?? 0,
+                              ],
+                              backgroundColor: ['#22c55e', '#dc2626', '#eab308', '#ea580c'],
+                              borderColor: '#fff',
+                              borderWidth: 1,
+                            }],
+                          }}
+                          options={{
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                              legend: { display: false },
+                            },
+                          }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap gap-2 items-center">
+                    <span className="text-sm font-medium text-gray-700">Leyenda (clic para filtrar lista):</span>
+                    {['activo', 'inactivo', 'suspendido', 'abandono'].map((estado) => {
+                      const colores = { activo: '#22c55e', inactivo: '#dc2626', suspendido: '#eab308', abandono: '#ea580c' };
+                      const etiquetas = { activo: 'Activo', inactivo: 'Inactivo', suspendido: 'Suspendido', abandono: 'Abandono' };
+                      const activo = estadoSociosListaFiltroEstado === estado;
+                      const textoClaro = estado === 'suspendido'; // amarillo: texto oscuro para contraste
+                      return (
+                        <button
+                          key={estado}
+                          type="button"
+                          onClick={() => setEstadoSociosListaFiltroEstado(activo ? null : estado)}
+                          className={`px-3 py-1 rounded text-sm font-medium border-2 border-transparent hover:opacity-90 ${textoClaro ? 'text-gray-900' : 'text-white'}`}
+                          style={{ backgroundColor: colores[estado], borderColor: activo ? '#333' : 'transparent' }}
+                        >
+                          {etiquetas[estado]}
+                        </button>
+                      );
+                    })}
+                    <button
+                      type="button"
+                      onClick={() => setEstadoSociosListaFiltroEstado(null)}
+                      className="px-2 py-1 text-sm text-gray-600 underline"
+                    >
+                      Ver todos
+                    </button>
+                  </div>
+                  {(() => {
+                    const aplicado = estadoSociosFiltroAplicado || {};
+                    const listaFiltrada = (sociosParaEstadoReport || []).filter((s) => {
+                      if (aplicado.desde || aplicado.hasta) {
+                        const fc = s.fecha_cambio ? String(s.fecha_cambio).split('T')[0] : null;
+                        if (!fc) return false;
+                        if (aplicado.desde && fc < aplicado.desde) return false;
+                        if (aplicado.hasta && fc > aplicado.hasta) return false;
+                      }
+                      if (estadoSociosListaFiltroEstado) {
+                        return (s.estado || '').toLowerCase() === estadoSociosListaFiltroEstado.toLowerCase();
+                      }
+                      return true;
+                    });
+                    const total = listaFiltrada.length;
+                    const totalPages = Math.max(1, Math.ceil(total / ESTADO_SOCIOS_PAGE_SIZE));
+                    const pagina = Math.min(Math.max(1, estadoSociosPagina), totalPages);
+                    const start = (pagina - 1) * ESTADO_SOCIOS_PAGE_SIZE;
+                    const pageItems = listaFiltrada.slice(start, start + ESTADO_SOCIOS_PAGE_SIZE);
+                    const from = total === 0 ? 0 : start + 1;
+                    const to = total === 0 ? 0 : Math.min(start + ESTADO_SOCIOS_PAGE_SIZE, total);
+                    return (
+                      <div className="mt-2">
+                        <div className="text-sm font-semibold mb-2">
+                          {estadoSociosListaFiltroEstado ? `Socios en ${estadoSociosListaFiltroEstado} (${total})` : `Socios (${total})`}
+                        </div>
+                        <div className="overflow-x-auto border rounded">
+                          <table className="w-full text-sm table-fixed">
+                            <thead className="bg-gray-100">
+                              <tr>
+                                <th className="text-left p-2">Nombre</th>
+                                <th className="text-left p-2">Estado</th>
+                                <th className="text-left p-2">Fecha cambio</th>
+                                <th className="text-left p-2">Documento</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {Array.from({ length: ESTADO_SOCIOS_PAGE_SIZE }, (_, i) => {
+                                const s = pageItems[i];
+                                if (!s) {
+                                  return <tr key={`empty-g-${i}`} className="border-t h-10 min-h-[40px]"><td colSpan={4} className="p-2 h-10 min-h-[40px]">&nbsp;</td></tr>;
+                                }
+                                return (
+                                  <tr key={s.id} className="border-t h-10">
+                                    <td className="p-2 truncate">{s.nombre}</td>
+                                    <td className="p-2">{s.estado ?? '-'}</td>
+                                    <td className="p-2">{s.fecha_cambio ? String(s.fecha_cambio).split('T')[0] : '-'}</td>
+                                    <td className="p-2">{s.documento ?? '-'}</td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
+                        <div className="mt-3 flex items-center justify-between text-xs text-gray-600">
+                          <span>Mostrando {from}-{to} de {total}</span>
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => setEstadoSociosPagina((p) => Math.max(1, p - 1))}
+                              disabled={pagina <= 1}
+                              className="px-2 py-1 border rounded disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              Anterior
+                            </button>
+                            <span className="flex items-center gap-1">
+                              <span>Página</span>
+                              <input
+                                type="number"
+                                min={1}
+                                max={totalPages}
+                                value={pagina}
+                                onChange={(e) => {
+                                  const v = parseInt(e.target.value, 10);
+                                  if (!Number.isNaN(v)) setEstadoSociosPagina(Math.min(totalPages, Math.max(1, v)));
+                                }}
+                                className="w-12 border rounded px-1 py-0.5 text-center"
+                              />
+                              <span>de {totalPages}</span>
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => setEstadoSociosPagina((p) => Math.min(totalPages, p + 1))}
+                              disabled={pagina >= totalPages}
+                              className="px-2 py-1 border rounded disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              Siguiente
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })()}
+                </div>
+              )}
             </div>
           )}
+
+          </div>
 
         </>
       )}

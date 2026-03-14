@@ -50,7 +50,7 @@ router.get('/', (req, res) => {
       const user = req.session.user;
       if (user.rol === 'cliente' && user.socio_id) {
         userSocioId = user.socio_id;
-        const socio = get('SELECT estado FROM socios WHERE id = ?', [userSocioId]);
+        const socio = get('SELECT se.nombre as estado FROM socios s LEFT JOIN socio_estado se ON s.socio_estado_id = se.id WHERE s.id = ?', [userSocioId]);
         if (socio) {
           socioEstado = socio.estado;
         }

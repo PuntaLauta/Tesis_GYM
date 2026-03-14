@@ -619,9 +619,22 @@ async function seed() {
 
   sociosExtras.forEach((extra) => sociosConfig.push(extra));
 
+  // Mapeo nombre estado -> id en socio_estado (activo=1, inactivo=2, suspendido=3, abandono=4)
+  const estadoIds = { activo: 1, inactivo: 2, suspendido: 3, abandono: 4 };
+
+  // 20 fechas de fecha_cambio repartidas: Dec 2024, Jan 2026, Feb 2026, Mar 2026
+  const fechasCambio = [
+    '2024-12-01 09:00:00', '2024-12-05 10:15:00', '2024-12-10 11:30:00', '2024-12-15 14:00:00', '2024-12-20 16:45:00',
+    '2026-01-02 08:00:00', '2026-01-08 09:30:00', '2026-01-12 10:00:00', '2026-01-18 13:15:00', '2026-01-25 15:30:00',
+    '2026-02-01 09:00:00', '2026-02-07 11:00:00', '2026-02-14 14:30:00', '2026-02-20 10:00:00', '2026-02-25 16:00:00',
+    '2026-03-01 08:30:00', '2026-03-05 12:00:00', '2026-03-10 09:45:00', '2026-03-15 11:15:00', '2026-03-20 14:00:00',
+  ];
+
   // Crear o actualizar los 20 socios según configuración
   sociosConfig.forEach((cfg, index) => {
     let socioId;
+    const socioEstadoId = estadoIds[cfg.estado] || 1;
+    const fechaCambio = fechasCambio[index % fechasCambio.length];
 
     if (cfg.usuarioId) {
       const socioExistente = query('SELECT id FROM socios WHERE usuario_id = ?', [cfg.usuarioId]);
@@ -629,12 +642,13 @@ async function seed() {
       if (socioExistente.length > 0) {
         socioId = socioExistente[0].id;
         run(
-          'UPDATE socios SET nombre = ?, documento = ?, telefono = ?, estado = ?, cancelado_por_admin = ?, plan_id = ?, qr_token = ?, notas = ? WHERE id = ?',
+          'UPDATE socios SET nombre = ?, documento = ?, telefono = ?, socio_estado_id = ?, fecha_cambio = ?, cancelado_por_admin = ?, plan_id = ?, qr_token = ?, notas = ? WHERE id = ?',
           [
             cfg.nombre,
             cfg.documento,
             cfg.telefono,
-            cfg.estado,
+            socioEstadoId,
+            fechaCambio,
             cfg.canceladoPorAdmin,
             cfg.plan ? cfg.plan.id : null,
             generarToken6Digitos(),
@@ -644,12 +658,13 @@ async function seed() {
         );
       } else {
         const socio = insert(
-          'INSERT INTO socios (nombre, documento, telefono, estado, cancelado_por_admin, plan_id, usuario_id, qr_token, notas) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+          'INSERT INTO socios (nombre, documento, telefono, socio_estado_id, fecha_cambio, cancelado_por_admin, plan_id, usuario_id, qr_token, notas) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
           [
             cfg.nombre,
             cfg.documento,
             cfg.telefono,
-            cfg.estado,
+            socioEstadoId,
+            fechaCambio,
             cfg.canceladoPorAdmin,
             cfg.plan ? cfg.plan.id : null,
             cfg.usuarioId,
@@ -661,12 +676,13 @@ async function seed() {
       }
     } else {
       const socio = insert(
-        'INSERT INTO socios (nombre, documento, telefono, estado, cancelado_por_admin, plan_id, usuario_id, qr_token, notas) VALUES (?, ?, ?, ?, ?, ?, NULL, ?, ?)',
+        'INSERT INTO socios (nombre, documento, telefono, socio_estado_id, fecha_cambio, cancelado_por_admin, plan_id, usuario_id, qr_token, notas) VALUES (?, ?, ?, ?, ?, ?, ?, NULL, ?, ?)',
         [
           cfg.nombre,
           cfg.documento,
           cfg.telefono,
-          cfg.estado,
+          socioEstadoId,
+          fechaCambio,
           cfg.canceladoPorAdmin,
           cfg.plan ? cfg.plan.id : null,
           generarToken6Digitos(),
@@ -734,7 +750,12 @@ async function seed() {
   }
 
   // Obtener todos los IDs de socios para usar en accesos, reservas y rutinas
-  const todosLosSocios = query('SELECT id, estado FROM socios ORDER BY id');
+  const todosLosSocios = query(`
+    SELECT s.id, se.nombre as estado
+    FROM socios s
+    LEFT JOIN socio_estado se ON s.socio_estado_id = se.id
+    ORDER BY s.id
+  `);
   const sociosActivos = todosLosSocios.filter(s => s.estado === 'activo');
   const sociosInactivos = todosLosSocios.filter(s => s.estado !== 'activo');
 
@@ -1141,7 +1162,12 @@ async function seed() {
   });
 
   // Obtener IDs de socios creados para mostrar
-  const sociosFinales = query('SELECT id, nombre, estado, usuario_id FROM socios ORDER BY id');
+  const sociosFinales = query(`
+    SELECT s.id, s.nombre, se.nombre as estado, s.usuario_id
+    FROM socios s
+    LEFT JOIN socio_estado se ON s.socio_estado_id = se.id
+    ORDER BY s.id
+  `);
 
   console.log('✅ Seed completado:');
   console.log('\n👤 Usuarios con credenciales:');

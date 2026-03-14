@@ -119,7 +119,7 @@ router.post('/', requireAuth, (req, res) => {
       finalSocioId = user.socio_id;
       
       // Verificar que el socio esté activo
-      const socio = get('SELECT estado FROM socios WHERE id = ?', [finalSocioId]);
+      const socio = get('SELECT se.nombre as estado FROM socios s LEFT JOIN socio_estado se ON s.socio_estado_id = se.id WHERE s.id = ?', [finalSocioId]);
       if (!socio) {
         return res.status(404).json({ error: 'Socio no encontrado' });
       }
@@ -130,7 +130,7 @@ router.post('/', requireAuth, (req, res) => {
       return res.status(400).json({ error: 'socio_id requerido' });
     } else {
       // Para admin/root, también verificar que el socio esté activo
-      const socio = get('SELECT estado FROM socios WHERE id = ?', [socio_id]);
+      const socio = get('SELECT se.nombre as estado FROM socios s LEFT JOIN socio_estado se ON s.socio_estado_id = se.id WHERE s.id = ?', [socio_id]);
       if (socio && socio.estado !== 'activo') {
         return res.status(403).json({ error: 'El socio está inactivo y no puede reservar clases' });
       }
