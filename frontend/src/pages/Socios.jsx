@@ -13,6 +13,8 @@ export default function Socios() {
   const [showForm, setShowForm] = useState(false);
   const [editingSocio, setEditingSocio] = useState(null);
   const [successMessage, setSuccessMessage] = useState('');
+  const [paginaSocios, setPaginaSocios] = useState(1);
+  const ITEMS_POR_PAGINA = 10;
   const [formData, setFormData] = useState({
     nombre: '',
     documento: '',
@@ -69,7 +71,32 @@ export default function Socios() {
     }
 
     setSociosFiltrados(filtrados);
+    setPaginaSocios(1);
   }, [searchTerm, socios, estadoFiltro]);
+
+  const totalPaginasSocios = Math.max(1, Math.ceil(sociosFiltrados.length / ITEMS_POR_PAGINA));
+  const paginaActualSocios = Math.min(paginaSocios, totalPaginasSocios);
+  const sociosEnPagina = sociosFiltrados.slice(
+    (paginaActualSocios - 1) * ITEMS_POR_PAGINA,
+    paginaActualSocios * ITEMS_POR_PAGINA
+  );
+
+  const irAPaginaSocios = (num) => {
+    const n = Math.max(1, Math.min(num, totalPaginasSocios));
+    setPaginaSocios(n);
+  };
+
+  const getNumerosPagina = () => {
+    const total = totalPaginasSocios;
+    if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
+    const vecinos = 2;
+    const left = Math.max(2, paginaActualSocios - vecinos);
+    const right = Math.min(total - 1, paginaActualSocios + vecinos);
+    const nums = new Set([1]);
+    for (let i = left; i <= right; i++) nums.add(i);
+    if (total > 1) nums.add(total);
+    return Array.from(nums).sort((a, b) => a - b);
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -320,30 +347,33 @@ export default function Socios() {
       ) : (
         <div className="grid grid-cols-1 gap-6">
           <div>
-            <div className="mb-2">
-              <input
-                type="text"
-                placeholder="Buscar por nombre o documento..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full border rounded px-3 py-2"
-              />
-            </div>
-            <div className="mb-4 w-full md:w-64">
-              <label className="block text-xs font-medium text-gray-600 mb-1">
-                Filtrar por estado
-              </label>
-              <select
-                value={estadoFiltro}
-                onChange={(e) => setEstadoFiltro(e.target.value)}
-                className="w-full border rounded px-3 py-2 text-sm"
-              >
-                <option value="">Todos</option>
-                <option value="activo">Activo</option>
-                <option value="suspendido">Suspendido</option>
-                <option value="inactivo">Inactivo</option>
-                <option value="abandono">Abandono</option>
-              </select>
+            <div className="mb-4 flex flex-wrap gap-3 items-end">
+              <div className="flex-[3] min-w-[200px]">
+                <label className="block text-xs font-medium text-gray-600 mb-1">Buscar</label>
+                <input
+                  type="text"
+                  placeholder="Por nombre o documento..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full border rounded px-3 py-2"
+                />
+              </div>
+              <div className="flex-[2] min-w-[160px]">
+                <label className="block text-xs font-medium text-gray-600 mb-1">
+                  Filtrar por estado
+                </label>
+                <select
+                  value={estadoFiltro}
+                  onChange={(e) => setEstadoFiltro(e.target.value)}
+                  className="w-full border rounded px-3 py-2 text-sm"
+                >
+                  <option value="">Todos</option>
+                  <option value="activo">Activo</option>
+                  <option value="suspendido">Suspendido</option>
+                  <option value="inactivo">Inactivo</option>
+                  <option value="abandono">Abandono</option>
+                </select>
+              </div>
             </div>
             <div className="mb-4">
               <h2 className="text-sm font-semibold text-gray-700 mb-2">Guía de estados</h2>
@@ -388,7 +418,7 @@ export default function Socios() {
                   {searchTerm ? 'No se encontraron socios con ese criterio' : 'No hay socios registrados'}
                 </div>
               ) : (
-                sociosFiltrados.map((socio) => (
+                sociosEnPagina.map((socio) => (
                   <div key={socio.id} className="bg-white p-4 rounded-lg shadow">
                     <div className="flex justify-between items-start">
                       <div className="flex-1">
@@ -455,6 +485,69 @@ export default function Socios() {
                 ))
               )}
             </div>
+            {sociosFiltrados.length > ITEMS_POR_PAGINA && (
+              <div className="mt-6 flex flex-wrap items-center justify-between gap-2 border-t pt-4">
+                <div className="text-sm text-gray-600">
+                  Mostrando {(paginaActualSocios - 1) * ITEMS_POR_PAGINA + 1}–{Math.min(paginaActualSocios * ITEMS_POR_PAGINA, sociosFiltrados.length)} de {sociosFiltrados.length} socios
+                </div>
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => irAPaginaSocios(1)}
+                    disabled={paginaActualSocios <= 1}
+                    className="px-2 py-1 rounded border text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100"
+                    title="Primera página"
+                  >
+                    «
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => irAPaginaSocios(paginaActualSocios - 1)}
+                    disabled={paginaActualSocios <= 1}
+                    className="px-2 py-1 rounded border text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100"
+                    title="Anterior"
+                  >
+                    ‹
+                  </button>
+                  {getNumerosPagina().map((num, idx) => (
+                    <span key={num}>
+                      {idx > 0 && getNumerosPagina()[idx - 1] !== num - 1 && (
+                        <span className="px-1 text-gray-400">…</span>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => irAPaginaSocios(num)}
+                        className={`min-w-[2rem] px-2 py-1 rounded text-sm ${
+                          paginaActualSocios === num
+                            ? 'bg-blue-600 text-white border border-blue-600'
+                            : 'border hover:bg-gray-100'
+                        }`}
+                      >
+                        {num}
+                      </button>
+                    </span>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={() => irAPaginaSocios(paginaActualSocios + 1)}
+                    disabled={paginaActualSocios >= totalPaginasSocios}
+                    className="px-2 py-1 rounded border text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100"
+                    title="Siguiente"
+                  >
+                    ›
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => irAPaginaSocios(totalPaginasSocios)}
+                    disabled={paginaActualSocios >= totalPaginasSocios}
+                    className="px-2 py-1 rounded border text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100"
+                    title="Última página"
+                  >
+                    »
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
