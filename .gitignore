@@ -2,8 +2,8 @@
 node_modules/
 
 # Database
-*.db
-*.db-journal
+#*.db
+#*.db-journal
 
 # Environment
 .env
