@@ -19,6 +19,8 @@ npm install
 npm run seed   # crea usuarios y datos demo
 npm run dev    # http://localhost:3001
 ```
+Al ejecutar `npm run seed` se muestra en consola la seed usada (ej. `Seed actual: 12345`). La seed se configura en `backend/.env` con `DATA_SEED` (ver `backend/.env.example` o backend README): mismo valor en otra máquina genera los mismos datos.
+
 Variables por defecto si no existe `.env`:
 - PORT=3001
 - SESSION_SECRET=mi-secreto-super-seguro
@@ -36,23 +38,14 @@ npm run dev    # http://localhost:5173
 ## 👤 Usuarios Demo
 Una vez ejecutado `npm run seed` en el backend:
 
-| Email | Contraseña | Rol | Socio asociado | Estado | Vencimiento |
-|-------|------------|-----|----------------|--------|-------------|
-| juan@clientes.com | juan123 | cliente | Juan Pérez | ACTIVO | — |
-| maria@clientes.com | maria123 | cliente | María González | ACTIVO | En 3 días |
-| carlos@clientes.com | carlos123 | cliente | Carlos Rodríguez | ACTIVO | En 5 días |
-| luis@clientes.com | luis123 | cliente | Luis Martínez | INACTIVO | Vencido |
-| ana@clientes.com | ana123 | cliente | Ana Martínez | ACTIVO | En 2 días |
-| pedro@clientes.com | pedro123 | cliente | Pedro Sánchez | ACTIVO | En 7 días |
-| laura@clientes.com | laura123 | cliente | Laura Fernández | ACTIVO | En 1 día |
-| roberto@clientes.com | roberto123 | cliente | Roberto Díaz | ACTIVO | — |
-| carmen@clientes.com | carmen123 | cliente | Carmen López | ACTIVO | En 4 días |
-| miguel@clientes.com | miguel123 | cliente | Miguel Torres | INACTIVO | Vencido |
-| admin@gym.com | admin123 | admin | — | — | — |
-| root@gym.com | root123 | root | — | — | — |
-| carlos@instructores.com | carlos123 | instructor | — | — | — |
-| sofia@instructores.com | sofia123 | instructor | — | — | — |
-| diego@instructores.com | diego123 | instructor | — | — | — |
+| Rol | Email | Contraseña |
+|-----|-------|------------|
+| Root | root@gym.com | root123 |
+| Admin | admin1@gym.com, admin2@gym.com, admin3@gym.com | admin123 |
+| Instructor | instructor1@gym.com … instructor12@gym.com | instructor123 |
+| Socio (cliente) | socio1@gym.com … socio200@gym.com | socio123 |
+
+Los nombres de admins, instructores y socios se generan con Faker. Si usas la misma `DATA_SEED` en `backend/.env`, obtienes los mismos datos (misma seed = mismos nombres y asignaciones). Para regenerar todo desde cero: `npm run clear:data` y luego `npm run seed` (desde la carpeta backend).
 
 ### 🔐 Preguntas de Seguridad (Recuperación de Contraseña)
 En los seeds, cada usuario recibe **una de 5 preguntas asignada al azar**. La respuesta válida es siempre la **palabra plana** asociada a esa pregunta (útil para desarrollo y pruebas):
@@ -65,20 +58,14 @@ En los seeds, cada usuario recibe **una de 5 preguntas asignada al azar**. La re
 | ¿A qué escuela primaria asististe? | **escuela** |
 | ¿Cuál fue tu primer auto? | **auto** |
 
-Al ejecutar `npm run seed`, cada usuario (root, admins, instructores, socios) tendrá una pregunta distinta asignada de forma aleatoria. Para recuperar contraseña en desarrollo, usa la respuesta plana que corresponda a la pregunta que se muestre en pantalla.
+Al ejecutar `npm run seed`, cada usuario (root, admins, instructores, socios) tendrá una pregunta asignada. Si usas `DATA_SEED` en `.env`, la asignación es determinista (misma seed = misma pregunta por email). Para recuperar contraseña en desarrollo, usa la respuesta plana que corresponda a la pregunta que se muestre en pantalla.
 
 **Nota:** Las respuestas se almacenan hasheadas (bcrypt) y se normalizan (minúsculas, sin espacios) al verificar.
 
 ---
 
 ## 👨‍🏫 Instructores Demo
-Los instructores pueden ver solo sus clases asignadas y los socios inscriptos en ellas:
-
-| Email | Contraseña | Nombre | Clases asignadas |
-|-------|------------|--------|-----------------|
-| carlos@instructores.com | carlos123 | Carlos Mendoza | Crossfit |
-| sofia@instructores.com | sofia123 | Sofía Ramírez | Zumba |
-| diego@instructores.com | diego123 | Diego Torres | Funcional |
+Se crean 12 instructores (instructor1@gym.com … instructor12@gym.com, contraseña `instructor123`). Los nombres se generan con Faker; al menos 3 pueden estar inactivos; las clases se asignan de forma aleatoria. Los instructores pueden ver solo sus clases asignadas y los socios inscriptos en ellas.
 
 **Funcionalidades para instructores:**
 - Dashboard personalizado con estadísticas de sus clases
@@ -91,20 +78,7 @@ Los instructores pueden ver solo sus clases asignadas y los socios inscriptos en
 ---
 
 ## 📋 Socios Demo
-Todos los socios tienen credenciales para ingresar al sistema:
-
-| ID | Nombre | Estado | Plan | Vencimiento | Acceso |
-|----|--------|--------|------|-------------|--------|
-| 1 | Juan Pérez | activo | Mensual | — | ✅ Permitido |
-| 2 | María González | activo | Mensual | En 3 días | ✅ Permitido |
-| 3 | Carlos Rodríguez | activo | Mensual | En 5 días | ✅ Permitido |
-| 4 | Luis Martínez | inactivo | Mensual | Vencido | ❌ Denegado |
-| 5 | Ana Martínez | activo | Mensual | En 2 días | ✅ Permitido |
-| 6 | Pedro Sánchez | activo | Mensual | En 7 días | ✅ Permitido |
-| 7 | Laura Fernández | activo | Mensual | En 1 día | ✅ Permitido |
-| 8 | Roberto Díaz | activo | Mensual | — | ✅ Permitido |
-| 9 | Carmen López | activo | Mensual | En 4 días | ✅ Permitido |
-| 10 | Miguel Torres | inactivo | Mensual | Vencido | ❌ Denegado |
+Se crean 200+ socios (socio1@gym.com … socio200@gym.com, contraseña `socio123`). Distribución aproximada: ~80% activo, 10% inactivo, 9% abandono, 1% suspendido. Los socios en estado activo tienen último pago y fecha recientes para que al iniciar sesión sigan activos (no pasen a inactivo por vencimiento). Parte de los socios tienen notas aleatorias. Planes y vencimiento dependen del plan asignado y de los pagos generados.
 
 ---
 
@@ -123,7 +97,8 @@ Todos los socios tienen credenciales para ingresar al sistema:
 Backend
 - `npm run dev`  → servidor con auto-reload
 - `npm start`    → servidor sin auto-reload
-- `npm run seed` → crear/actualizar datos demo
+- `npm run seed` → crear/actualizar datos demo (muestra en consola el valor de `DATA_SEED` usado)
+- `npm run clear:data` → limpia todos los datos (reservas, pagos, socios, usuarios, clases, etc.) sin borrar esquema ni tablas de catálogo; usar antes de `npm run seed` para regenerar todo desde cero
 
 Frontend
 - `npm run dev` → desarrollo
@@ -154,12 +129,13 @@ El sistema incluye recuperación de contraseña mediante preguntas de seguridad:
 - La base se crea automáticamente en `backend/db/gym.db`.
 - Las sesiones persisten mientras el servidor esté activo.
 - Si reinicias el backend, deberás volver a iniciar sesión.
+- **Datos de prueba:** La generación es configurable con `DATA_SEED` en `backend/.env` (ver backend README). Las fechas generadas no superan la fecha actual.
 - **Importante:** Si actualizas el código o agregas nuevas funcionalidades (como instructores), reinicia el backend para que se ejecuten las migraciones automáticas:
   - Tabla `preguntas_seguridad`
   - Tabla `instructores`
   - Columna `instructor_id` en `clases`
   - Migración de datos existentes
-- **Después de actualizar:** Ejecuta `npm run seed` para crear/actualizar los datos demo incluyendo instructores.
+- **Después de actualizar:** Ejecuta `npm run seed` para crear/actualizar los datos demo. Para empezar desde cero: `npm run clear:data` y luego `npm run seed`.
 
 ---
 
