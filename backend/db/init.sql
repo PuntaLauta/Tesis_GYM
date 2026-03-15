@@ -68,6 +68,11 @@ CREATE TABLE IF NOT EXISTS tipo_rutina (
   nombre TEXT NOT NULL,
   descripcion TEXT
 );
+-- Tipos de rutina por defecto (cubren los casos del sistema: socio pide rutina por tipo)
+INSERT INTO tipo_rutina (nombre, descripcion) SELECT 'Fuerza', 'Rutina orientada a desarrollo de fuerza máxima y potencia. Incluye ejercicios compuestos y trabajo con cargas altas.' WHERE NOT EXISTS (SELECT 1 FROM tipo_rutina WHERE nombre = 'Fuerza');
+INSERT INTO tipo_rutina (nombre, descripcion) SELECT 'Hipertrofia', 'Rutina para ganancia de masa muscular. Volumen moderado-alto, rangos de repeticiones 8-12, múltiples series.' WHERE NOT EXISTS (SELECT 1 FROM tipo_rutina WHERE nombre = 'Hipertrofia');
+INSERT INTO tipo_rutina (nombre, descripcion) SELECT 'Full body', 'Rutina de cuerpo completo por sesión. Ideal para 2-4 días por semana y mantenimiento general.' WHERE NOT EXISTS (SELECT 1 FROM tipo_rutina WHERE nombre = 'Full body');
+INSERT INTO tipo_rutina (nombre, descripcion) SELECT 'Resistencia', 'Rutina enfocada en resistencia muscular y cardiovascular. Circuitos, repeticiones altas y poco descanso.' WHERE NOT EXISTS (SELECT 1 FROM tipo_rutina WHERE nombre = 'Resistencia');
 
 -- Tablas admins y roots (FK a usuarios; nombre/email se obtienen por JOIN con usuarios)
 CREATE TABLE IF NOT EXISTS admins (

@@ -9,6 +9,7 @@ seedRandom.init(process.env.DATA_SEED);
 
 const { dbPromise } = require('./db');
 const { seedConfig } = require('./seed-config');
+const { seedTipoRutina } = require('./seed-tipo-rutina');
 const { seedUsuarios } = require('./seed-usuarios');
 const { seedInstructores } = require('./seed-instructores');
 const { seedSocios } = require('./seed-socios');
@@ -25,6 +26,7 @@ async function run() {
   await dbPromise;
 
   await seedConfig();
+  await seedTipoRutina();
   await seedUsuarios();
   await seedInstructores();
   await seedSocios();

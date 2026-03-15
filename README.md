@@ -40,10 +40,15 @@ Una vez ejecutado `npm run seed` en el backend:
 
 | Rol | Email | Contraseña |
 |-----|-------|------------|
+| Socio (cliente) | socio1@gym.com … socio200@gym.com | socio123 |
 | Root | root@gym.com | root123 |
 | Admin | admin1@gym.com, admin2@gym.com, admin3@gym.com | admin123 |
 | Instructor | instructor1@gym.com … instructor12@gym.com | instructor123 |
-| Socio (cliente) | socio1@gym.com … socio200@gym.com | socio123 |
+
+**Ejemplos por estado (para pruebas):**
+- **Socios:** socio10@gym.com = Activo · socio1@gym.com = Inactivo · socio3@gym.com = Abandono · socio5@gym.com = Suspendido
+- **Admins:** admin1@gym.com = Activo · admin3@gym.com = Inactivo.
+- **Instructores:** instructor1@gym.com = Activo · instructor4@gym.com = Inactivo
 
 Los nombres de admins, instructores y socios se generan con Faker. Si usas la misma `DATA_SEED` en `backend/.env`, obtienes los mismos datos (misma seed = mismos nombres y asignaciones). Para regenerar todo desde cero: `npm run clear:data` y luego `npm run seed` (desde la carpeta backend).
 

@@ -1,3 +1,19 @@
+// Convierte **texto** en negrita y respeta saltos de línea; devuelve array de nodos React
+function renderizarConNegrita(texto) {
+  if (!texto || typeof texto !== 'string') return texto;
+  const partes = texto.split(/\*\*(.+?)\*\*/g);
+  const resultado = [];
+  for (let i = 0; i < partes.length; i++) {
+    const parte = partes[i];
+    if (i % 2 === 1) {
+      resultado.push(<strong key={i}>{parte}</strong>);
+    } else if (parte) {
+      resultado.push(parte);
+    }
+  }
+  return resultado.length === 1 ? resultado[0] : resultado;
+}
+
 export default function ChatMessage({ mensaje, esUsuario, fecha }) {
   const formatFecha = (fechaStr) => {
     if (!fechaStr) return '';
@@ -17,7 +33,7 @@ export default function ChatMessage({ mensaje, esUsuario, fecha }) {
             : 'bg-[#0b1533] text-blue-50'
         }`}
       >
-        <div className="whitespace-pre-wrap break-words">{mensaje}</div>
+        <div className="whitespace-pre-wrap break-words">{renderizarConNegrita(mensaje)}</div>
         {fecha && (
           <div
             className={`text-xs mt-1 ${

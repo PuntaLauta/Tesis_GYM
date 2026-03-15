@@ -13,6 +13,9 @@ export default function DashboardInstructor() {
   const [clases, setClases] = useState([]);
   const [clasesEstaSemana, setClasesEstaSemana] = useState([]);
   const [clasesProximas, setClasesProximas] = useState([]);
+  const [clasesRecientes, setClasesRecientes] = useState([]);
+  const [paginaRecientes, setPaginaRecientes] = useState(1);
+  const ITEMS_POR_PAGINA_RECIENTES = 10;
   const [tiposClaseAsignados, setTiposClaseAsignados] = useState([]);
   const [selectedClase, setSelectedClase] = useState(null);
   const [sociosInscriptos, setSociosInscriptos] = useState([]);
@@ -45,8 +48,9 @@ export default function DashboardInstructor() {
   };
 
   const loadClases = async () => {
+    // Solo cargar clases del instructor actual; el backend filtra por instructor_id
     if (!user || !user.instructor_id) return;
-    
+
     setLoading(true);
     try {
       const hoy = new Date();
@@ -94,19 +98,30 @@ export default function DashboardInstructor() {
       const estaSemana = clasesFuturas.filter(c => c.fecha <= finSemanaStr);
       const proximas = clasesFuturas.filter(c => c.fecha > finSemanaStr);
 
-      // Ordenar cada grupo
+      // Ordenar cada grupo (ascendente por fecha/hora)
       const ordenarClases = (clases) => {
-        return clases.sort((a, b) => {
+        return [...clases].sort((a, b) => {
           if (a.fecha === b.fecha) {
-            return a.hora_inicio.localeCompare(b.hora_inicio);
+            return (a.hora_inicio || '').localeCompare(b.hora_inicio || '');
           }
-          return a.fecha.localeCompare(b.fecha);
+          return (a.fecha || '').localeCompare(b.fecha || '');
         });
       };
 
       setClasesEstaSemana(ordenarClases(estaSemana));
       setClasesProximas(ordenarClases(proximas));
       setClases(ordenarClases(clasesFuturas));
+
+      // Si no hay clases futuras pero sí hay clases en total, mostrar las últimas (pasadas) para que se vean asignadas
+      const clasesPasadas = todasLasClases.data.filter(c => c.fecha < hoyStr);
+      const recientesOrdenadas = [...clasesPasadas].sort((a, b) => {
+        if (b.fecha === a.fecha) {
+          return (b.hora_inicio || '').localeCompare(a.hora_inicio || '');
+        }
+        return (b.fecha || '').localeCompare(a.fecha || '');
+      });
+      setClasesRecientes(recientesOrdenadas);
+      setPaginaRecientes(1);
     } catch (error) {
       console.error('Error al cargar clases:', error);
     } finally {
@@ -175,6 +190,29 @@ export default function DashboardInstructor() {
     } finally {
       setLoadingRutinas(false);
     }
+  };
+
+  // Paginación de clases recientes
+  const totalPaginasRecientes = Math.max(1, Math.ceil(clasesRecientes.length / ITEMS_POR_PAGINA_RECIENTES));
+  const paginaActualRecientes = Math.min(paginaRecientes, totalPaginasRecientes);
+  const clasesRecientesEnPagina = clasesRecientes.slice(
+    (paginaActualRecientes - 1) * ITEMS_POR_PAGINA_RECIENTES,
+    paginaActualRecientes * ITEMS_POR_PAGINA_RECIENTES
+  );
+  const irAPaginaRecientes = (num) => {
+    const n = Math.max(1, Math.min(num, totalPaginasRecientes));
+    setPaginaRecientes(n);
+  };
+  const getNumerosPaginaRecientes = () => {
+    const total = totalPaginasRecientes;
+    if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
+    const vecinos = 2;
+    const left = Math.max(2, paginaActualRecientes - vecinos);
+    const right = Math.min(total - 1, paginaActualRecientes + vecinos);
+    const nums = new Set([1]);
+    for (let i = left; i <= right; i++) nums.add(i);
+    if (total > 1) nums.add(total);
+    return Array.from(nums).sort((a, b) => a - b);
   };
 
   if (loading) {
@@ -309,8 +347,113 @@ export default function DashboardInstructor() {
       {/* Lista de Clases */}
       <div className="bg-white p-4 rounded-lg shadow mb-6">
         <h2 className="text-lg font-semibold mb-4">Mis Clases</h2>
-        {clases.length === 0 ? (
+        {clases.length === 0 && clasesRecientes.length === 0 ? (
           <div className="text-gray-500 text-sm">No tienes clases asignadas</div>
+        ) : clases.length === 0 && clasesRecientes.length > 0 ? (
+          <div className="space-y-4">
+            <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded px-3 py-2">
+              No hay clases futuras programadas. A continuación se muestran tus últimas clases asignadas.
+            </p>
+            <div>
+              <h3 className="text-md font-semibold text-gray-700 mb-3">Clases recientes</h3>
+              <div className="space-y-3">
+                {clasesRecientesEnPagina.map((clase) => (
+                  <div key={clase.id} className="border-b pb-3 last:border-b-0">
+                    <div className="flex justify-between items-start">
+                      <div className="flex-1">
+                        <div className="font-medium">{clase.nombre || clase.tipo_descripcion}</div>
+                        <div className="text-sm text-gray-600">
+                          {clase.fecha} • {clase.hora_inicio} - {clase.hora_fin}
+                        </div>
+                        <div className="text-sm text-gray-500 mt-1">
+                          Ocupación: {clase.ocupados || 0}/{clase.cupo} ({clase.porcentaje || 0}%)
+                        </div>
+                        <div className="mt-1">
+                          <span className={`px-2 py-1 rounded text-xs ${
+                            clase.estado === 'activa' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                          }`}>
+                            {clase.estado}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="ml-4">
+                        <button
+                          onClick={() => handleVerSocios(clase)}
+                          className="px-3 py-1 bg-blue-600 text-white rounded text-sm hover:bg-blue-700 whitespace-nowrap"
+                        >
+                          Ver Socios
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              {clasesRecientes.length > ITEMS_POR_PAGINA_RECIENTES && (
+                <div className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t pt-4">
+                  <div className="text-sm text-gray-600">
+                    Mostrando {(paginaActualRecientes - 1) * ITEMS_POR_PAGINA_RECIENTES + 1}–
+                    {Math.min(paginaActualRecientes * ITEMS_POR_PAGINA_RECIENTES, clasesRecientes.length)} de {clasesRecientes.length} clases
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() => irAPaginaRecientes(1)}
+                      disabled={paginaActualRecientes <= 1}
+                      className="px-2 py-1 rounded border text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100"
+                      title="Primera página"
+                    >
+                      «
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => irAPaginaRecientes(paginaActualRecientes - 1)}
+                      disabled={paginaActualRecientes <= 1}
+                      className="px-2 py-1 rounded border text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100"
+                      title="Anterior"
+                    >
+                      ‹
+                    </button>
+                    {getNumerosPaginaRecientes().map((num, idx) => (
+                      <span key={num}>
+                        {idx > 0 && getNumerosPaginaRecientes()[idx - 1] !== num - 1 && (
+                          <span className="px-1 text-gray-400">…</span>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => irAPaginaRecientes(num)}
+                          className={`min-w-[2rem] px-2 py-1 rounded text-sm ${
+                            paginaActualRecientes === num
+                              ? 'bg-blue-600 text-white border border-blue-600'
+                              : 'border hover:bg-gray-100'
+                          }`}
+                        >
+                          {num}
+                        </button>
+                      </span>
+                    ))}
+                    <button
+                      type="button"
+                      onClick={() => irAPaginaRecientes(paginaActualRecientes + 1)}
+                      disabled={paginaActualRecientes >= totalPaginasRecientes}
+                      className="px-2 py-1 rounded border text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100"
+                      title="Siguiente"
+                    >
+                      ›
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => irAPaginaRecientes(totalPaginasRecientes)}
+                      disabled={paginaActualRecientes >= totalPaginasRecientes}
+                      className="px-2 py-1 rounded border text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100"
+                      title="Última página"
+                    >
+                      »
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
         ) : (
           <div className="space-y-6">
             {/* Esta Semana */}

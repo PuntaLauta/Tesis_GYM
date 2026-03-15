@@ -148,6 +148,9 @@ export default function Home() {
   const estaCanceladoPorAdmin = socio && socio.cancelado_por_admin;
   const estadoEsInactivoOAbandono =
     socio && !estaCanceladoPorAdmin && (socio.estado === 'inactivo' || socio.estado === 'abandono');
+  // Deshabilita el panel de clases para inactivo, abandono y suspendido
+  const panelClasesDeshabilitado =
+    socio && ['inactivo', 'abandono', 'suspendido'].includes(socio.estado || '');
 
   if (!user) {
     return <LandingPage />;
@@ -397,22 +400,33 @@ export default function Home() {
                 )}
 
                 {/* Clases Reservadas */}
-                <div className="bg-white p-6 rounded-lg shadow flex-1 flex flex-col">
+                <div className={`bg-white p-6 rounded-lg shadow flex-1 flex flex-col ${panelClasesDeshabilitado ? 'opacity-75' : ''}`}>
                   <h2 className="text-xl font-semibold mb-4">Mis Clases Reservadas</h2>
+                  {panelClasesDeshabilitado && (
+                    <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                      <p className="text-sm text-amber-800 font-medium">
+                        Tu cuenta está en estado <strong>{socio?.estado}</strong>. No podés reservar ni cancelar clases hasta regularizar tu situación. Contactá a recepción.
+                      </p>
+                    </div>
+                  )}
                   {loading ? (
                     <div className="text-center py-4 text-gray-500">Cargando...</div>
                   ) : reservas.length === 0 ? (
                     <div className="text-center py-8">
-                      {estadoEsInactivoOAbandono ? (
+                      {panelClasesDeshabilitado ? (
                         <>
                           <p className="text-red-600 font-medium mb-2">
-                            {socio.estado === 'abandono' ? 'Cuenta en estado abandono' : 'Cuenta inactiva'}
+                            {socio.estado === 'abandono'
+                              ? 'Cuenta en estado abandono'
+                              : socio.estado === 'suspendido'
+                              ? 'Cuenta suspendida'
+                              : 'Cuenta inactiva'}
                           </p>
                           <p className="text-gray-500 mb-4">
-                            No puedes reservar clases porque tu cuenta tiene la cuota vencida.
+                            No podés reservar ni gestionar clases hasta regularizar tu situación.
                           </p>
                           <p className="text-sm text-gray-600 mb-4">
-                            Contacta a recepción para reactivar tu membresía.
+                            Contactá a recepción para reactivar tu membresía.
                           </p>
                         </>
                       ) : (
@@ -458,7 +472,7 @@ export default function Home() {
                                       Clase Cancelada
                                     </span>
                                   )}
-                                  {reserva.estado === 'reservado' && reserva.clase_estado !== 'cancelada' && (
+                                  {reserva.estado === 'reservado' && reserva.clase_estado !== 'cancelada' && !panelClasesDeshabilitado && (
                                     <button
                                       onClick={() => setReservaACancelar(reserva)}
                                       className="px-3 py-1 text-xs bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
@@ -474,7 +488,7 @@ export default function Home() {
                       </div>
                     </div>
                   )}
-                  {reservas.length > 0 && (
+                  {reservas.length > 0 && !panelClasesDeshabilitado && (
                     <div className="mt-4 pt-4 border-t">
                       <Link
                         to="/classes"
