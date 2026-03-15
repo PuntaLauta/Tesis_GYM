@@ -14,6 +14,12 @@ CREATE TABLE IF NOT EXISTS planes (
   duracion INTEGER NOT NULL, -- días
   precio REAL NOT NULL
 );
+-- Planes por defecto: insertar si no existen
+INSERT INTO planes (nombre, duracion, precio) SELECT 'Mensual', 30, 35000 WHERE NOT EXISTS (SELECT 1 FROM planes WHERE nombre = 'Mensual');
+INSERT INTO planes (nombre, duracion, precio) SELECT 'Trimestral', 90, 90000 WHERE NOT EXISTS (SELECT 1 FROM planes WHERE nombre = 'Trimestral');
+-- Actualizar precios a valores actuales (para quienes ya tenían estos planes con precios viejos)
+UPDATE planes SET duracion = 30, precio = 35000 WHERE nombre = 'Mensual';
+UPDATE planes SET duracion = 90, precio = 90000 WHERE nombre = 'Trimestral';
 
 -- Catálogo de estados de socio
 CREATE TABLE IF NOT EXISTS socio_estado (

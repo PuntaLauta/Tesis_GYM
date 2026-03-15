@@ -6,12 +6,16 @@
 const { insert, query } = require('./db');
 const { faker } = require('./utils/faker');
 const { getPasswordHashes } = require('./utils/helpers');
+const seedRandom = require('./utils/seedRandom');
 
 const NUM_ADMINS = 3;
 const NUM_INSTRUCTORES = 12;
 const NUM_SOCIOS = 200;
 
 async function seedUsuarios() {
+  const fakerSeed = seedRandom.getSeedForFaker();
+  if (fakerSeed != null) faker.seed(fakerSeed);
+
   const { hashRoot, hashAdmin, hashInstructor, hashSocio } = await getPasswordHashes();
 
   // 1 root

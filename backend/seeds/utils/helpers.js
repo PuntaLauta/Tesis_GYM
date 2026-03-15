@@ -1,9 +1,13 @@
 const bcrypt = require('bcrypt');
+const seedRandom = require('./seedRandom');
 
 const YEAR_START = 2023;
-const YEAR_END = 2026;
 const DATE_START = new Date(YEAR_START, 0, 1);
-const DATE_END = new Date(YEAR_END, 11, 31, 23, 59, 59);
+function getDateEnd() {
+  const now = new Date();
+  return new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+}
+const DATE_END = getDateEnd();
 
 /** Contraseñas fijas por rol (texto plano para hashear una sola vez) */
 const PASSWORDS = {
@@ -40,13 +44,32 @@ async function getPasswordHashes() {
 }
 
 /**
- * Fecha aleatoria entre 2023-01-01 y 2026-12-31 (sin hora o con hora según needTime).
+ * Fecha aleatoria entre DATE_START y fin del día actual (sin hora o con hora según needTime).
  * @param {{ needTime?: boolean }} opts
  * @returns {string} ISO date (YYYY-MM-DD) o datetime
  */
 function randomDateInRange(opts = {}) {
   const needTime = opts.needTime === true;
-  const ts = DATE_START.getTime() + Math.random() * (DATE_END.getTime() - DATE_START.getTime());
+  const end = getDateEnd();
+  const ts = DATE_START.getTime() + seedRandom.random() * (end.getTime() - DATE_START.getTime());
+  const d = new Date(ts);
+  if (needTime) return d.toISOString().replace('T', ' ').substring(0, 19);
+  return d.toISOString().split('T')[0];
+}
+
+/**
+ * Fecha aleatoria en los últimos N días (para socios activos: fecha_cambio y último pago recientes).
+ * @param {number} days - Número de días hacia atrás desde hoy
+ * @param {{ needTime?: boolean }} opts
+ * @returns {string} ISO date (YYYY-MM-DD) o datetime
+ */
+function randomDateLastNDays(days, opts = {}) {
+  const needTime = opts.needTime === true;
+  const end = getDateEnd();
+  const start = new Date(end);
+  start.setDate(start.getDate() - Math.max(0, days));
+  start.setHours(0, 0, 0, 0);
+  const ts = start.getTime() + seedRandom.random() * (end.getTime() - start.getTime());
   const d = new Date(ts);
   if (needTime) return d.toISOString().replace('T', ' ').substring(0, 19);
   return d.toISOString().split('T')[0];
@@ -58,7 +81,7 @@ function randomDateInRange(opts = {}) {
  * @param {boolean} useRandom - Si true usa Math.random(); si false deriva del index
  */
 function getSocioEstadoId(index, useRandom = true) {
-  const r = useRandom ? Math.random() * 100 : (index % 100);
+  const r = useRandom ? seedRandom.random() * 100 : (index % 100);
   let acc = 0;
   for (const { id, weight } of ESTADO_WEIGHTS) {
     acc += weight;
@@ -73,7 +96,7 @@ function createDniGenerator() {
   return function nextDni() {
     let dni;
     do {
-      dni = String(Math.floor(10000000 + Math.random() * 90000000));
+      dni = String(Math.floor(10000000 + seedRandom.random() * 90000000));
     } while (used.has(dni));
     used.add(dni);
     return dni;
@@ -89,7 +112,7 @@ function generarToken6Digitos(existsFn) {
   let intentos = 0;
   const maxIntentos = 100;
   do {
-    token = String(Math.floor(100000 + Math.random() * 900000));
+    token = String(Math.floor(100000 + seedRandom.random() * 900000));
     if (!existsFn(token)) return token;
     intentos++;
   } while (intentos < maxIntentos);
@@ -99,12 +122,13 @@ function generarToken6Digitos(existsFn) {
 module.exports = {
   getPasswordHashes,
   randomDateInRange,
+  randomDateLastNDays,
   getSocioEstadoId,
   createDniGenerator,
   generarToken6Digitos,
   PASSWORDS,
   YEAR_START,
-  YEAR_END,
   DATE_START,
   DATE_END,
+  getDateEnd,
 };

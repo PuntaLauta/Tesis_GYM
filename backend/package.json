@@ -19,6 +19,7 @@
     "express-session": "^1.17.3",
     "node-cron": "^3.0.3",
     "qrcode": "^1.5.4",
+    "seedrandom": "^3.0.5",
     "sql.js": "^1.10.3"
   },
   "devDependencies": {

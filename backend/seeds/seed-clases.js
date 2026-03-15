@@ -3,6 +3,7 @@
  */
 const { query, insert } = require('./db');
 const { randomDateInRange } = require('./utils/helpers');
+const seedRandom = require('./utils/seedRandom');
 
 const TIPOS_CLASE = [
   ['Crossfit', 'Entrenamiento funcional de alta intensidad'],
@@ -47,12 +48,12 @@ async function seedClases() {
   }
 
   for (let i = 0; i < NUM_CLASES; i++) {
-    const tipo = tipos[Math.floor(Math.random() * tipos.length)];
-    const inst = instructores[Math.floor(Math.random() * instructores.length)];
+    const tipo = tipos[Math.floor(seedRandom.random() * tipos.length)];
+    const inst = instructores[Math.floor(seedRandom.random() * instructores.length)];
     const fecha = randomDateInRange({ needTime: false });
-    const [horaInicio, horaFin] = HORARIOS[Math.floor(Math.random() * HORARIOS.length)];
-    const cupo = 12 + Math.floor(Math.random() * 14);
-    const estado = Math.random() > 0.05 ? 'activa' : 'cancelada';
+    const [horaInicio, horaFin] = HORARIOS[Math.floor(seedRandom.random() * HORARIOS.length)];
+    const cupo = 12 + Math.floor(seedRandom.random() * 14);
+    const estado = seedRandom.random() > 0.05 ? 'activa' : 'cancelada';
 
     insert(
       `INSERT INTO clases (tipo_clase_id, fecha, hora_inicio, hora_fin, cupo, instructor_id, instructor, estado)

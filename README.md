@@ -55,22 +55,19 @@ Una vez ejecutado `npm run seed` en el backend:
 | diego@instructores.com | diego123 | instructor | — | — | — |
 
 ### 🔐 Preguntas de Seguridad (Recuperación de Contraseña)
-Los usuarios demo tienen preguntas de seguridad configuradas para probar la recuperación de contraseña:
+En los seeds, cada usuario recibe **una de 5 preguntas asignada al azar**. La respuesta válida es siempre la **palabra plana** asociada a esa pregunta (útil para desarrollo y pruebas):
 
-| Email | Pregunta | Respuesta |
-|-------|----------|-----------|
-| juan@clientes.com | ¿Equipo de fútbol que seguís? | **boca** |
-| maria@clientes.com | ¿Comida favorita? | **pizza** |
-| carlos@clientes.com | ¿Ciudad donde naciste? | **cordoba** |
-| luis@clientes.com | ¿Apellido de soltera de tu madre? | **gonzalez** |
-| ana@clientes.com | ¿Nombre de tu mascota? | **max** |
-| pedro@clientes.com | ¿Comida favorita? | **asado** |
-| laura@clientes.com | ¿Ciudad donde naciste? | **buenosaires** |
-| roberto@clientes.com | ¿Apellido de soltera de tu madre? | **perez** |
-| carmen@clientes.com | ¿Nombre de tu colegio primario? | **sanmartin** |
-| miguel@clientes.com | ¿Nombre de tu mascota? | **toby** |
+| Pregunta (ejemplo) | Respuesta válida |
+|--------------------|------------------|
+| ¿En qué ciudad naciste? | **ciudad** |
+| ¿Cuál es tu equipo de fútbol preferido? | **equipo** |
+| ¿Cuál es tu película favorita? | **pelicula** |
+| ¿A qué escuela primaria asististe? | **escuela** |
+| ¿Cuál fue tu primer auto? | **auto** |
 
-**Nota:** Las respuestas son case-insensitive (no importan mayúsculas/minúsculas).
+Al ejecutar `npm run seed`, cada usuario (root, admins, instructores, socios) tendrá una pregunta distinta asignada de forma aleatoria. Para recuperar contraseña en desarrollo, usa la respuesta plana que corresponda a la pregunta que se muestre en pantalla.
+
+**Nota:** Las respuestas se almacenan hasheadas (bcrypt) y se normalizan (minúsculas, sin espacios) al verificar.
 
 ---
 
@@ -140,11 +137,11 @@ El sistema incluye recuperación de contraseña mediante preguntas de seguridad:
 
 1. **Configurar pregunta de seguridad:**
    - Los clientes pueden configurar su pregunta desde "Mi Perfil" → "Pregunta de Seguridad"
-   - Preguntas disponibles: Equipo de fútbol, Comida favorita, Ciudad donde naciste, Apellido de soltera de tu madre, Nombre de tu colegio primario, Nombre de tu mascota
+   - Preguntas disponibles en el seed (asignadas al azar por usuario): ciudad de nacimiento, equipo de fútbol preferido, película favorita, escuela primaria a la que asistió, primer auto
 
 2. **Recuperar contraseña:**
    - En la página de login, click en "¿Olvidaste tu contraseña?"
-   - Ingresar email → Responder pregunta de seguridad → Establecer nueva contraseña
+   - Ingresar email → Responder pregunta de seguridad (la palabra plana indicada arriba si usas datos del seed) → Establecer nueva contraseña
 
 3. **Seguridad:**
    - Las respuestas se almacenan hasheadas (bcrypt)

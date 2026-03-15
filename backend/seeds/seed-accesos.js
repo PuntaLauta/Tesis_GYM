@@ -3,6 +3,7 @@
  */
 const { query, insert } = require('./db');
 const { randomDateInRange } = require('./utils/helpers');
+const seedRandom = require('./utils/seedRandom');
 
 async function seedAccesos() {
   const socios = query(
@@ -15,12 +16,12 @@ async function seedAccesos() {
   for (const socio of socios) {
     const isActivo = socio.estado === 'activo';
     const numAccesos = isActivo
-      ? 10 + Math.floor(Math.random() * 30)
-      : 1 + Math.floor(Math.random() * 8);
+      ? 10 + Math.floor(seedRandom.random() * 30)
+      : 1 + Math.floor(seedRandom.random() * 8);
 
     for (let i = 0; i < numAccesos; i++) {
       const fechaHora = randomDateInRange({ needTime: true });
-      const permitido = isActivo ? (Math.random() > 0.05 ? 1 : 0) : (Math.random() > 0.7 ? 1 : 0);
+      const permitido = isActivo ? (seedRandom.random() > 0.05 ? 1 : 0) : (seedRandom.random() > 0.7 ? 1 : 0);
       const motivo = permitido ? 'Socio activo' : (isActivo ? 'Verificación pendiente' : 'Membresía vencida');
 
       insert(

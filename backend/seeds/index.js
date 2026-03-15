@@ -2,6 +2,11 @@
  * Orquestador de seeds. Ejecutar con: npm run seed (desde backend).
  * Orden: config → usuarios → instructores → socios → clases → pagos → reservas → accesos → preguntas seguridad.
  */
+require('dotenv').config();
+
+const seedRandom = require('./utils/seedRandom');
+seedRandom.init(process.env.DATA_SEED);
+
 const { dbPromise } = require('./db');
 const { seedConfig } = require('./seed-config');
 const { seedUsuarios } = require('./seed-usuarios');
@@ -14,7 +19,9 @@ const { seedAccesos } = require('./seed-accesos');
 const { seedPreguntasSeguridad } = require('./seed-preguntas-seguridad');
 
 async function run() {
+  const seedVal = seedRandom.getCurrentSeed();
   console.log('Iniciando seeds...');
+  console.log(seedVal != null ? `Seed actual: ${seedVal}` : 'Seed: no definida (datos no deterministas)');
   await dbPromise;
 
   await seedConfig();
