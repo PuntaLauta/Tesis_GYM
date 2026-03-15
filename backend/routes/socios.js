@@ -344,9 +344,10 @@ function eliminarTildes(texto) {
 router.get('/:id/qr.png', requireAuth, async (req, res) => {
   try {
     const socio = get(`
-      SELECT s.*, p.nombre as plan_nombre 
-      FROM socios s 
-      LEFT JOIN planes p ON s.plan_id = p.id 
+      SELECT s.*, p.nombre as plan_nombre, se.nombre as estado
+      FROM socios s
+      LEFT JOIN planes p ON s.plan_id = p.id
+      LEFT JOIN socio_estado se ON s.socio_estado_id = se.id
       WHERE s.id = ?
     `, [req.params.id]);
     
@@ -378,7 +379,7 @@ router.get('/:id/qr.png', requireAuth, async (req, res) => {
     // Crear contenido del QR con información visible (sin tildes para evitar problemas de caracteres)
     const qrContent = `SOCIO: ${nombreSinTildes}
 Documento: ${documento}
-Estado: ${socio.estado.toUpperCase()}
+Estado: ${(socio.estado || 'N/A').toUpperCase()}
 Codigo Token: ${socio.qr_token}
 URL: Esperando despliegue online`;
     
