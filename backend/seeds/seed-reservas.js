@@ -7,7 +7,7 @@ const seedRandom = require('./utils/seedRandom');
 const ESTADOS = ['reservado', 'cancelado', 'asistio', 'ausente'];
 
 async function seedReservas() {
-  const clases = query('SELECT id, fecha, hora_inicio FROM clases WHERE estado = ?', ['activa']);
+  const clases = query('SELECT id, fecha, hora_inicio FROM clases WHERE estado_clase_id = ?', [1]);
   const socios = query('SELECT id FROM socios');
   if (clases.length === 0 || socios.length === 0) return;
 

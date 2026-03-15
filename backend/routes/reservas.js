@@ -63,11 +63,12 @@ router.get('/mias', requireAuth, (req, res) => {
       }
       
       const reservas = query(`
-        SELECT r.*, tc.nombre as clase_nombre, c.fecha, c.hora_inicio, c.hora_fin, c.instructor, c.estado as clase_estado
+        SELECT r.*, tc.nombre as clase_nombre, c.fecha, c.hora_inicio, c.hora_fin, c.instructor, ec.nombre as clase_estado
         FROM reservas r
         LEFT JOIN clases c ON r.clase_id = c.id
         LEFT JOIN tipo_clase tc ON c.tipo_clase_id = tc.id
-        WHERE r.socio_id = ? AND (r.estado != 'cancelado' OR c.estado = 'cancelada')
+        LEFT JOIN estado_clase ec ON c.estado_clase_id = ec.id
+        WHERE r.socio_id = ? AND (r.estado != 'cancelado' OR ec.nombre = 'cancelada')
         ORDER BY c.fecha DESC, c.hora_inicio DESC
       `, [user.socio_id]);
 
@@ -76,10 +77,11 @@ router.get('/mias', requireAuth, (req, res) => {
     
     // Para admin/root, devolver todas (aunque no deberían usar este endpoint)
     const reservas = query(`
-      SELECT r.*, tc.nombre as clase_nombre, c.fecha, c.hora_inicio, c.hora_fin, c.instructor, c.estado as clase_estado
+      SELECT r.*, tc.nombre as clase_nombre, c.fecha, c.hora_inicio, c.hora_fin, c.instructor, ec.nombre as clase_estado
       FROM reservas r
       LEFT JOIN clases c ON r.clase_id = c.id
       LEFT JOIN tipo_clase tc ON c.tipo_clase_id = tc.id
+      LEFT JOIN estado_clase ec ON c.estado_clase_id = ec.id
       ORDER BY c.fecha DESC, c.hora_inicio DESC
     `);
     
@@ -101,7 +103,10 @@ router.post('/', requireAuth, (req, res) => {
     }
 
     // Verificar que la clase existe y está activa
-    const clase = get('SELECT * FROM clases WHERE id = ?', [clase_id]);
+    const clase = get(
+      'SELECT c.*, ec.nombre as estado FROM clases c LEFT JOIN estado_clase ec ON c.estado_clase_id = ec.id WHERE c.id = ?',
+      [clase_id]
+    );
     if (!clase) {
       return res.status(404).json({ error: 'Clase no encontrada' });
     }

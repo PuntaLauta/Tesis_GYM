@@ -200,10 +200,11 @@ router.get('/:id/clases', requireAuth, (req, res) => {
     const { desde, hasta, estado } = req.query;
     let sql = `
       SELECT c.*, tc.nombre as nombre, tc.descripcion as tipo_descripcion,
-             i.nombre as instructor_nombre
+             i.nombre as instructor_nombre, ec.nombre as estado
       FROM clases c
       LEFT JOIN tipo_clase tc ON c.tipo_clase_id = tc.id
       LEFT JOIN instructores i ON c.instructor_id = i.id
+      LEFT JOIN estado_clase ec ON c.estado_clase_id = ec.id
       WHERE c.instructor_id = ?
     `;
     const params = [instructorId];
@@ -217,7 +218,7 @@ router.get('/:id/clases', requireAuth, (req, res) => {
       params.push(hasta);
     }
     if (estado) {
-      sql += ' AND c.estado = ?';
+      sql += ' AND ec.nombre = ?';
       params.push(estado);
     }
 

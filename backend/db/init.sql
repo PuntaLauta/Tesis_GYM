@@ -96,6 +96,13 @@ CREATE TABLE IF NOT EXISTS instructores (
   activo INTEGER DEFAULT 1 CHECK(activo IN (0, 1))
 );
 
+-- Estado de clase (activa, finalizada, cancelada)
+CREATE TABLE IF NOT EXISTS estado_clase (
+  id INTEGER PRIMARY KEY,
+  nombre TEXT UNIQUE NOT NULL
+);
+INSERT OR IGNORE INTO estado_clase (id, nombre) VALUES (1, 'activa'), (2, 'finalizada'), (3, 'cancelada');
+
 -- Tabla de clases
 CREATE TABLE IF NOT EXISTS clases (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -106,7 +113,8 @@ CREATE TABLE IF NOT EXISTS clases (
   cupo INTEGER NOT NULL,
   instructor TEXT,
   instructor_id INTEGER,
-  estado TEXT DEFAULT 'activa' CHECK(estado IN ('activa', 'cancelada')),
+  estado_clase_id INTEGER DEFAULT 1 REFERENCES estado_clase(id),
+  fecha_cambio_estado TEXT,
   FOREIGN KEY (tipo_clase_id) REFERENCES tipo_clase(id),
   FOREIGN KEY (instructor_id) REFERENCES instructores(id)
 );

@@ -53,12 +53,12 @@ async function seedClases() {
     const fecha = randomDateInRange({ needTime: false });
     const [horaInicio, horaFin] = HORARIOS[Math.floor(seedRandom.random() * HORARIOS.length)];
     const cupo = 12 + Math.floor(seedRandom.random() * 14);
-    const estado = seedRandom.random() > 0.05 ? 'activa' : 'cancelada';
+    const estadoClaseId = seedRandom.random() > 0.05 ? 1 : 3; // 1 = activa, 3 = cancelada
 
     insert(
-      `INSERT INTO clases (tipo_clase_id, fecha, hora_inicio, hora_fin, cupo, instructor_id, instructor, estado)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      [tipo.id, fecha, horaInicio, horaFin, cupo, inst.id, inst.nombre, estado]
+      `INSERT INTO clases (tipo_clase_id, fecha, hora_inicio, hora_fin, cupo, instructor_id, instructor, estado_clase_id, fecha_cambio_estado)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))`,
+      [tipo.id, fecha, horaInicio, horaFin, cupo, inst.id, inst.nombre, estadoClaseId]
     );
   }
 }

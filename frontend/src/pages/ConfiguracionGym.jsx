@@ -6,6 +6,9 @@ import {
   actualizarEstadoSocios,
   getEstadoSociosCronConfig,
   updateEstadoSociosCronConfig,
+  actualizarEstadoClases,
+  getEstadoClasesCronConfig,
+  updateEstadoClasesCronConfig,
 } from '../services/configuracion';
 
 export default function ConfiguracionGym() {
@@ -28,9 +31,16 @@ export default function ConfiguracionGym() {
   const [jobRunning, setJobRunning] = useState(false);
   const [jobResult, setJobResult] = useState(null);
 
+  const [cronConfigClases, setCronConfigClases] = useState({ frecuencia: 'diario', hora: '00:00', activo: 1 });
+  const [cronLoadingClases, setCronLoadingClases] = useState(true);
+  const [cronSavingClases, setCronSavingClases] = useState(false);
+  const [jobRunningClases, setJobRunningClases] = useState(false);
+  const [jobResultClases, setJobResultClases] = useState(null);
+
   useEffect(() => {
     loadConfiguracion();
     loadCronConfig();
+    loadCronConfigClases();
   }, []);
 
   const loadConfiguracion = async () => {
@@ -105,6 +115,60 @@ export default function ConfiguracionGym() {
       setError(err.response?.data?.error || 'Error al guardar la configuración del cron');
     } finally {
       setCronSaving(false);
+    }
+  };
+
+  const loadCronConfigClases = async () => {
+    setCronLoadingClases(true);
+    try {
+      const data = await getEstadoClasesCronConfig();
+      if (data.data) {
+        setCronConfigClases({
+          frecuencia: data.data.frecuencia || 'diario',
+          hora: data.data.hora || '00:00',
+          activo: data.data.activo !== undefined ? data.data.activo : 1,
+        });
+      }
+    } catch (err) {
+      console.error('Error al cargar config cron clases:', err);
+    } finally {
+      setCronLoadingClases(false);
+    }
+  };
+
+  const handleRunJobClases = async () => {
+    setError('');
+    setSuccess('');
+    setJobResultClases(null);
+    setJobRunningClases(true);
+    try {
+      const data = await actualizarEstadoClases();
+      setJobResultClases(data.data);
+      setSuccess(`Se actualizaron ${data.data.actualizados} de ${data.data.total} clases.`);
+      setTimeout(() => setSuccess(''), 5000);
+    } catch (err) {
+      setError(err.response?.data?.error || 'Error al actualizar estado de clases');
+    } finally {
+      setJobRunningClases(false);
+    }
+  };
+
+  const handleSaveCronConfigClases = async () => {
+    setError('');
+    setSuccess('');
+    setCronSavingClases(true);
+    try {
+      await updateEstadoClasesCronConfig({
+        frecuencia: cronConfigClases.frecuencia,
+        hora: cronConfigClases.hora,
+        activo: cronConfigClases.activo ? 1 : 0,
+      });
+      setSuccess('Configuración del cron de clases guardada correctamente');
+      setTimeout(() => setSuccess(''), 3000);
+    } catch (err) {
+      setError(err.response?.data?.error || 'Error al guardar la configuración del cron de clases');
+    } finally {
+      setCronSavingClases(false);
     }
   };
 
@@ -306,6 +370,77 @@ export default function ConfiguracionGym() {
               className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50"
             >
               {cronSaving ? 'Guardando...' : 'Guardar configuración'}
+            </button>
+          </div>
+        )}
+      </div>
+
+      <div className="bg-white p-6 rounded-lg shadow mt-6">
+        <h2 className="text-xl font-semibold mb-4">Actualización de estado de clases</h2>
+        <p className="text-sm text-gray-600 mb-4">
+          Pasar a &quot;Finalizada&quot; las clases activas cuya fecha y hora de fin ya pasaron.
+        </p>
+        <div className="mb-6">
+          <button
+            type="button"
+            onClick={handleRunJobClases}
+            disabled={jobRunningClases}
+            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
+          >
+            {jobRunningClases ? 'Ejecutando...' : 'Actualizar estado de todas las clases'}
+          </button>
+          {jobResultClases && (
+            <p className="mt-2 text-sm text-gray-600">
+              Última ejecución: {jobResultClases.actualizados} actualizados de {jobResultClases.total} clases.
+            </p>
+          )}
+        </div>
+
+        <h3 className="text-lg font-medium mb-3">Programación automática</h3>
+        {cronLoadingClases ? (
+          <p className="text-sm text-gray-500">Cargando...</p>
+        ) : (
+          <div className="space-y-4">
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="cron-clases-activo"
+                checked={!!cronConfigClases.activo}
+                onChange={(e) => setCronConfigClases({ ...cronConfigClases, activo: e.target.checked ? 1 : 0 })}
+                className="rounded"
+              />
+              <label htmlFor="cron-clases-activo" className="text-sm font-medium">
+                Activar actualización automática
+              </label>
+            </div>
+            <div className="flex flex-wrap gap-4 items-center">
+              <div>
+                <label className="block text-sm font-medium mb-1">Frecuencia</label>
+                <select
+                  value={cronConfigClases.frecuencia}
+                  onChange={(e) => setCronConfigClases({ ...cronConfigClases, frecuencia: e.target.value })}
+                  className="border rounded px-3 py-2"
+                >
+                  <option value="diario">Diario</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Hora</label>
+                <input
+                  type="time"
+                  value={cronConfigClases.hora}
+                  onChange={(e) => setCronConfigClases({ ...cronConfigClases, hora: e.target.value })}
+                  className="border rounded px-3 py-2"
+                />
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={handleSaveCronConfigClases}
+              disabled={cronSavingClases}
+              className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50"
+            >
+              {cronSavingClases ? 'Guardando...' : 'Guardar configuración'}
             </button>
           </div>
         )}

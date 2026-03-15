@@ -9,10 +9,12 @@ router.get('/', (req, res) => {
   try {
     const { desde, hasta, estado, tipo_clase_id } = req.query;
     let sql = `SELECT c.*, tc.nombre as nombre, tc.descripcion as tipo_descripcion,
-                      i.nombre as instructor_nombre, i.id as instructor_id
+                      i.nombre as instructor_nombre, i.id as instructor_id,
+                      ec.nombre as estado
                FROM clases c 
                LEFT JOIN tipo_clase tc ON c.tipo_clase_id = tc.id 
                LEFT JOIN instructores i ON c.instructor_id = i.id
+               LEFT JOIN estado_clase ec ON c.estado_clase_id = ec.id
                WHERE 1=1`;
     const params = [];
 
@@ -31,7 +33,7 @@ router.get('/', (req, res) => {
       params.push(hasta);
     }
     if (estado) {
-      sql += ' AND c.estado = ?';
+      sql += ' AND ec.nombre = ?';
       params.push(estado);
     }
     if (tipo_clase_id) {
@@ -126,17 +128,19 @@ router.post('/', requireAuth, requireRole('admin', 'root'), (req, res) => {
     }
 
     const result = insert(
-      `INSERT INTO clases (tipo_clase_id, fecha, hora_inicio, hora_fin, cupo, instructor_id, instructor, estado)
-       VALUES (?, ?, ?, ?, ?, ?, ?, 'activa')`,
+      `INSERT INTO clases (tipo_clase_id, fecha, hora_inicio, hora_fin, cupo, instructor_id, instructor, estado_clase_id, fecha_cambio_estado)
+       VALUES (?, ?, ?, ?, ?, ?, ?, 1, datetime('now'))`,
       [tipo_clase_id, fecha, hora_inicio, hora_fin, cupo, instructor_id || null, instructorNombre]
     );
 
     const nuevaClase = get(
       `SELECT c.*, tc.nombre as nombre, tc.descripcion as tipo_descripcion,
-              i.nombre as instructor_nombre, i.id as instructor_id
+              i.nombre as instructor_nombre, i.id as instructor_id,
+              ec.nombre as estado
        FROM clases c 
        LEFT JOIN tipo_clase tc ON c.tipo_clase_id = tc.id 
        LEFT JOIN instructores i ON c.instructor_id = i.id
+       LEFT JOIN estado_clase ec ON c.estado_clase_id = ec.id
        WHERE c.id = ?`,
       [result.lastInsertRowid]
     );
@@ -173,9 +177,14 @@ router.put('/:id', requireAuth, requireRole('admin', 'root'), (req, res) => {
 
     const finalInstructorId = instructor_id !== undefined ? instructor_id : clase.instructor_id;
 
+    let estadoClaseId = clase.estado_clase_id;
+    if (estado !== undefined && ['activa', 'finalizada', 'cancelada'].includes(estado)) {
+      const ec = get('SELECT id FROM estado_clase WHERE nombre = ?', [estado]);
+      if (ec) estadoClaseId = ec.id;
+    }
     run(
       `UPDATE clases 
-       SET tipo_clase_id = ?, fecha = ?, hora_inicio = ?, hora_fin = ?, cupo = ?, instructor_id = ?, instructor = ?, estado = ?
+       SET tipo_clase_id = ?, fecha = ?, hora_inicio = ?, hora_fin = ?, cupo = ?, instructor_id = ?, instructor = ?, estado_clase_id = ?, fecha_cambio_estado = CASE WHEN ? IS NOT NULL THEN datetime('now') ELSE fecha_cambio_estado END
        WHERE id = ?`,
       [
         tipo_clase_id !== undefined ? tipo_clase_id : clase.tipo_clase_id,
@@ -185,17 +194,20 @@ router.put('/:id', requireAuth, requireRole('admin', 'root'), (req, res) => {
         cupo || clase.cupo,
         finalInstructorId,
         instructorNombre,
-        estado || clase.estado,
+        estadoClaseId,
+        estado !== undefined ? 1 : null,
         req.params.id
       ]
     );
 
     const claseActualizada = get(
       `SELECT c.*, tc.nombre as nombre, tc.descripcion as tipo_descripcion,
-              i.nombre as instructor_nombre, i.id as instructor_id
+              i.nombre as instructor_nombre, i.id as instructor_id,
+              ec.nombre as estado
        FROM clases c 
        LEFT JOIN tipo_clase tc ON c.tipo_clase_id = tc.id 
        LEFT JOIN instructores i ON c.instructor_id = i.id
+       LEFT JOIN estado_clase ec ON c.estado_clase_id = ec.id
        WHERE c.id = ?`,
       [req.params.id]
     );
@@ -214,8 +226,8 @@ router.delete('/:id', requireAuth, requireRole('admin', 'root'), (req, res) => {
       return res.status(404).json({ error: 'Clase no encontrada' });
     }
 
-    // Cancelar clase
-    run('UPDATE clases SET estado = ? WHERE id = ?', ['cancelada', req.params.id]);
+    // Cancelar clase (estado_clase_id = 3 = cancelada)
+    run(`UPDATE clases SET estado_clase_id = 3, fecha_cambio_estado = datetime('now') WHERE id = ?`, [req.params.id]);
 
     // Cancelar todas las reservas activas
     run(

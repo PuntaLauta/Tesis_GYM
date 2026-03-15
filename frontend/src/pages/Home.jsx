@@ -472,7 +472,12 @@ export default function Home() {
                                       Clase Cancelada
                                     </span>
                                   )}
-                                  {reserva.estado === 'reservado' && reserva.clase_estado !== 'cancelada' && !panelClasesDeshabilitado && (
+                                  {reserva.clase_estado === 'finalizada' && (
+                                    <span className="px-2 py-1 rounded text-xs bg-gray-100 text-gray-800">
+                                      Clase Finalizada
+                                    </span>
+                                  )}
+                                  {reserva.estado === 'reservado' && reserva.clase_estado === 'activa' && !panelClasesDeshabilitado && (
                                     <button
                                       onClick={() => setReservaACancelar(reserva)}
                                       className="px-3 py-1 text-xs bg-red-600 text-white rounded hover:bg-red-700 transition-colors"

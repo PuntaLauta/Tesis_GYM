@@ -222,9 +222,10 @@ router.get('/ingresos', (req, res) => {
 router.get('/ocupacion_clases', (req, res) => {
   try {
     const { desde, hasta, tipo_clase_id } = req.query;
-    let sql = `SELECT c.*, tc.nombre as nombre 
+    let sql = `SELECT c.*, tc.nombre as nombre, ec.nombre as estado 
                FROM clases c 
                LEFT JOIN tipo_clase tc ON c.tipo_clase_id = tc.id 
+               LEFT JOIN estado_clase ec ON c.estado_clase_id = ec.id
                WHERE 1=1`;
     const params = [];
 

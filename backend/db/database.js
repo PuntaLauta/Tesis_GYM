@@ -311,6 +311,84 @@ async function initDatabase() {
     }
   }
 
+  // Tabla estado_clase (activa, finalizada, cancelada)
+  let tablaEstadoClaseExiste = false;
+  try {
+    const t = db.exec("SELECT name FROM sqlite_master WHERE type='table' AND name='estado_clase'");
+    tablaEstadoClaseExiste = t && t[0] && t[0].values && t[0].values.length > 0;
+  } catch (e) {}
+  if (!tablaEstadoClaseExiste) {
+    try {
+      db.run(`
+        CREATE TABLE estado_clase (
+          id INTEGER PRIMARY KEY,
+          nombre TEXT UNIQUE NOT NULL
+        )
+      `);
+      db.run(`INSERT OR IGNORE INTO estado_clase (id, nombre) VALUES (1, 'activa'), (2, 'finalizada'), (3, 'cancelada')`);
+      saveDatabase();
+      console.log('✅ Tabla estado_clase creada');
+    } catch (e) {
+      console.log('Advertencia: No se pudo crear tabla estado_clase:', e.message);
+    }
+  }
+
+  // Migración clases: estado_clase_id y fecha_cambio_estado
+  let clasesTieneEstadoClaseId = false;
+  let clasesTieneEstadoTexto = false;
+  try {
+    const ti = db.exec("PRAGMA table_info(clases)");
+    if (ti && ti[0] && ti[0].values) {
+      ti[0].values.forEach(row => {
+        if (row[1] === 'estado_clase_id') clasesTieneEstadoClaseId = true;
+        if (row[1] === 'estado') clasesTieneEstadoTexto = true;
+      });
+    }
+  } catch (e) {}
+  if (!clasesTieneEstadoClaseId) {
+    try {
+      db.run('ALTER TABLE clases ADD COLUMN estado_clase_id INTEGER DEFAULT 1 REFERENCES estado_clase(id)');
+      db.run('ALTER TABLE clases ADD COLUMN fecha_cambio_estado TEXT');
+      if (clasesTieneEstadoTexto) {
+        db.run("UPDATE clases SET estado_clase_id = 1, fecha_cambio_estado = datetime('now') WHERE estado = 'activa' OR estado IS NULL");
+        db.run("UPDATE clases SET estado_clase_id = 2, fecha_cambio_estado = datetime('now') WHERE estado = 'finalizada'");
+        db.run("UPDATE clases SET estado_clase_id = 3, fecha_cambio_estado = datetime('now') WHERE estado = 'cancelada'");
+        db.run("UPDATE clases SET estado_clase_id = COALESCE(estado_clase_id, 1) WHERE estado_clase_id IS NULL");
+      }
+      saveDatabase();
+      console.log('✅ Migración clases: estado_clase_id y fecha_cambio_estado');
+    } catch (e) {
+      console.log('Advertencia: Migración clases estado_clase:', e.message);
+    }
+  }
+
+  // Tabla estado_clases_cron_config
+  let tablaEstadoClasesCronExiste = false;
+  try {
+    const tc = db.exec("SELECT name FROM sqlite_master WHERE type='table' AND name='estado_clases_cron_config'");
+    tablaEstadoClasesCronExiste = tc && tc[0] && tc[0].values && tc[0].values.length > 0;
+  } catch (e) {}
+  if (!tablaEstadoClasesCronExiste) {
+    try {
+      db.run(`
+        CREATE TABLE estado_clases_cron_config (
+          id INTEGER PRIMARY KEY DEFAULT 1,
+          frecuencia TEXT CHECK(frecuencia IN ('diario')) DEFAULT 'diario',
+          hora TEXT DEFAULT '00:00',
+          activo INTEGER DEFAULT 1
+        )
+      `);
+      const ex = db.exec("SELECT id FROM estado_clases_cron_config WHERE id = 1");
+      if (!ex || !ex[0] || !ex[0].values || ex[0].values.length === 0) {
+        db.run("INSERT INTO estado_clases_cron_config (id, frecuencia, hora, activo) VALUES (1, 'diario', '00:00', 1)");
+      }
+      saveDatabase();
+      console.log('✅ Tabla estado_clases_cron_config creada');
+    } catch (e) {
+      console.log('Advertencia: No se pudo crear estado_clases_cron_config:', e.message);
+    }
+  }
+
   // Verificar si existen columnas adicionales en la tabla socios
   let columnaNotasExiste = false;
   let columnaCanceladoPorAdminExiste = false;

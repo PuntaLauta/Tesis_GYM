@@ -453,9 +453,10 @@ export default function DashboardAdmin() {
                       </div>
                     </div>
                     <span className={`px-2 py-1 rounded text-xs ${
-                      clase.estado === 'activa' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                      clase.estado === 'activa' ? 'bg-green-100 text-green-800' :
+                      clase.estado === 'finalizada' ? 'bg-gray-100 text-gray-800' : 'bg-red-100 text-red-800'
                     }`}>
-                      {clase.estado}
+                      {clase.estado === 'activa' ? 'Activa' : clase.estado === 'finalizada' ? 'Finalizada' : 'Cancelada'}
                     </span>
                   </div>
                 </div>

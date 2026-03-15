@@ -1,6 +1,6 @@
 /**
  * Limpia todos los datos de la base de datos excepto tablas de cuantificación/catálogo.
- * No modifica: configuracion_gym, planes, socio_estado, tipo_clase, tipo_rutina, estado_ejercicios.
+ * No modifica: configuracion_gym, planes, socio_estado, tipo_clase, tipo_rutina, estado_ejercicios, estado_clase, estado_socios_cron_config, estado_clases_cron_config.
  */
 
 const path = require('path');
@@ -28,7 +28,7 @@ async function clearData() {
   run('DELETE FROM usuarios');
   run('DELETE FROM ejercicios');
   run('DELETE FROM backup_config');
-  // No borrar: configuracion_gym, planes, socio_estado, tipo_clase, tipo_rutina, estado_ejercicios
+  // No borrar: configuracion_gym, planes, socio_estado, tipo_clase, tipo_rutina, estado_ejercicios, estado_clase, estado_socios_cron_config, estado_clases_cron_config
 
   console.log('Datos limpiados correctamente.');
   process.exit(0);

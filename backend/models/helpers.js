@@ -111,10 +111,12 @@ function getOcupacionClase(claseId) {
 function getClaseConOcupacion(claseId) {
   const clase = get(
     `SELECT c.*, tc.nombre as nombre, tc.descripcion as tipo_descripcion,
-            i.nombre as instructor_nombre, i.id as instructor_id
+            i.nombre as instructor_nombre, i.id as instructor_id,
+            ec.nombre as estado
      FROM clases c 
      LEFT JOIN tipo_clase tc ON c.tipo_clase_id = tc.id 
      LEFT JOIN instructores i ON c.instructor_id = i.id
+     LEFT JOIN estado_clase ec ON c.estado_clase_id = ec.id
      WHERE c.id = ?`,
     [claseId]
   );

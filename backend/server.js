@@ -136,6 +136,9 @@ dbPromise.then(() => {
   // Configurar cron de actualización de estado de socios
   const { configurarCron: configurarEstadoSociosCron } = require('./cron/estadoSocios');
   configurarEstadoSociosCron();
+  // Configurar cron de actualización de estado de clases
+  const { configurarCron: configurarEstadoClasesCron } = require('./cron/estadoClases');
+  configurarEstadoClasesCron();
 
   app.listen(PORT, () => {
     console.log(`🚀 Servidor corriendo en http://localhost:${PORT}`);
