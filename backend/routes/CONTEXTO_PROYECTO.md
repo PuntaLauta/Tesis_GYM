@@ -53,7 +53,9 @@ TESIS/
 │   ├── models/
 │   │   └── helpers.js           # Funciones auxiliares
 │   ├── server.js                # Punto de entrada del servidor
-│   ├── seed.js                  # Script para datos demo
+│   ├── seeds/                   # Seeds modulares por dominio (npm run seed)
+│   ├── scripts/
+│   │   └── clear-data.js        # Limpieza de datos (npm run clear:data)
 │   └── package.json
 │
 └── frontend/
