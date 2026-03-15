@@ -1,6 +1,7 @@
 const express = require('express');
-const { query, get, run } = require('../db/database');
+const { get, run } = require('../db/database');
 const { requireAuth, requireRole } = require('../middleware/auth');
+const { runActualizarEstadoSocios, configurarCron } = require('../cron/estadoSocios');
 const router = express.Router();
 
 // GET /api/configuracion - Obtener configuración del gimnasio (público)
@@ -62,6 +63,62 @@ router.put('/', requireAuth, requireRole('root'), (req, res) => {
   } catch (error) {
     console.error('Error al actualizar configuración:', error);
     res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
+// POST /api/configuracion/actualizar-estado-socios - Ejecutar job manual (solo root)
+router.post('/actualizar-estado-socios', requireAuth, requireRole('root'), (req, res) => {
+  try {
+    const result = runActualizarEstadoSocios();
+    res.json({ data: result });
+  } catch (error) {
+    console.error('Error al actualizar estado de socios:', error);
+    res.status(500).json({ error: 'Error al ejecutar actualización de estado de socios' });
+  }
+});
+
+// GET /api/configuracion/estado-socios-cron - Obtener config del cron (solo root)
+router.get('/estado-socios-cron', requireAuth, requireRole('root'), (req, res) => {
+  try {
+    const config = get('SELECT * FROM estado_socios_cron_config WHERE id = 1');
+    if (!config) {
+      return res.json({ data: { frecuencia: 'diario', hora: '00:00', activo: 1 } });
+    }
+    res.json({ data: config });
+  } catch (error) {
+    console.error('Error al obtener config cron estado socios:', error);
+    res.status(500).json({ error: 'Error al obtener la configuración' });
+  }
+});
+
+// PUT /api/configuracion/estado-socios-cron - Actualizar config del cron y reaplicar (solo root)
+router.put('/estado-socios-cron', requireAuth, requireRole('root'), (req, res) => {
+  try {
+    const { frecuencia, hora, activo } = req.body;
+    const configExistente = get('SELECT * FROM estado_socios_cron_config WHERE id = 1');
+
+    if (configExistente) {
+      run(
+        `UPDATE estado_socios_cron_config SET frecuencia = ?, hora = ?, activo = ? WHERE id = 1`,
+        [
+          frecuencia !== undefined ? frecuencia : configExistente.frecuencia,
+          hora !== undefined ? hora : configExistente.hora,
+          activo !== undefined ? activo : configExistente.activo,
+        ]
+      );
+    } else {
+      run(
+        `INSERT INTO estado_socios_cron_config (id, frecuencia, hora, activo) VALUES (1, ?, ?, ?)`,
+        [frecuencia || 'diario', hora || '00:00', activo !== undefined ? activo : 1]
+      );
+    }
+
+    configurarCron();
+    const configActualizada = get('SELECT * FROM estado_socios_cron_config WHERE id = 1');
+    res.json({ data: configActualizada });
+  } catch (error) {
+    console.error('Error al actualizar config cron estado socios:', error);
+    res.status(500).json({ error: 'Error al actualizar la configuración' });
   }
 });
 

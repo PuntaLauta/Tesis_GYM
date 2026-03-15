@@ -280,6 +280,37 @@ async function initDatabase() {
     }
   }
 
+  // Verificar si existe la tabla estado_socios_cron_config
+  let tablaEstadoSociosCronExiste = false;
+  try {
+    const tablesEstado = db.exec("SELECT name FROM sqlite_master WHERE type='table' AND name='estado_socios_cron_config'");
+    tablaEstadoSociosCronExiste = tablesEstado && tablesEstado[0] && tablesEstado[0].values && tablesEstado[0].values.length > 0;
+  } catch (e) {}
+
+  if (!tablaEstadoSociosCronExiste) {
+    try {
+      db.run(`
+        CREATE TABLE IF NOT EXISTS estado_socios_cron_config (
+          id INTEGER PRIMARY KEY DEFAULT 1,
+          frecuencia TEXT CHECK(frecuencia IN ('diario')) DEFAULT 'diario',
+          hora TEXT DEFAULT '00:00',
+          activo INTEGER DEFAULT 1
+        )
+      `);
+      const existente = db.exec("SELECT id FROM estado_socios_cron_config WHERE id = 1");
+      if (!existente || !existente[0] || !existente[0].values || existente[0].values.length === 0) {
+        db.run(`
+          INSERT INTO estado_socios_cron_config (id, frecuencia, hora, activo)
+          VALUES (1, 'diario', '00:00', 1)
+        `);
+      }
+      saveDatabase();
+      console.log('✅ Tabla estado_socios_cron_config creada');
+    } catch (e) {
+      console.log('Advertencia: No se pudo crear tabla estado_socios_cron_config:', e.message);
+    }
+  }
+
   // Verificar si existen columnas adicionales en la tabla socios
   let columnaNotasExiste = false;
   let columnaCanceladoPorAdminExiste = false;
