@@ -230,28 +230,31 @@ export default function GestionInstructores() {
           ) : (
             <div className="grid grid-cols-1 gap-6">
               <div>
-                <div className="mb-2">
-                  <input
-                    type="text"
-                    placeholder="Buscar por nombre o email..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full border rounded px-3 py-2"
-                  />
-                </div>
-                <div className="mb-4 w-full md:w-64">
-                  <label className="block text-xs font-medium text-gray-600 mb-1">
-                    Filtrar por estado
-                  </label>
-                  <select
-                    value={estadoFiltro}
-                    onChange={(e) => setEstadoFiltro(e.target.value)}
-                    className="w-full border rounded px-3 py-2 text-sm"
-                  >
-                    <option value="">Todos</option>
-                    <option value="1">Activos</option>
-                    <option value="0">Inactivos</option>
-                  </select>
+                <div className="mb-4 flex flex-wrap gap-3 items-end">
+                  <div className="flex-[3] min-w-[200px]">
+                    <label className="block text-xs font-medium text-gray-600 mb-1">Buscar</label>
+                    <input
+                      type="text"
+                      placeholder="Por nombre o email..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="w-full border rounded px-3 py-2"
+                    />
+                  </div>
+                  <div className="flex-[2] min-w-[160px]">
+                    <label className="block text-xs font-medium text-gray-600 mb-1">
+                      Filtrar por estado
+                    </label>
+                    <select
+                      value={estadoFiltro}
+                      onChange={(e) => setEstadoFiltro(e.target.value)}
+                      className="w-full border rounded px-3 py-2 text-sm"
+                    >
+                      <option value="">Todos</option>
+                      <option value="1">Activos</option>
+                      <option value="0">Inactivos</option>
+                    </select>
+                  </div>
                 </div>
                 <div className="space-y-4">
                   {instructoresFiltrados.length === 0 ? (

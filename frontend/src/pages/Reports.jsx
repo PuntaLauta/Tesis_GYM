@@ -1364,23 +1364,50 @@ export default function Reports() {
               {!estadoSociosVistaGrafica ? (
                 <>
                   <h2 className="text-lg font-semibold mb-4">Total: {estadoSocios.total ?? 0}</h2>
+                  {estadoSociosListaFiltroEstado && (
+                    <div className="mb-3">
+                      <button
+                        type="button"
+                        onClick={() => { setEstadoSociosListaFiltroEstado(null); setEstadoSociosPagina(1); }}
+                        className="text-sm text-blue-600 hover:underline"
+                      >
+                        Ver todos los socios
+                      </button>
+                    </div>
+                  )}
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <div className="rounded-lg p-4 border border-[#99e699] bg-[#e6ffe6]">
+                    <button
+                      type="button"
+                      onClick={() => { setEstadoSociosListaFiltroEstado('activo'); setEstadoSociosPagina(1); }}
+                      className={`rounded-lg p-4 border text-left transition-all cursor-pointer hover:opacity-90 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-green-600 ${estadoSociosListaFiltroEstado === 'activo' ? 'ring-2 ring-green-600 border-green-600 shadow-md' : 'border-[#99e699]'} bg-[#e6ffe6]`}
+                    >
                       <div className="font-semibold text-gray-700">Socios Activos</div>
                       <div className="text-xl font-bold text-green-700">{estadoSocios.activo ?? 0}</div>
-                    </div>
-                    <div className="rounded-lg p-4 border border-[#ffb3b3] bg-[#ffe6e6]">
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setEstadoSociosListaFiltroEstado('inactivo'); setEstadoSociosPagina(1); }}
+                      className={`rounded-lg p-4 border text-left transition-all cursor-pointer hover:opacity-90 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-red-600 ${estadoSociosListaFiltroEstado === 'inactivo' ? 'ring-2 ring-red-600 border-red-600 shadow-md' : 'border-[#ffb3b3]'} bg-[#ffe6e6]`}
+                    >
                       <div className="font-semibold text-gray-700">Socios Inactivos</div>
                       <div className="text-xl font-bold text-red-700">{estadoSocios.inactivo ?? 0}</div>
-                    </div>
-                    <div className="rounded-lg p-4 border border-[#eab308] bg-[#fef9c3]">
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setEstadoSociosListaFiltroEstado('suspendido'); setEstadoSociosPagina(1); }}
+                      className={`rounded-lg p-4 border text-left transition-all cursor-pointer hover:opacity-90 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-yellow-600 ${estadoSociosListaFiltroEstado === 'suspendido' ? 'ring-2 ring-yellow-600 border-yellow-600 shadow-md' : 'border-[#eab308]'} bg-[#fef9c3]`}
+                    >
                       <div className="font-semibold text-gray-700">Suspendidos</div>
                       <div className="text-xl font-bold text-yellow-800">{estadoSocios.suspendido ?? 0}</div>
-                    </div>
-                    <div className="rounded-lg p-4 border border-[#ea580c] bg-[#fff0e6]">
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setEstadoSociosListaFiltroEstado('abandono'); setEstadoSociosPagina(1); }}
+                      className={`rounded-lg p-4 border text-left transition-all cursor-pointer hover:opacity-90 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-orange-600 ${estadoSociosListaFiltroEstado === 'abandono' ? 'ring-2 ring-orange-600 border-orange-600 shadow-md' : 'border-[#ea580c]'} bg-[#fff0e6]`}
+                    >
                       <div className="font-semibold text-gray-700">Abandono</div>
                       <div className="text-xl font-bold text-orange-700">{estadoSocios.abandono ?? 0}</div>
-                    </div>
+                    </button>
                   </div>
                   {(() => {
                     const aplicado = estadoSociosFiltroAplicado || {};
