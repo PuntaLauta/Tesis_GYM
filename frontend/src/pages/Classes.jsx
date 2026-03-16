@@ -330,9 +330,10 @@ export default function Classes() {
                     )}
                     <div className="mt-2">
                       <span className={`px-2 py-1 rounded text-xs ${
-                        clase.estado === 'activa' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                        clase.estado === 'activa' ? 'bg-green-100 text-green-800' :
+                        clase.estado === 'finalizada' ? 'bg-gray-100 text-gray-800' : 'bg-red-100 text-red-800'
                       }`}>
-                        {clase.estado}
+                        {clase.estado === 'activa' ? 'Activa' : clase.estado === 'finalizada' ? 'Finalizada' : 'Cancelada'}
                       </span>
                       <span className="ml-2 text-sm">
                         Ocupación: {clase.ocupados || 0}/{clase.cupo} ({clase.porcentaje || 0}%)

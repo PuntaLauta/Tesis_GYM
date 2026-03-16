@@ -31,6 +31,58 @@ router.get('/activos_inactivos', (req, res) => {
   }
 });
 
+// GET /api/reportes/estado_socios - Total y cantidad por estado. Query: desde, hasta (filtro fecha_cambio), estado (opcional)
+router.get('/estado_socios', (req, res) => {
+  try {
+    const { desde, hasta, estado } = req.query;
+    let sql = `
+      SELECT se.nombre, COUNT(*) as cantidad
+      FROM socios s
+      LEFT JOIN socio_estado se ON s.socio_estado_id = se.id
+      WHERE 1=1
+    `;
+    const params = [];
+
+    if (desde) {
+      sql += ' AND s.fecha_cambio IS NOT NULL AND DATE(s.fecha_cambio) >= DATE(?)';
+      params.push(desde);
+    }
+    if (hasta) {
+      sql += ' AND s.fecha_cambio IS NOT NULL AND DATE(s.fecha_cambio) <= DATE(?)';
+      params.push(hasta);
+    }
+    if (estado) {
+      sql += ' AND se.nombre = ?';
+      params.push(estado);
+    }
+
+    sql += ' GROUP BY s.socio_estado_id';
+
+    const rows = query(sql, params);
+    const counts = { activo: 0, inactivo: 0, suspendido: 0, abandono: 0 };
+    let total = 0;
+    rows.forEach((row) => {
+      const key = (row.nombre || '').toLowerCase();
+      if (counts[key] !== undefined) {
+        counts[key] = row.cantidad;
+      }
+      total += row.cantidad;
+    });
+    res.json({
+      data: {
+        total,
+        activo: counts.activo,
+        inactivo: counts.inactivo,
+        suspendido: counts.suspendido,
+        abandono: counts.abandono,
+      },
+    });
+  } catch (error) {
+    console.error('Error al obtener estado de socios:', error);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
 // GET /api/reportes/vencen_semana
 router.get('/vencen_semana', (req, res) => {
   try {
@@ -78,10 +130,10 @@ router.get('/vencen_semana', (req, res) => {
   }
 });
 
-// GET /api/reportes/ingresos?desde=YYYY-MM-DD&hasta=YYYY-MM-DD
+// GET /api/reportes/ingresos?desde=YYYY-MM-DD&hasta=YYYY-MM-DD&agrupacion=dia|semana|mes|anio
 router.get('/ingresos', (req, res) => {
   try {
-    const { desde, hasta } = req.query;
+    const { desde, hasta, agrupacion = 'dia' } = req.query;
     let sql = 'SELECT * FROM pagos WHERE 1=1';
     const params = [];
 
@@ -100,24 +152,60 @@ router.get('/ingresos', (req, res) => {
 
     const pagos = query(sql, params);
 
-    // Agrupar por día
-    const porDia = {};
+    // Agrupar según la configuración solicitada
+    const grupos = {};
     let total = 0;
 
     pagos.forEach(pago => {
       const fecha = pago.fecha.split('T')[0];
-      if (!porDia[fecha]) {
-        porDia[fecha] = { fecha, monto: 0, cantidad: 0 };
+      let clave = fecha;
+      let etiqueta = fecha;
+
+      if (agrupacion === 'semana') {
+        const d = new Date(fecha);
+        const day = d.getDay(); // 0 = domingo, 1 = lunes, ...
+        // Calcular el lunes de esa semana
+        const diff = day === 0 ? -6 : 1 - day;
+        const monday = new Date(d);
+        monday.setDate(d.getDate() + diff);
+        const year = monday.getFullYear();
+        const month = String(monday.getMonth() + 1).padStart(2, '0');
+        const dayOfMonth = String(monday.getDate()).padStart(2, '0');
+        clave = monday.toISOString().split('T')[0];
+        etiqueta = `Semana del ${dayOfMonth}/${month}`;
+      } else if (agrupacion === 'mes') {
+        const [y, m] = fecha.split('-');
+        clave = `${y}-${m}`;
+        etiqueta = `${m}/${y}`;
+      } else if (agrupacion === 'anio') {
+        const [y] = fecha.split('-');
+        clave = y;
+        etiqueta = y;
       }
-      porDia[fecha].monto += pago.monto;
-      porDia[fecha].cantidad++;
+
+      if (!grupos[clave]) {
+        grupos[clave] = {
+          fecha: etiqueta,
+          monto: 0,
+          cantidad: 0,
+          efectivo: 0,
+          transferencia: 0,
+        };
+      }
+      grupos[clave].monto += pago.monto;
+      grupos[clave].cantidad++;
+      if (pago.metodo_pago === 'efectivo') {
+        grupos[clave].efectivo += pago.monto;
+      } else if (pago.metodo_pago === 'transferencia') {
+        grupos[clave].transferencia += pago.monto;
+      }
       total += pago.monto;
     });
 
     res.json({
       data: {
         total,
-        porDia: Object.values(porDia),
+        porDia: Object.values(grupos),
         resumen: {
           totalPagos: pagos.length,
           promedio: pagos.length > 0 ? total / pagos.length : 0,
@@ -130,13 +218,14 @@ router.get('/ingresos', (req, res) => {
   }
 });
 
-// GET /api/reportes/ocupacion_clases?desde=YYYY-MM-DD&hasta=YYYY-MM-DD
+// GET /api/reportes/ocupacion_clases?desde=YYYY-MM-DD&hasta=YYYY-MM-DD&tipo_clase_id=1
 router.get('/ocupacion_clases', (req, res) => {
   try {
-    const { desde, hasta } = req.query;
-    let sql = `SELECT c.*, tc.nombre as nombre 
+    const { desde, hasta, tipo_clase_id } = req.query;
+    let sql = `SELECT c.*, tc.nombre as nombre, ec.nombre as estado 
                FROM clases c 
                LEFT JOIN tipo_clase tc ON c.tipo_clase_id = tc.id 
+               LEFT JOIN estado_clase ec ON c.estado_clase_id = ec.id
                WHERE 1=1`;
     const params = [];
 
@@ -147,6 +236,10 @@ router.get('/ocupacion_clases', (req, res) => {
     if (hasta) {
       sql += ' AND c.fecha <= ?';
       params.push(hasta);
+    }
+    if (tipo_clase_id) {
+      sql += ' AND c.tipo_clase_id = ?';
+      params.push(tipo_clase_id);
     }
 
     sql += ' ORDER BY c.fecha';
@@ -184,10 +277,10 @@ router.get('/ocupacion_clases', (req, res) => {
   }
 });
 
-// GET /api/reportes/accesos?desde=YYYY-MM-DD&hasta=YYYY-MM-DD
+// GET /api/reportes/accesos?desde=YYYY-MM-DD&hasta=YYYY-MM-DD&agrupacion=dia|semana|mes|anio
 router.get('/accesos', (req, res) => {
   try {
-    const { desde, hasta } = req.query;
+    const { desde, hasta, agrupacion = 'dia' } = req.query;
     let sql = `
       SELECT a.*, s.nombre as socio_nombre 
       FROM accesos a
@@ -205,7 +298,7 @@ router.get('/accesos', (req, res) => {
       params.push(hasta);
     }
 
-    sql += ' ORDER BY a.fecha_hora DESC';
+    sql += ' ORDER BY a.fecha_hora';
 
     const accesos = query(sql, params);
 
@@ -213,18 +306,40 @@ router.get('/accesos', (req, res) => {
     const permitidos = accesos.filter(a => a.permitido === 1).length;
     const denegados = accesos.filter(a => a.permitido === 0).length;
 
-    // Agrupar por día
-    const porDia = {};
+    const grupos = {};
     accesos.forEach(acceso => {
-      const fecha = acceso.fecha_hora.split('T')[0];
-      if (!porDia[fecha]) {
-        porDia[fecha] = { fecha, total: 0, permitidos: 0, denegados: 0 };
+      const fechaStr = acceso.fecha_hora.split('T')[0];
+      let clave = fechaStr;
+      let etiqueta = fechaStr;
+
+      if (agrupacion === 'semana') {
+        const d = new Date(fechaStr);
+        const day = d.getDay();
+        const diff = day === 0 ? -6 : 1 - day;
+        const monday = new Date(d);
+        monday.setDate(d.getDate() + diff);
+        const month = String(monday.getMonth() + 1).padStart(2, '0');
+        const dayOfMonth = String(monday.getDate()).padStart(2, '0');
+        clave = monday.toISOString().split('T')[0];
+        etiqueta = `Semana del ${dayOfMonth}/${month}`;
+      } else if (agrupacion === 'mes') {
+        const [y, m] = fechaStr.split('-');
+        clave = `${y}-${m}`;
+        const meses = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+        etiqueta = `${meses[parseInt(m, 10) - 1]} ${y}`;
+      } else if (agrupacion === 'anio') {
+        const [y] = fechaStr.split('-');
+        clave = y;
+        etiqueta = y;
       }
-      porDia[fecha].total++;
+
+      if (!grupos[clave]) {
+        grupos[clave] = { fecha: etiqueta, permitidos: 0, denegados: 0 };
+      }
       if (acceso.permitido === 1) {
-        porDia[fecha].permitidos++;
+        grupos[clave].permitidos++;
       } else {
-        porDia[fecha].denegados++;
+        grupos[clave].denegados++;
       }
     });
 
@@ -234,7 +349,7 @@ router.get('/accesos', (req, res) => {
         permitidos,
         denegados,
         porcentajePermitidos: total > 0 ? Math.round((permitidos / total) * 100) : 0,
-        porDia: Object.values(porDia),
+        porDia: Object.values(grupos),
       },
     });
   } catch (error) {
@@ -271,23 +386,43 @@ router.get('/socios_activos', (req, res) => {
   }
 });
 
-// GET /api/reportes/clases_populares
+// GET /api/reportes/clases_populares?desde=YYYY-MM-DD&hasta=YYYY-MM-DD
 router.get('/clases_populares', (req, res) => {
   try {
-    const clases = query(`
-      SELECT 
+    const { desde, hasta } = req.query;
+
+    let sql = `
+      SELECT
         tc.nombre,
         COUNT(DISTINCT c.id) as total_clases,
         COUNT(DISTINCT r.id) as total_reservas,
         AVG(CASE WHEN r.estado = 'asistio' THEN 1 ELSE 0 END) * 100 as porcentaje_asistencia,
         SUM(c.cupo) as total_cupos,
-        SUM((SELECT COUNT(*) FROM reservas r2 WHERE r2.clase_id = c.id AND r2.estado != 'cancelado')) as total_ocupados
+        SUM(
+          (SELECT COUNT(*) FROM reservas r2 WHERE r2.clase_id = c.id AND r2.estado != 'cancelado')
+        ) as total_ocupados
       FROM clases c
       LEFT JOIN tipo_clase tc ON c.tipo_clase_id = tc.id
       LEFT JOIN reservas r ON c.id = r.clase_id
+      WHERE 1=1
+    `;
+    const params = [];
+
+    if (desde) {
+      sql += ' AND c.fecha >= ?';
+      params.push(desde);
+    }
+    if (hasta) {
+      sql += ' AND c.fecha <= ?';
+      params.push(hasta);
+    }
+
+    sql += `
       GROUP BY c.tipo_clase_id, tc.nombre
       ORDER BY total_reservas DESC
-    `);
+    `;
+
+    const clases = query(sql, params);
 
     res.json({ data: clases });
   } catch (error) {
@@ -471,17 +606,18 @@ router.get('/export/:tipo', (req, res) => {
             s.id,
             s.nombre,
             s.documento,
-            s.estado,
+            se.nombre as estado,
             COUNT(DISTINCT r.id) as total_reservas,
             COUNT(DISTINCT a.id) as total_accesos,
             COUNT(DISTINCT CASE WHEN a.permitido = 1 THEN a.id END) as accesos_permitidos,
             COUNT(DISTINCT p.id) as total_pagos,
             COALESCE(SUM(p.monto), 0) as total_pagado
           FROM socios s
+          LEFT JOIN socio_estado se ON s.socio_estado_id = se.id
           LEFT JOIN reservas r ON s.id = r.socio_id
           LEFT JOIN accesos a ON s.id = a.socio_id
           LEFT JOIN pagos p ON s.id = p.socio_id
-          GROUP BY s.id, s.nombre, s.documento, s.estado
+          GROUP BY s.id, s.nombre, s.documento, s.socio_estado_id, se.nombre
           ORDER BY total_reservas DESC, total_accesos DESC
         `);
         csv = convertirACSV(socios, ['id', 'nombre', 'documento', 'estado', 'total_reservas', 'total_accesos', 'accesos_permitidos', 'total_pagos', 'total_pagado']);

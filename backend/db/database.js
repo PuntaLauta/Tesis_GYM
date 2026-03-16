@@ -280,17 +280,128 @@ async function initDatabase() {
     }
   }
 
-  // Verificar si existe la columna notas en la tabla socios
+  // Verificar si existe la tabla estado_socios_cron_config
+  let tablaEstadoSociosCronExiste = false;
+  try {
+    const tablesEstado = db.exec("SELECT name FROM sqlite_master WHERE type='table' AND name='estado_socios_cron_config'");
+    tablaEstadoSociosCronExiste = tablesEstado && tablesEstado[0] && tablesEstado[0].values && tablesEstado[0].values.length > 0;
+  } catch (e) {}
+
+  if (!tablaEstadoSociosCronExiste) {
+    try {
+      db.run(`
+        CREATE TABLE IF NOT EXISTS estado_socios_cron_config (
+          id INTEGER PRIMARY KEY DEFAULT 1,
+          frecuencia TEXT CHECK(frecuencia IN ('diario')) DEFAULT 'diario',
+          hora TEXT DEFAULT '00:00',
+          activo INTEGER DEFAULT 1
+        )
+      `);
+      const existente = db.exec("SELECT id FROM estado_socios_cron_config WHERE id = 1");
+      if (!existente || !existente[0] || !existente[0].values || existente[0].values.length === 0) {
+        db.run(`
+          INSERT INTO estado_socios_cron_config (id, frecuencia, hora, activo)
+          VALUES (1, 'diario', '00:00', 1)
+        `);
+      }
+      saveDatabase();
+      console.log('✅ Tabla estado_socios_cron_config creada');
+    } catch (e) {
+      console.log('Advertencia: No se pudo crear tabla estado_socios_cron_config:', e.message);
+    }
+  }
+
+  // Tabla estado_clase (activa, finalizada, cancelada)
+  let tablaEstadoClaseExiste = false;
+  try {
+    const t = db.exec("SELECT name FROM sqlite_master WHERE type='table' AND name='estado_clase'");
+    tablaEstadoClaseExiste = t && t[0] && t[0].values && t[0].values.length > 0;
+  } catch (e) {}
+  if (!tablaEstadoClaseExiste) {
+    try {
+      db.run(`
+        CREATE TABLE estado_clase (
+          id INTEGER PRIMARY KEY,
+          nombre TEXT UNIQUE NOT NULL
+        )
+      `);
+      db.run(`INSERT OR IGNORE INTO estado_clase (id, nombre) VALUES (1, 'activa'), (2, 'finalizada'), (3, 'cancelada')`);
+      saveDatabase();
+      console.log('✅ Tabla estado_clase creada');
+    } catch (e) {
+      console.log('Advertencia: No se pudo crear tabla estado_clase:', e.message);
+    }
+  }
+
+  // Migración clases: estado_clase_id y fecha_cambio_estado
+  let clasesTieneEstadoClaseId = false;
+  let clasesTieneEstadoTexto = false;
+  try {
+    const ti = db.exec("PRAGMA table_info(clases)");
+    if (ti && ti[0] && ti[0].values) {
+      ti[0].values.forEach(row => {
+        if (row[1] === 'estado_clase_id') clasesTieneEstadoClaseId = true;
+        if (row[1] === 'estado') clasesTieneEstadoTexto = true;
+      });
+    }
+  } catch (e) {}
+  if (!clasesTieneEstadoClaseId) {
+    try {
+      db.run('ALTER TABLE clases ADD COLUMN estado_clase_id INTEGER DEFAULT 1 REFERENCES estado_clase(id)');
+      db.run('ALTER TABLE clases ADD COLUMN fecha_cambio_estado TEXT');
+      if (clasesTieneEstadoTexto) {
+        db.run("UPDATE clases SET estado_clase_id = 1, fecha_cambio_estado = datetime('now') WHERE estado = 'activa' OR estado IS NULL");
+        db.run("UPDATE clases SET estado_clase_id = 2, fecha_cambio_estado = datetime('now') WHERE estado = 'finalizada'");
+        db.run("UPDATE clases SET estado_clase_id = 3, fecha_cambio_estado = datetime('now') WHERE estado = 'cancelada'");
+        db.run("UPDATE clases SET estado_clase_id = COALESCE(estado_clase_id, 1) WHERE estado_clase_id IS NULL");
+      }
+      saveDatabase();
+      console.log('✅ Migración clases: estado_clase_id y fecha_cambio_estado');
+    } catch (e) {
+      console.log('Advertencia: Migración clases estado_clase:', e.message);
+    }
+  }
+
+  // Tabla estado_clases_cron_config
+  let tablaEstadoClasesCronExiste = false;
+  try {
+    const tc = db.exec("SELECT name FROM sqlite_master WHERE type='table' AND name='estado_clases_cron_config'");
+    tablaEstadoClasesCronExiste = tc && tc[0] && tc[0].values && tc[0].values.length > 0;
+  } catch (e) {}
+  if (!tablaEstadoClasesCronExiste) {
+    try {
+      db.run(`
+        CREATE TABLE estado_clases_cron_config (
+          id INTEGER PRIMARY KEY DEFAULT 1,
+          frecuencia TEXT CHECK(frecuencia IN ('diario')) DEFAULT 'diario',
+          hora TEXT DEFAULT '00:00',
+          activo INTEGER DEFAULT 1
+        )
+      `);
+      const ex = db.exec("SELECT id FROM estado_clases_cron_config WHERE id = 1");
+      if (!ex || !ex[0] || !ex[0].values || ex[0].values.length === 0) {
+        db.run("INSERT INTO estado_clases_cron_config (id, frecuencia, hora, activo) VALUES (1, 'diario', '00:00', 1)");
+      }
+      saveDatabase();
+      console.log('✅ Tabla estado_clases_cron_config creada');
+    } catch (e) {
+      console.log('Advertencia: No se pudo crear estado_clases_cron_config:', e.message);
+    }
+  }
+
+  // Verificar si existen columnas adicionales en la tabla socios
   let columnaNotasExiste = false;
+  let columnaCanceladoPorAdminExiste = false;
   try {
     const tableInfo = db.exec("PRAGMA table_info(socios)");
     if (tableInfo && tableInfo[0] && tableInfo[0].values) {
       columnaNotasExiste = tableInfo[0].values.some(row => row[1] === 'notas');
+      columnaCanceladoPorAdminExiste = tableInfo[0].values.some(row => row[1] === 'cancelado_por_admin');
     }
   } catch (e) {
-    // Error al verificar, asumir que no existe
+    // Error al verificar, asumir que no existen
   }
-
+  
   if (!columnaNotasExiste) {
     try {
       db.run('ALTER TABLE socios ADD COLUMN notas TEXT');
@@ -299,6 +410,146 @@ async function initDatabase() {
     } catch (e) {
       console.log('Advertencia: No se pudo agregar columna notas:', e.message);
     }
+  }
+
+  // Agregar columna cancelado_por_admin si no existe (migración)
+  if (!columnaCanceladoPorAdminExiste) {
+    try {
+      db.run('ALTER TABLE socios ADD COLUMN cancelado_por_admin INTEGER NOT NULL DEFAULT 0');
+      saveDatabase();
+      console.log('✅ Columna cancelado_por_admin agregada a la tabla socios');
+    } catch (e) {
+      console.log('Advertencia: No se pudo agregar columna cancelado_por_admin:', e.message);
+    }
+  }
+
+  // Migrar constraint de estado en tabla socios para incluir 'abandono'
+  try {
+    const tablasSocios = db.exec("SELECT name, sql FROM sqlite_master WHERE type='table' AND name='socios'");
+    if (tablasSocios && tablasSocios[0] && tablasSocios[0].values && tablasSocios[0].values.length > 0) {
+      const tablaSql = tablasSocios[0].values[0][1];
+      if (tablaSql && !tablaSql.includes("'abandono'")) {
+        console.log('🔄 Migrando constraint de estado en tabla socios para incluir abandono...');
+
+        // Deshabilitar foreign keys temporalmente
+        db.run('PRAGMA foreign_keys = OFF');
+
+        // Crear nueva tabla socios_new con el CHECK actualizado
+        db.run(`
+          CREATE TABLE socios_new (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            nombre TEXT NOT NULL,
+            documento TEXT,
+            telefono TEXT,
+            estado TEXT NOT NULL DEFAULT 'activo' CHECK(estado IN ('activo', 'suspendido', 'inactivo', 'abandono')),
+            cancelado_por_admin INTEGER NOT NULL DEFAULT 0,
+            plan_id INTEGER,
+            usuario_id INTEGER,
+            qr_token TEXT UNIQUE,
+            notas TEXT,
+            FOREIGN KEY (plan_id) REFERENCES planes(id),
+            FOREIGN KEY (usuario_id) REFERENCES usuarios(id)
+          )
+        `);
+
+        // Copiar datos existentes
+        db.run(`
+          INSERT INTO socios_new (id, nombre, documento, telefono, estado, cancelado_por_admin, plan_id, usuario_id, qr_token, notas)
+          SELECT id, nombre, documento, telefono, estado, 
+                 COALESCE(cancelado_por_admin, 0) AS cancelado_por_admin,
+                 plan_id, usuario_id, qr_token, notas
+          FROM socios
+        `);
+
+        // Eliminar tabla antigua y renombrar
+        db.run('DROP TABLE socios');
+        db.run('ALTER TABLE socios_new RENAME TO socios');
+
+        // Recrear índices relacionados
+        try {
+          db.run('CREATE UNIQUE INDEX IF NOT EXISTS idx_socios_documento ON socios(documento)');
+        } catch (idxError) {
+          // Índice ya existe o no se puede crear
+        }
+
+        // Rehabilitar foreign keys
+        db.run('PRAGMA foreign_keys = ON');
+
+        saveDatabase();
+        console.log('✅ Constraint de estado actualizado para incluir abandono');
+      }
+    }
+  } catch (e) {
+    console.log('Advertencia: No se pudo migrar constraint de estado en socios:', e.message);
+  }
+
+  // Migrar estado de socios a tabla socio_estado (socio_estado_id + fecha_cambio)
+  try {
+    const tableInfo = db.exec("PRAGMA table_info(socios)");
+    const hasEstado = tableInfo && tableInfo[0] && tableInfo[0].values && tableInfo[0].values.some((row) => row[1] === 'estado');
+    const hasSocioEstadoId = tableInfo && tableInfo[0] && tableInfo[0].values && tableInfo[0].values.some((row) => row[1] === 'socio_estado_id');
+
+    if (hasEstado && !hasSocioEstadoId) {
+      console.log('🔄 Migrando estado de socios a tabla socio_estado...');
+
+      db.run('PRAGMA foreign_keys = OFF');
+
+      // Crear tabla catálogo socio_estado
+      db.run(`
+        CREATE TABLE IF NOT EXISTS socio_estado (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          nombre TEXT UNIQUE NOT NULL
+        )
+      `);
+      const countResult = db.exec("SELECT COUNT(*) FROM socio_estado");
+      const count = countResult && countResult[0] && countResult[0].values && countResult[0].values[0] ? countResult[0].values[0][0] : 0;
+      if (count === 0) {
+        db.run(`INSERT INTO socio_estado (id, nombre) VALUES (1, 'activo'), (2, 'inactivo'), (3, 'suspendido'), (4, 'abandono')`);
+      }
+
+      // Crear socios_new con socio_estado_id y fecha_cambio, sin estado
+      db.run(`
+        CREATE TABLE socios_new (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          nombre TEXT NOT NULL,
+          documento TEXT,
+          telefono TEXT,
+          socio_estado_id INTEGER NOT NULL DEFAULT 1,
+          fecha_cambio TEXT,
+          cancelado_por_admin INTEGER NOT NULL DEFAULT 0,
+          plan_id INTEGER,
+          usuario_id INTEGER,
+          qr_token TEXT UNIQUE,
+          notas TEXT,
+          FOREIGN KEY (plan_id) REFERENCES planes(id),
+          FOREIGN KEY (usuario_id) REFERENCES usuarios(id),
+          FOREIGN KEY (socio_estado_id) REFERENCES socio_estado(id)
+        )
+      `);
+
+      db.run(`
+        INSERT INTO socios_new (id, nombre, documento, telefono, socio_estado_id, fecha_cambio, cancelado_por_admin, plan_id, usuario_id, qr_token, notas)
+        SELECT s.id, s.nombre, s.documento, s.telefono,
+               COALESCE((SELECT id FROM socio_estado WHERE nombre = s.estado), 1),
+               datetime('now'),
+               COALESCE(s.cancelado_por_admin, 0),
+               s.plan_id, s.usuario_id, s.qr_token, s.notas
+        FROM socios s
+      `);
+
+      db.run('DROP TABLE socios');
+      db.run('ALTER TABLE socios_new RENAME TO socios');
+
+      try {
+        db.run('CREATE UNIQUE INDEX IF NOT EXISTS idx_socios_documento ON socios(documento)');
+      } catch (idxError) {}
+
+      db.run('PRAGMA foreign_keys = ON');
+      saveDatabase();
+      console.log('✅ Estado de socios migrado a socio_estado');
+    }
+  } catch (e) {
+    console.log('Advertencia: No se pudo migrar estado de socios a socio_estado:', e.message);
   }
 
   // Ejecutar migración de tipo_clase
@@ -396,6 +647,88 @@ async function initDatabase() {
     } catch (e) {
       console.log('Advertencia: No se pudo crear tabla instructores:', e.message);
     }
+  }
+
+  // Tablas admins y roots (FK a usuarios, estado activo/inactivo)
+  let tablaAdminsExiste = false;
+  let tablaRootsExiste = false;
+  try {
+    const tAdmins = db.exec("SELECT name FROM sqlite_master WHERE type='table' AND name='admins'");
+    const tRoots = db.exec("SELECT name FROM sqlite_master WHERE type='table' AND name='roots'");
+    tablaAdminsExiste = tAdmins && tAdmins[0] && tAdmins[0].values && tAdmins[0].values.length > 0;
+    tablaRootsExiste = tRoots && tRoots[0] && tRoots[0].values && tRoots[0].values.length > 0;
+  } catch (e) {}
+  if (!tablaAdminsExiste) {
+    try {
+      db.run(`
+        CREATE TABLE admins (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          usuario_id INTEGER NOT NULL UNIQUE REFERENCES usuarios(id),
+          estado INTEGER NOT NULL DEFAULT 1 CHECK(estado IN (0, 1))
+        )
+      `);
+      saveDatabase();
+      console.log('✅ Tabla admins creada');
+    } catch (e) {
+      console.log('Advertencia: No se pudo crear tabla admins:', e.message);
+    }
+  }
+  if (!tablaRootsExiste) {
+    try {
+      db.run(`
+        CREATE TABLE roots (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          usuario_id INTEGER NOT NULL UNIQUE REFERENCES usuarios(id),
+          estado INTEGER NOT NULL DEFAULT 1 CHECK(estado IN (0, 1))
+        )
+      `);
+      saveDatabase();
+      console.log('✅ Tabla roots creada');
+    } catch (e) {
+      console.log('Advertencia: No se pudo crear tabla roots:', e.message);
+    }
+  }
+  // Poblar admins y roots desde usuarios (evitar duplicados con INSERT OR IGNORE por UNIQUE usuario_id)
+  try {
+    db.run("INSERT OR IGNORE INTO admins (usuario_id, estado) SELECT id, 1 FROM usuarios WHERE rol = 'admin'");
+    db.run("INSERT OR IGNORE INTO roots (usuario_id, estado) SELECT id, 1 FROM usuarios WHERE rol = 'root'");
+    saveDatabase();
+    console.log('✅ Tablas admins y roots pobladas desde usuarios');
+  } catch (e) {
+    console.log('Advertencia: No se pudieron poblar admins/roots:', e.message);
+  }
+
+  // Columna usuario_id en instructores (FK a usuarios)
+  let columnaUsuarioIdInstructoresExiste = false;
+  try {
+    const tableInfo = db.exec("PRAGMA table_info(instructores)");
+    if (tableInfo && tableInfo[0] && tableInfo[0].values) {
+      columnaUsuarioIdInstructoresExiste = tableInfo[0].values.some(row => row[1] === 'usuario_id');
+    }
+  } catch (e) {}
+  if (!columnaUsuarioIdInstructoresExiste) {
+    try {
+      db.run('ALTER TABLE instructores ADD COLUMN usuario_id INTEGER REFERENCES usuarios(id)');
+      saveDatabase();
+      console.log('✅ Columna usuario_id agregada a la tabla instructores');
+    } catch (e) {
+      console.log('Advertencia: No se pudo agregar usuario_id a instructores:', e.message);
+    }
+  }
+  // Migrar instructores: vincular por email con usuarios (rol = instructor)
+  try {
+    const rows = db.exec("SELECT id, email FROM instructores WHERE usuario_id IS NULL");
+    if (rows && rows[0] && rows[0].values && rows[0].values.length > 0) {
+      const stmt = db.prepare('UPDATE instructores SET usuario_id = (SELECT id FROM usuarios WHERE email = ? AND rol = ?) WHERE id = ?');
+      rows[0].values.forEach(([id, email]) => {
+        if (email) stmt.run([email, 'instructor', id]);
+      });
+      stmt.free();
+      saveDatabase();
+      console.log('✅ Instructores vinculados a usuarios por usuario_id');
+    }
+  } catch (e) {
+    console.log('Advertencia: No se pudo vincular instructores a usuarios:', e.message);
   }
 
   // Verificar si existe la columna instructor_id en la tabla clases
@@ -595,10 +928,11 @@ async function initDatabase() {
       // Insertar estados por defecto
       const estadosExistentes = db.exec("SELECT COUNT(*) as count FROM estado_ejercicios");
       if (!estadosExistentes || !estadosExistentes[0] || !estadosExistentes[0].values || estadosExistentes[0].values[0][0] === 0) {
-        db.run(`INSERT INTO estado_ejercicios (nombre, descripcion) VALUES 
-          ('PENDIENTE', 'Pendiente de revisión por instructor'),
-          ('APROBADO', 'Aprobado por instructor'),
-          ('RECHAZADO', 'Rechazado por instructor')`);
+        db.run(`INSERT INTO estado_ejercicios (id, nombre, descripcion) VALUES 
+          (1, 'PENDIENTE', 'Pendiente de revisión por instructor'),
+          (2, 'APROBADO', 'Aprobado por instructor'),
+          (3, 'RECHAZADO', 'Rechazado por instructor'),
+          (4, 'SUGERIDO', 'Sugerido por instructor')`);
       }
       
       saveDatabase();
@@ -606,6 +940,18 @@ async function initDatabase() {
     } catch (e) {
       console.log('Advertencia: No se pudo crear tabla estado_ejercicios:', e.message);
     }
+  }
+
+  // Migración: agregar estado SUGERIDO (id 4) si no existe
+  try {
+    const sugeridoExiste = db.exec("SELECT id FROM estado_ejercicios WHERE nombre = 'SUGERIDO'");
+    if (!sugeridoExiste || !sugeridoExiste[0] || !sugeridoExiste[0].values || sugeridoExiste[0].values.length === 0) {
+      db.run("INSERT INTO estado_ejercicios (id, nombre, descripcion) VALUES (4, 'SUGERIDO', 'Sugerido por instructor')");
+      saveDatabase();
+      console.log('✅ Estado SUGERIDO agregado a estado_ejercicios');
+    }
+  } catch (e) {
+    console.log('Advertencia: No se pudo agregar estado SUGERIDO:', e.message);
   }
 
   // Verificar si existe la columna estado_id en la tabla ejercicios

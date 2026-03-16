@@ -15,6 +15,7 @@ export default function DetalleRutina() {
   const [loadingChat, setLoadingChat] = useState(false);
   const [errorChat, setErrorChat] = useState('');
   const [eliminando, setEliminando] = useState(false);
+  const [ocultarRechazados, setOcultarRechazados] = useState(false);
   const chatEndRef = useRef(null);
 
   // Clave para localStorage basada en el ID de la rutina
@@ -234,7 +235,14 @@ export default function DetalleRutina() {
     console.error('Error al parsear ejercicios:', e);
     ejercicios = [];
   }
-  
+
+  // Filtro: ocultar ejercicios rechazados por instructor (estado_id === 3)
+  const ejerciciosVisibles = ocultarRechazados
+    ? ejercicios.filter((e) => {
+        const id = typeof e.estado_id === 'string' ? parseInt(e.estado_id, 10) : e.estado_id;
+        return id !== 3;
+      })
+    : ejercicios;
 
   return (
     <div className="max-w-4xl mx-auto p-6">
@@ -361,13 +369,32 @@ export default function DetalleRutina() {
 
       {/* Lista de ejercicios */}
       <div className="bg-white rounded-lg shadow p-6">
-        <h2 className="text-2xl font-bold mb-4">Ejercicios</h2>
-        
-        {ejercicios.length === 0 ? (
-          <p className="text-gray-500">No hay ejercicios definidos en esta rutina.</p>
+        <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
+          <h2 className="text-2xl font-bold">Ejercicios</h2>
+          {ejercicios.length > 0 && (
+            <label className="flex items-center gap-2 cursor-pointer text-sm text-gray-700">
+              <input
+                type="checkbox"
+                checked={ocultarRechazados}
+                onChange={(e) => setOcultarRechazados(e.target.checked)}
+                className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+              />
+              <span>Ocultar ejercicios rechazados</span>
+            </label>
+          )}
+        </div>
+
+        {ejerciciosVisibles.length === 0 ? (
+          <p className="text-gray-500">
+            {ejercicios.length === 0
+              ? 'No hay ejercicios definidos en esta rutina.'
+              : ocultarRechazados
+                ? 'No hay ejercicios para mostrar (todos están rechazados o filtrados).'
+                : 'No hay ejercicios definidos en esta rutina.'}
+          </p>
         ) : (
           <div className="space-y-4">
-            {ejercicios.map((ejercicio, index) => {
+            {ejerciciosVisibles.map((ejercicio, index) => {
               // Determinar estado_id del ejercicio (por defecto 1 = PENDIENTE)
               // Si tiene estado_id numérico, usarlo; si tiene estado string, mapearlo; sino default 1
               let estadoId = ejercicio.estado_id;
@@ -404,6 +431,12 @@ export default function DetalleRutina() {
                   color: 'bg-red-500',
                   texto: 'Rechazado por un Instructor',
                   hoverColor: 'hover:bg-red-600'
+                },
+                4: { // SUGERIDO
+                  emoji: '💡',
+                  color: 'bg-indigo-500',
+                  texto: 'Sugerido por un instructor',
+                  hoverColor: 'hover:bg-indigo-600'
                 }
               };
               
@@ -458,25 +491,27 @@ export default function DetalleRutina() {
                   )}
                 </div>
 
-                {/* Notas del Asistente IA */}
-                {ejercicio.notas && ejercicio.notas.trim() && (
+                {/* Para SUGERIDO (4): solo Notas del instructor (descripción del ejercicio sugerido); no mostrar Notas del Asistente IA */}
+                {estadoId !== 4 && ejercicio.notas && ejercicio.notas.trim() && (
                   <div className="mt-3 pt-3 border-t">
                     <strong className="text-gray-700 block mb-1">Notas del Asistente IA:</strong>
                     <p className="text-gray-600 text-sm">{ejercicio.notas}</p>
                   </div>
                 )}
-                
-                {/* Notas del Instructor */}
+
+                {/* Notas del Instructor (para SUGERIDO muestra la descripción del ejercicio sugerido) */}
                 <div className="mt-3 pt-3 border-t">
                   <strong className="text-gray-700 block mb-1">Notas del Instructor:</strong>
                   <p className="text-gray-600 text-sm italic">
-                    {ejercicio.descripcion_profesor && ejercicio.descripcion_profesor.trim() 
-                      ? ejercicio.descripcion_profesor 
-                      : 'Sin notas del instructor'}
+                    {ejercicio.descripcion_profesor && ejercicio.descripcion_profesor.trim()
+                      ? ejercicio.descripcion_profesor
+                      : estadoId === 4 && (ejercicio.notas || ejercicio.descripcion)
+                        ? (ejercicio.notas || ejercicio.descripcion)
+                        : 'Sin notas del instructor'}
                   </p>
-                  {(estadoId === 2 || estadoId === 3) && ejercicio.instructor_nombre && (
+                  {(estadoId === 2 || estadoId === 3 || estadoId === 4) && ejercicio.instructor_nombre && (
                     <p className="text-gray-500 text-xs mt-1">
-                      Revisado por {ejercicio.instructor_nombre}
+                      {estadoId === 2 ? 'Aprobado por' : estadoId === 3 ? 'Rechazado por' : 'Sugerido por'} {ejercicio.instructor_nombre}
                     </p>
                   )}
                 </div>

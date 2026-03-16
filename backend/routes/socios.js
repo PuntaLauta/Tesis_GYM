@@ -15,8 +15,9 @@ router.get('/', requireAuth, (req, res) => {
     if (user.rol === 'admin' || user.rol === 'root') {
       // Admin/root ven todos los socios con email del usuario asociado
       let sql = `
-        SELECT s.*, p.nombre as plan_nombre, p.precio as plan_precio, p.duracion as plan_duracion, u.email as usuario_email
-        FROM socios s 
+        SELECT s.*, se.nombre as estado, p.nombre as plan_nombre, p.precio as plan_precio, p.duracion as plan_duracion, u.email as usuario_email
+        FROM socios s
+        LEFT JOIN socio_estado se ON s.socio_estado_id = se.id
         LEFT JOIN planes p ON s.plan_id = p.id
         LEFT JOIN usuarios u ON s.usuario_id = u.id
       `;
@@ -34,8 +35,9 @@ router.get('/', requireAuth, (req, res) => {
     } else {
       // Cliente ve solo su socio
       const socio = get(`
-        SELECT s.*, p.nombre as plan_nombre, p.duracion as plan_duracion, p.precio as plan_precio
-        FROM socios s 
+        SELECT s.*, se.nombre as estado, p.nombre as plan_nombre, p.duracion as plan_duracion, p.precio as plan_precio
+        FROM socios s
+        LEFT JOIN socio_estado se ON s.socio_estado_id = se.id
         LEFT JOIN planes p ON s.plan_id = p.id
         WHERE s.usuario_id = ?
       `, [user.id]);
@@ -73,8 +75,9 @@ router.get('/:id', requireAuth, (req, res) => {
   try {
     const user = req.session.user;
     const socio = get(`
-      SELECT s.*, p.nombre as plan_nombre, u.email as usuario_email
-      FROM socios s 
+      SELECT s.*, se.nombre as estado, p.nombre as plan_nombre, u.email as usuario_email
+      FROM socios s
+      LEFT JOIN socio_estado se ON s.socio_estado_id = se.id
       LEFT JOIN planes p ON s.plan_id = p.id
       LEFT JOIN usuarios u ON s.usuario_id = u.id
       WHERE s.id = ?
@@ -142,14 +145,19 @@ router.post('/', requireAdmin, async (req, res) => {
     // Generar qr_token de 6 dígitos si no viene
     const token = qr_token || generarToken6Digitos();
 
+    const estadoNombre = estado || 'activo';
+    const estadoRow = get('SELECT id FROM socio_estado WHERE nombre = ?', [estadoNombre]);
+    const socioEstadoId = estadoRow ? estadoRow.id : 1;
+
     const result = insert(
-      `INSERT INTO socios (nombre, documento, telefono, estado, plan_id, qr_token, usuario_id, notas) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      [nombre, documento, telefono || null, estado || 'activo', plan_id || null, token, usuarioId, notas || null]
+      `INSERT INTO socios (nombre, documento, telefono, socio_estado_id, fecha_cambio, plan_id, qr_token, usuario_id, notas) VALUES (?, ?, ?, ?, datetime('now'), ?, ?, ?, ?)`,
+      [nombre, documento, telefono || null, socioEstadoId, plan_id || null, token, usuarioId, notas || null]
     );
 
     const nuevoSocio = get(`
-      SELECT s.*, p.nombre as plan_nombre, u.email as usuario_email
-      FROM socios s 
+      SELECT s.*, se.nombre as estado, p.nombre as plan_nombre, u.email as usuario_email
+      FROM socios s
+      LEFT JOIN socio_estado se ON s.socio_estado_id = se.id
       LEFT JOIN planes p ON s.plan_id = p.id
       LEFT JOIN usuarios u ON s.usuario_id = u.id
       WHERE s.id = ?
@@ -187,7 +195,7 @@ router.put('/:id', requireAuth, async (req, res) => {
         run('UPDATE usuarios SET email = ? WHERE id = ?', [email, user.id]);
       }
     } else {
-      // Admin/root pueden editar todo
+      // Admin/root pueden editar datos generales del socio
       const { documento, notas } = req.body;
       
       // Si se está cambiando el documento, verificar que no exista
@@ -198,14 +206,18 @@ router.put('/:id', requireAuth, async (req, res) => {
         }
       }
       
-      const planIdFinal = plan_id !== undefined && plan_id !== '' ? plan_id : (plan_id === '' ? null : socio.plan_id);
+      const planIdFinal =
+        plan_id !== undefined && plan_id !== ''
+          ? plan_id
+          : plan_id === ''
+          ? null
+          : socio.plan_id;
       run(
-        `UPDATE socios SET nombre = ?, documento = ?, telefono = ?, estado = ?, plan_id = ?, notas = ? WHERE id = ?`,
+        `UPDATE socios SET nombre = ?, documento = ?, telefono = ?, plan_id = ?, notas = ? WHERE id = ?`,
         [
           nombre || socio.nombre,
           documento !== undefined ? documento : socio.documento,
           telefono !== undefined ? telefono : socio.telefono,
-          estado || socio.estado,
           planIdFinal,
           notas !== undefined ? notas : socio.notas,
           req.params.id
@@ -220,8 +232,9 @@ router.put('/:id', requireAuth, async (req, res) => {
     }
 
     const socioActualizado = get(`
-      SELECT s.*, p.nombre as plan_nombre, u.email as usuario_email
-      FROM socios s 
+      SELECT s.*, se.nombre as estado, p.nombre as plan_nombre, u.email as usuario_email
+      FROM socios s
+      LEFT JOIN socio_estado se ON s.socio_estado_id = se.id
       LEFT JOIN planes p ON s.plan_id = p.id
       LEFT JOIN usuarios u ON s.usuario_id = u.id
       WHERE s.id = ?
@@ -246,6 +259,53 @@ router.delete('/:id', requireAdmin, (req, res) => {
     res.json({ message: 'Socio eliminado' });
   } catch (error) {
     console.error('Error al eliminar socio:', error);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
+// PUT /api/socios/:id/estado-admin - Actualizar estado y marca de cancelación (solo admin/root)
+router.put('/:id/estado-admin', requireAdmin, (req, res) => {
+  try {
+    const { estado } = req.body;
+
+    if (!estado || !['activo', 'suspendido'].includes(estado)) {
+      return res.status(400).json({
+        error:
+          'Estado inválido. Valores permitidos: activo, suspendido. Los estados inactivo y abandono se gestionan automáticamente por el sistema.',
+      });
+    }
+
+    const socio = get('SELECT * FROM socios WHERE id = ?', [req.params.id]);
+    if (!socio) {
+      return res.status(404).json({ error: 'Socio no encontrado' });
+    }
+
+    const canceladoPorAdmin = estado === 'activo' ? 0 : 1;
+    const estadoRow = get('SELECT id FROM socio_estado WHERE nombre = ?', [estado]);
+    const socioEstadoId = estadoRow ? estadoRow.id : 1;
+
+    // Actualizar socio_estado_id y fecha_cambio solo cuando el estado cambie
+    if (socioEstadoId !== socio.socio_estado_id) {
+      run(
+        "UPDATE socios SET socio_estado_id = ?, fecha_cambio = datetime('now'), cancelado_por_admin = ? WHERE id = ?",
+        [socioEstadoId, canceladoPorAdmin, req.params.id]
+      );
+    } else if (canceladoPorAdmin !== socio.cancelado_por_admin) {
+      run('UPDATE socios SET cancelado_por_admin = ? WHERE id = ?', [canceladoPorAdmin, req.params.id]);
+    }
+
+    const socioActualizado = get(`
+      SELECT s.*, se.nombre as estado, p.nombre as plan_nombre, u.email as usuario_email
+      FROM socios s
+      LEFT JOIN socio_estado se ON s.socio_estado_id = se.id
+      LEFT JOIN planes p ON s.plan_id = p.id
+      LEFT JOIN usuarios u ON s.usuario_id = u.id
+      WHERE s.id = ?
+    `, [req.params.id]);
+
+    res.json({ data: socioActualizado });
+  } catch (error) {
+    console.error('Error al actualizar estado del socio por admin:', error);
     res.status(500).json({ error: 'Error interno del servidor' });
   }
 });
@@ -284,9 +344,10 @@ function eliminarTildes(texto) {
 router.get('/:id/qr.png', requireAuth, async (req, res) => {
   try {
     const socio = get(`
-      SELECT s.*, p.nombre as plan_nombre 
-      FROM socios s 
-      LEFT JOIN planes p ON s.plan_id = p.id 
+      SELECT s.*, p.nombre as plan_nombre, se.nombre as estado
+      FROM socios s
+      LEFT JOIN planes p ON s.plan_id = p.id
+      LEFT JOIN socio_estado se ON s.socio_estado_id = se.id
       WHERE s.id = ?
     `, [req.params.id]);
     
@@ -318,7 +379,7 @@ router.get('/:id/qr.png', requireAuth, async (req, res) => {
     // Crear contenido del QR con información visible (sin tildes para evitar problemas de caracteres)
     const qrContent = `SOCIO: ${nombreSinTildes}
 Documento: ${documento}
-Estado: ${socio.estado.toUpperCase()}
+Estado: ${(socio.estado || 'N/A').toUpperCase()}
 Codigo Token: ${socio.qr_token}
 URL: Esperando despliegue online`;
     

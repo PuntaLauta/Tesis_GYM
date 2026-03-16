@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { listRutinasInstructor, revisarEjercicio, actualizarNotasEjercicio } from '../services/rutinas';
+import { listRutinasInstructor, revisarEjercicio, actualizarNotasEjercicio, sugerirEjercicio } from '../services/rutinas';
 
 export default function RutinasInstructor() {
   const [rutinas, setRutinas] = useState([]);
@@ -17,7 +17,19 @@ export default function RutinasInstructor() {
   // Estados para filtros
   const [ocultarInactivas, setOcultarInactivas] = useState(false);
   const [socioFiltro, setSocioFiltro] = useState('');
+  const [socioFiltroTexto, setSocioFiltroTexto] = useState('');
+  const [socioDropdownAbierto, setSocioDropdownAbierto] = useState(false);
   const [soloPendientes, setSoloPendientes] = useState(false);
+
+  // Modal sugerir ejercicio
+  const [rutinaParaSugerir, setRutinaParaSugerir] = useState(null);
+  const [formSugerencia, setFormSugerencia] = useState({ nombre: '', series: '', repeticiones: '', descripcion: '' });
+  const [guardandoSugerencia, setGuardandoSugerencia] = useState(false);
+  const [errorSugerencia, setErrorSugerencia] = useState('');
+
+  // Paginación de tarjetas de rutinas (9 por página)
+  const [paginaRutinas, setPaginaRutinas] = useState(1);
+  const ITEMS_POR_PAGINA_RUTINAS = 9;
 
   useEffect(() => {
     loadRutinas();
@@ -183,7 +195,7 @@ export default function RutinasInstructor() {
     return Array.from(sociosMap.values()).sort((a, b) => a.nombre.localeCompare(b.nombre));
   };
 
-  // Calcular ejercicios pendientes de una rutina
+  // Calcular ejercicios pendientes de revisión (PENDIENTE = 1 o SUGERIDO = 4)
   const calcularEjerciciosPendientes = (ejercicios) => {
     if (!ejercicios || !Array.isArray(ejercicios)) return 0;
     let pendientes = 0;
@@ -191,7 +203,7 @@ export default function RutinasInstructor() {
       const estadoId = typeof ejercicio.estado_id === 'string' 
         ? parseInt(ejercicio.estado_id, 10) 
         : ejercicio.estado_id;
-      if (!estadoId || isNaN(estadoId) || estadoId === 1) {
+      if (!estadoId || isNaN(estadoId) || estadoId === 1 || estadoId === 4) {
         pendientes++;
       }
     });
@@ -236,7 +248,93 @@ export default function RutinasInstructor() {
   const handleLimpiarFiltros = () => {
     setOcultarInactivas(false);
     setSocioFiltro('');
+    setSocioFiltroTexto('');
+    setSocioDropdownAbierto(false);
     setSoloPendientes(false);
+    setPaginaRutinas(1);
+  };
+
+  // Rutinas filtradas y paginación (9 tarjetas por página)
+  const rutinasFiltradas = filtrarRutinas();
+  const totalPaginasRutinas = Math.max(1, Math.ceil(rutinasFiltradas.length / ITEMS_POR_PAGINA_RUTINAS));
+  const paginaActualRutinas = Math.min(paginaRutinas, totalPaginasRutinas);
+  const rutinasEnPagina = rutinasFiltradas.slice(
+    (paginaActualRutinas - 1) * ITEMS_POR_PAGINA_RUTINAS,
+    paginaActualRutinas * ITEMS_POR_PAGINA_RUTINAS
+  );
+  const irAPaginaRutinas = (num) => {
+    const n = Math.max(1, Math.min(num, totalPaginasRutinas));
+    setPaginaRutinas(n);
+  };
+  const getNumerosPaginaRutinas = () => {
+    const total = totalPaginasRutinas;
+    if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
+    const vecinos = 2;
+    const left = Math.max(2, paginaActualRutinas - vecinos);
+    const right = Math.min(total - 1, paginaActualRutinas + vecinos);
+    const nums = new Set([1]);
+    for (let i = left; i <= right; i++) nums.add(i);
+    if (total > 1) nums.add(total);
+    return Array.from(nums).sort((a, b) => a - b);
+  };
+
+  // Al cambiar filtros, volver a la primera página
+  useEffect(() => {
+    setPaginaRutinas(1);
+  }, [ocultarInactivas, socioFiltro, soloPendientes]);
+
+  const handleCerrarModalSugerencia = () => {
+    setRutinaParaSugerir(null);
+    setFormSugerencia({ nombre: '', series: '', repeticiones: '', descripcion: '' });
+    setErrorSugerencia('');
+  };
+
+  const handleGuardarSugerencia = async () => {
+    if (!rutinaParaSugerir) return;
+    const { nombre, series, repeticiones, descripcion } = formSugerencia;
+    if (!nombre || !nombre.trim()) {
+      setErrorSugerencia('El nombre del ejercicio es obligatorio.');
+      return;
+    }
+    if (series === '' || series === null || series === undefined) {
+      setErrorSugerencia('La cantidad de series es obligatoria.');
+      return;
+    }
+    const seriesNum = parseInt(series, 10);
+    if (isNaN(seriesNum) || seriesNum < 1) {
+      setErrorSugerencia('La cantidad de series debe ser un número positivo.');
+      return;
+    }
+    if (!repeticiones || !String(repeticiones).trim()) {
+      setErrorSugerencia('La cantidad de repeticiones es obligatoria.');
+      return;
+    }
+    if (!descripcion || !descripcion.trim()) {
+      setErrorSugerencia('La descripción es obligatoria.');
+      return;
+    }
+    setErrorSugerencia('');
+    setGuardandoSugerencia(true);
+    try {
+      await sugerirEjercicio(rutinaParaSugerir.id, {
+        nombre: nombre.trim(),
+        series: seriesNum,
+        repeticiones: String(repeticiones).trim(),
+        descripcion: descripcion.trim(),
+      });
+      await loadRutinas();
+      if (rutinaSeleccionada && rutinaSeleccionada.id === rutinaParaSugerir.id) {
+        const data = await listRutinasInstructor();
+        const actualizada = data.data.find(r => r.id === rutinaParaSugerir.id);
+        if (actualizada) setRutinaSeleccionada(actualizada);
+      }
+      handleCerrarModalSugerencia();
+    } catch (err) {
+      console.error('Error al sugerir ejercicio:', err);
+      setErrorSugerencia(err.response?.data?.error || 'Error al agregar el ejercicio');
+    } finally {
+      setGuardandoSugerencia(false);
+    }
   };
 
   if (loading) {
@@ -289,9 +387,22 @@ export default function RutinasInstructor() {
             {rutinaSeleccionada.descripcion && (
               <p className="text-gray-600 mt-2">{rutinaSeleccionada.descripcion}</p>
             )}
-            <p className="text-gray-600 mt-2">
-              Generada por {rutinaSeleccionada.socio_nombre || 'N/A'} (ID: {rutinaSeleccionada.socio_id}) el día {formatFecha(rutinaSeleccionada.fecha_creacion)}
-            </p>
+            <div className="mt-2 flex flex-wrap items-center justify-between gap-3">
+              <p className="text-gray-600">
+                Generada por {rutinaSeleccionada.socio_nombre || 'N/A'} (ID: {rutinaSeleccionada.socio_id}) el día {formatFecha(rutinaSeleccionada.fecha_creacion)}
+              </p>
+              <button
+                type="button"
+                onClick={() => {
+                  setRutinaParaSugerir(rutinaSeleccionada);
+                  setFormSugerencia({ nombre: '', series: '', repeticiones: '', descripcion: '' });
+                  setErrorSugerencia('');
+                }}
+                className="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700 transition-colors shrink-0"
+              >
+                Sugerir ejercicio
+              </button>
+            </div>
           </div>
 
           <div className="space-y-4">
@@ -327,6 +438,12 @@ export default function RutinasInstructor() {
                     color: 'bg-red-500',
                     texto: 'Rechazado por un Instructor',
                     hoverColor: 'hover:bg-red-600'
+                  },
+                  4: { // SUGERIDO
+                    emoji: '💡',
+                    color: 'bg-indigo-500',
+                    texto: 'Sugerido por instructor',
+                    hoverColor: 'hover:bg-indigo-600'
                   }
                 };
 
@@ -386,7 +503,7 @@ export default function RutinasInstructor() {
                       )}
                     </div>
 
-                    {/* Botón Revisar ejercicio solo si está PENDIENTE */}
+                    {/* Botón Revisar ejercicio solo si está PENDIENTE (no para SUGERIDO) */}
                     {estadoId === 1 && (
                       <div className="mt-4">
                         <button
@@ -433,24 +550,73 @@ export default function RutinasInstructor() {
             </div>
             
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-              {/* Select: Filtrar por socio - PRIMERO */}
+              {/* Buscador con dropdown custom para socio - PRIMERO */}
               <div>
                 <label htmlFor="filtro-socio" className="block text-xs font-medium text-gray-700 mb-1">
                   Filtrar por socio
                 </label>
-                <select
-                  id="filtro-socio"
-                  value={socioFiltro}
-                  onChange={(e) => setSocioFiltro(e.target.value)}
-                  className="w-full px-2.5 py-1.5 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-                >
-                  <option value="">Todos los socios</option>
-                  {getSociosConRutinasActivas().map((socio) => (
-                    <option key={socio.id} value={socio.id}>
-                      {socio.nombre} (ID: {socio.id})
-                    </option>
-                  ))}
-                </select>
+                <div className="relative">
+                  <input
+                    id="filtro-socio"
+                    type="text"
+                    placeholder="Todos los socios (escribí para buscar...)"
+                    value={socioFiltroTexto}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      setSocioFiltroTexto(value);
+                      setSocioDropdownAbierto(true);
+                      if (value.trim() === '') {
+                        setSocioFiltro('');
+                      }
+                    }}
+                    onFocus={() => setSocioDropdownAbierto(true)}
+                    onBlur={() => {
+                      // Cerrar con pequeño delay para permitir click en opción
+                      setTimeout(() => setSocioDropdownAbierto(false), 100);
+                    }}
+                    className="w-full px-2.5 py-1.5 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                  />
+                  {socioDropdownAbierto && (
+                    <div className="absolute z-20 mt-1 w-full max-h-56 overflow-auto rounded-md border border-gray-200 bg-white shadow-lg">
+                      <button
+                        type="button"
+                        className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                        onMouseDown={(e) => {
+                          e.preventDefault();
+                          setSocioFiltro('');
+                          setSocioFiltroTexto('');
+                          setSocioDropdownAbierto(false);
+                        }}
+                      >
+                        Todos los socios
+                      </button>
+                      {getSociosConRutinasActivas()
+                        .filter((socio) => {
+                          if (!socioFiltroTexto.trim()) return true;
+                          const term = socioFiltroTexto.toLowerCase();
+                          return (
+                            socio.nombre.toLowerCase().includes(term) ||
+                            String(socio.id).includes(term)
+                          );
+                        })
+                        .map((socio) => (
+                          <button
+                            key={socio.id}
+                            type="button"
+                            className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-blue-50"
+                            onMouseDown={(e) => {
+                              e.preventDefault();
+                              setSocioFiltro(String(socio.id));
+                              setSocioFiltroTexto(`${socio.id} - ${socio.nombre}`);
+                              setSocioDropdownAbierto(false);
+                            }}
+                          >
+                            {socio.id} - {socio.nombre}
+                          </button>
+                        ))}
+                    </div>
+                  )}
+                </div>
               </div>
 
               {/* Checkbox: Solo rutinas pendientes - SEGUNDO */}
@@ -487,13 +653,33 @@ export default function RutinasInstructor() {
             <p className="text-gray-500">No hay rutinas disponibles.</p>
           ) : (
             <>
-              {filtrarRutinas().length === 0 ? (
+              {rutinasFiltradas.length === 0 ? (
                 <div className="bg-gray-50 border rounded-lg p-6 text-center">
                   <p className="text-gray-500">No hay rutinas que coincidan con los filtros seleccionados.</p>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {filtrarRutinas().map((rutina) => {
+                <>
+                  {rutinasFiltradas.length > ITEMS_POR_PAGINA_RUTINAS && (
+                    <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+                      <div className="text-sm text-gray-600">
+                        Mostrando {(paginaActualRutinas - 1) * ITEMS_POR_PAGINA_RUTINAS + 1}–{Math.min(paginaActualRutinas * ITEMS_POR_PAGINA_RUTINAS, rutinasFiltradas.length)} de {rutinasFiltradas.length} rutinas
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <button type="button" onClick={() => irAPaginaRutinas(1)} disabled={paginaActualRutinas <= 1} className="px-2 py-1 rounded border text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100" title="Primera">«</button>
+                        <button type="button" onClick={() => irAPaginaRutinas(paginaActualRutinas - 1)} disabled={paginaActualRutinas <= 1} className="px-2 py-1 rounded border text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100" title="Anterior">‹</button>
+                        {getNumerosPaginaRutinas().map((num, idx) => (
+                          <span key={num}>
+                            {idx > 0 && getNumerosPaginaRutinas()[idx - 1] !== num - 1 && <span className="px-1 text-gray-400">…</span>}
+                            <button type="button" onClick={() => irAPaginaRutinas(num)} className={`min-w-[2rem] px-2 py-1 rounded text-sm ${paginaActualRutinas === num ? 'bg-blue-600 text-white border border-blue-600' : 'border hover:bg-gray-100'}`}>{num}</button>
+                          </span>
+                        ))}
+                        <button type="button" onClick={() => irAPaginaRutinas(paginaActualRutinas + 1)} disabled={paginaActualRutinas >= totalPaginasRutinas} className="px-2 py-1 rounded border text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100" title="Siguiente">›</button>
+                        <button type="button" onClick={() => irAPaginaRutinas(totalPaginasRutinas)} disabled={paginaActualRutinas >= totalPaginasRutinas} className="px-2 py-1 rounded border text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100" title="Última">»</button>
+                      </div>
+                    </div>
+                  )}
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {rutinasEnPagina.map((rutina) => {
                 let ejerciciosCard = [];
                 try {
                   ejerciciosCard = Array.isArray(rutina.ejercicios)
@@ -511,11 +697,20 @@ export default function RutinasInstructor() {
                 const tienePendientes = ejerciciosPendientes > 0;
                 const todosCompletos = ejerciciosCard.length > 0 && ejerciciosPendientes === 0;
 
+                const rutinaActiva = rutina.activa === 1 || rutina.activa === true;
+
                 return (
                   <div
                     key={rutina.id}
-                    className="bg-white border rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow cursor-pointer"
-                    onClick={() => handleVerEjercicios(rutina)}
+                    className={`bg-white border rounded-lg p-4 shadow-sm transition-shadow ${
+                      rutinaActiva
+                        ? 'hover:shadow-md cursor-pointer'
+                        : 'opacity-60 cursor-not-allowed'
+                    }`}
+                    onClick={() => {
+                      if (!rutinaActiva) return;
+                      handleVerEjercicios(rutina);
+                    }}
                   >
                     <div className="flex items-start justify-between mb-2">
                       <h3 className="text-lg font-semibold text-gray-800 flex-1">
@@ -558,18 +753,38 @@ export default function RutinasInstructor() {
                       </p>
                       <span
                         className={`inline-block px-2 py-1 rounded text-xs font-medium ${
-                          rutina.activa === 1 || rutina.activa === true
+                          rutinaActiva
                             ? 'bg-green-100 text-green-800'
                             : 'bg-gray-100 text-gray-800'
                         }`}
                       >
-                        {rutina.activa === 1 || rutina.activa === true ? 'Activa' : 'Inactiva'}
+                        {rutinaActiva ? 'Activa' : 'Inactiva'}
                       </span>
                     </div>
                   </div>
                 );
                   })}
                 </div>
+                  {rutinasFiltradas.length > ITEMS_POR_PAGINA_RUTINAS && (
+                    <div className="mt-6 flex flex-wrap items-center justify-between gap-2 border-t pt-4">
+                      <div className="text-sm text-gray-600">
+                        Mostrando {(paginaActualRutinas - 1) * ITEMS_POR_PAGINA_RUTINAS + 1}–{Math.min(paginaActualRutinas * ITEMS_POR_PAGINA_RUTINAS, rutinasFiltradas.length)} de {rutinasFiltradas.length} rutinas
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <button type="button" onClick={() => irAPaginaRutinas(1)} disabled={paginaActualRutinas <= 1} className="px-2 py-1 rounded border text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100" title="Primera">«</button>
+                        <button type="button" onClick={() => irAPaginaRutinas(paginaActualRutinas - 1)} disabled={paginaActualRutinas <= 1} className="px-2 py-1 rounded border text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100" title="Anterior">‹</button>
+                        {getNumerosPaginaRutinas().map((num, idx) => (
+                          <span key={num}>
+                            {idx > 0 && getNumerosPaginaRutinas()[idx - 1] !== num - 1 && <span className="px-1 text-gray-400">…</span>}
+                            <button type="button" onClick={() => irAPaginaRutinas(num)} className={`min-w-[2rem] px-2 py-1 rounded text-sm ${paginaActualRutinas === num ? 'bg-blue-600 text-white border border-blue-600' : 'border hover:bg-gray-100'}`}>{num}</button>
+                          </span>
+                        ))}
+                        <button type="button" onClick={() => irAPaginaRutinas(paginaActualRutinas + 1)} disabled={paginaActualRutinas >= totalPaginasRutinas} className="px-2 py-1 rounded border text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100" title="Siguiente">›</button>
+                        <button type="button" onClick={() => irAPaginaRutinas(totalPaginasRutinas)} disabled={paginaActualRutinas >= totalPaginasRutinas} className="px-2 py-1 rounded border text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100" title="Última">»</button>
+                      </div>
+                    </div>
+                  )}
+                </>
               )}
             </>
           )}
@@ -706,6 +921,95 @@ export default function RutinasInstructor() {
                 onClick={handleCerrarModalNotas}
                 disabled={guardandoNotas}
                 className="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Sugerir ejercicio */}
+      {rutinaParaSugerir && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4" onClick={(e) => e.stopPropagation()}>
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-bold">Sugerir ejercicio para &quot;{rutinaParaSugerir.nombre}&quot;</h2>
+              <button
+                type="button"
+                onClick={handleCerrarModalSugerencia}
+                disabled={guardandoSugerencia}
+                className="text-gray-500 hover:text-gray-700 text-2xl font-bold disabled:opacity-50"
+              >
+                ×
+              </button>
+            </div>
+            {errorSugerencia && (
+              <div className="mb-4 px-3 py-2 rounded bg-red-100 border border-red-200 text-red-800 text-sm">
+                {errorSugerencia}
+              </div>
+            )}
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Nombre ejercicio *</label>
+                <input
+                  type="text"
+                  value={formSugerencia.nombre}
+                  onChange={(e) => setFormSugerencia((f) => ({ ...f, nombre: e.target.value }))}
+                  className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Ej: Sentadilla con barra"
+                  disabled={guardandoSugerencia}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Cantidad de series *</label>
+                <input
+                  type="number"
+                  min={1}
+                  value={formSugerencia.series}
+                  onChange={(e) => setFormSugerencia((f) => ({ ...f, series: e.target.value }))}
+                  className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Ej: 4"
+                  disabled={guardandoSugerencia}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Cantidad de repeticiones *</label>
+                <input
+                  type="text"
+                  value={formSugerencia.repeticiones}
+                  onChange={(e) => setFormSugerencia((f) => ({ ...f, repeticiones: e.target.value }))}
+                  className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Ej: 8-12"
+                  disabled={guardandoSugerencia}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Descripción *</label>
+                <textarea
+                  value={formSugerencia.descripcion}
+                  onChange={(e) => setFormSugerencia((f) => ({ ...f, descripcion: e.target.value }))}
+                  className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  rows={3}
+                  placeholder="Descripción del ejercicio"
+                  disabled={guardandoSugerencia}
+                />
+              </div>
+            </div>
+            <div className="flex gap-3 mt-6">
+              <button
+                type="button"
+                onClick={handleGuardarSugerencia}
+                disabled={guardandoSugerencia}
+                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {guardandoSugerencia ? 'Guardando...' : 'Guardar'}
+              </button>
+              <button
+                type="button"
+                onClick={handleCerrarModalSugerencia}
+                disabled={guardandoSugerencia}
+                className="px-4 py-2 border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50"
               >
                 Cancelar
               </button>

@@ -18,6 +18,9 @@ export default function DashboardAdmin() {
   const [pagosRecientes, setPagosRecientes] = useState([]);
   const [totalSocios, setTotalSocios] = useState(0);
   const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
+  const [paginaSocios, setPaginaSocios] = useState(1);
+
+  const ITEMS_POR_PAGINA = 10;
 
   useEffect(() => {
     loadDashboard();
@@ -101,6 +104,7 @@ export default function DashboardAdmin() {
       direction = 'desc';
     }
     setSortConfig({ key, direction });
+    setPaginaSocios(1);
   };
 
   const getSortedSocios = () => {
@@ -137,6 +141,32 @@ export default function DashboardAdmin() {
     });
 
     return sorted;
+  };
+
+  const sociosOrdenados = getSortedSocios();
+  const totalPaginasSocios = Math.max(1, Math.ceil(sociosOrdenados.length / ITEMS_POR_PAGINA));
+  const paginaActualSocios = Math.min(paginaSocios, totalPaginasSocios);
+  const sociosEnPagina = sociosOrdenados.slice(
+    (paginaActualSocios - 1) * ITEMS_POR_PAGINA,
+    paginaActualSocios * ITEMS_POR_PAGINA
+  );
+
+  const irAPaginaSocios = (num) => {
+    const n = Math.max(1, Math.min(num, totalPaginasSocios));
+    setPaginaSocios(n);
+  };
+
+  // Rango de números de página a mostrar (ej: 1 ... 4 5 6 ... 12)
+  const getNumerosPagina = () => {
+    const total = totalPaginasSocios;
+    if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
+    const vecinos = 2;
+    const left = Math.max(2, paginaActualSocios - vecinos);
+    const right = Math.min(total - 1, paginaActualSocios + vecinos);
+    const nums = new Set([1]);
+    for (let i = left; i <= right; i++) nums.add(i);
+    if (total > 1) nums.add(total);
+    return Array.from(nums).sort((a, b) => a - b);
   };
 
   return (
@@ -292,7 +322,7 @@ export default function DashboardAdmin() {
                 </tr>
               </thead>
               <tbody>
-                {getSortedSocios().map((socio) => (
+                {sociosEnPagina.map((socio) => (
                   <tr key={socio.id} className="border-b hover:bg-gray-50">
                     <td className="py-2">
                       {socio.documento || String(socio.id).padStart(4, '0')}
@@ -301,11 +331,17 @@ export default function DashboardAdmin() {
                     <td className="py-2">{socio.telefono || '-'}</td>
                     <td className="py-2">{socio.usuario_email || '-'}</td>
                     <td className="py-2">
-                      <span className={`px-2 py-1 rounded text-xs ${
-                        socio.estado === 'activo' ? 'bg-green-100 text-green-800' :
-                        socio.estado === 'suspendido' ? 'bg-yellow-100 text-yellow-800' :
-                        'bg-red-100 text-red-800'
-                      }`}>
+                      <span
+                        className={`px-2 py-1 rounded text-xs ${
+                          socio.estado === 'activo'
+                            ? 'bg-green-100 text-green-800'
+                            : socio.estado === 'suspendido'
+                            ? 'bg-yellow-100 text-yellow-800'
+                            : socio.estado === 'abandono'
+                            ? 'bg-orange-100 text-orange-800'
+                            : 'bg-red-100 text-red-800'
+                        }`}
+                      >
                         {socio.estado}
                       </span>
                     </td>
@@ -323,6 +359,69 @@ export default function DashboardAdmin() {
                 ))}
               </tbody>
             </table>
+          </div>
+        )}
+        {totalSocios > ITEMS_POR_PAGINA && (
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t pt-4">
+            <div className="text-sm text-gray-600">
+              Mostrando {(paginaActualSocios - 1) * ITEMS_POR_PAGINA + 1}–{Math.min(paginaActualSocios * ITEMS_POR_PAGINA, totalSocios)} de {totalSocios} socios
+            </div>
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={() => irAPaginaSocios(1)}
+                disabled={paginaActualSocios <= 1}
+                className="px-2 py-1 rounded border text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100"
+                title="Primera página"
+              >
+                «
+              </button>
+              <button
+                type="button"
+                onClick={() => irAPaginaSocios(paginaActualSocios - 1)}
+                disabled={paginaActualSocios <= 1}
+                className="px-2 py-1 rounded border text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100"
+                title="Anterior"
+              >
+                ‹
+              </button>
+              {getNumerosPagina().map((num, idx) => (
+                <span key={num}>
+                  {idx > 0 && getNumerosPagina()[idx - 1] !== num - 1 && (
+                    <span className="px-1 text-gray-400">…</span>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => irAPaginaSocios(num)}
+                    className={`min-w-[2rem] px-2 py-1 rounded text-sm ${
+                      paginaActualSocios === num
+                        ? 'bg-blue-600 text-white border border-blue-600'
+                        : 'border hover:bg-gray-100'
+                    }`}
+                  >
+                    {num}
+                  </button>
+                </span>
+              ))}
+              <button
+                type="button"
+                onClick={() => irAPaginaSocios(paginaActualSocios + 1)}
+                disabled={paginaActualSocios >= totalPaginasSocios}
+                className="px-2 py-1 rounded border text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100"
+                title="Siguiente"
+              >
+                ›
+              </button>
+              <button
+                type="button"
+                onClick={() => irAPaginaSocios(totalPaginasSocios)}
+                disabled={paginaActualSocios >= totalPaginasSocios}
+                className="px-2 py-1 rounded border text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100"
+                title="Última página"
+              >
+                »
+              </button>
+            </div>
           </div>
         )}
       </div>
@@ -354,9 +453,10 @@ export default function DashboardAdmin() {
                       </div>
                     </div>
                     <span className={`px-2 py-1 rounded text-xs ${
-                      clase.estado === 'activa' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                      clase.estado === 'activa' ? 'bg-green-100 text-green-800' :
+                      clase.estado === 'finalizada' ? 'bg-gray-100 text-gray-800' : 'bg-red-100 text-red-800'
                     }`}>
-                      {clase.estado}
+                      {clase.estado === 'activa' ? 'Activa' : clase.estado === 'finalizada' ? 'Finalizada' : 'Cancelada'}
                     </span>
                   </div>
                 </div>

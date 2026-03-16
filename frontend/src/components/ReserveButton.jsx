@@ -90,7 +90,7 @@ export default function ReserveButton({ clase, onSuccess }) {
           >
             {socioInactivo ? 'Cuenta inactiva' : 
              isFull ? 'Cupo lleno' : 
-             clase.estado !== 'activa' ? 'Cancelada' : 
+             clase.estado !== 'activa' ? (clase.estado === 'finalizada' ? 'Finalizada' : 'Cancelada') : 
              loading ? 'Reservando...' : 'Reservar'}
           </button>
         )}

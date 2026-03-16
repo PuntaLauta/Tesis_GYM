@@ -1,7 +1,7 @@
 const express = require('express');
 const bcrypt = require('bcrypt');
 const { get, run, insert } = require('../db/database');
-const { isSocioActivo } = require('../models/helpers');
+const { calcularEstadoSocioConPagos } = require('../models/helpers');
 const router = express.Router();
 
 // Función para normalizar respuestas: minúsculas, sin espacios, sin tildes
@@ -35,36 +35,72 @@ router.post('/login', async (req, res) => {
       return res.status(401).json({ error: 'Credenciales inválidas' });
     }
 
+    // Admin/root: permitir login siempre; guardar estado_activo para restringir funciones en frontend
+    let estadoActivo = true;
+    if (user.rol === 'admin') {
+      const adminRow = get('SELECT estado FROM admins WHERE usuario_id = ?', [user.id]);
+      estadoActivo = !!(adminRow && adminRow.estado === 1);
+    }
+    if (user.rol === 'root') {
+      const rootRow = get('SELECT estado FROM roots WHERE usuario_id = ?', [user.id]);
+      estadoActivo = !!(rootRow && rootRow.estado === 1);
+    }
+
     // Si es cliente, obtener su socio asignado
     let socioId = null;
+    let socioCanceladoPorAdmin = false;
     if (user.rol === 'cliente') {
-      const socioExistente = get('SELECT id FROM socios WHERE usuario_id = ?', [user.id]);
+      const socioExistente = get(
+        'SELECT id, cancelado_por_admin, socio_estado_id FROM socios WHERE usuario_id = ?',
+        [user.id]
+      );
       if (socioExistente) {
         socioId = socioExistente.id;
-        
-        // Verificar y actualizar estado del socio basado en vigencia del último pago
-        try {
-          const validacion = isSocioActivo(socioId);
-          const nuevoEstado = validacion.activo ? 'activo' : 'inactivo';
-          run('UPDATE socios SET estado = ? WHERE id = ?', [nuevoEstado, socioId]);
-        } catch (error) {
-          // Si hay error en la verificación, no afectar el proceso de login
-          console.error('Error al actualizar estado del socio en login:', error);
+        socioCanceladoPorAdmin = !!socioExistente.cancelado_por_admin;
+
+        // Secuencia de checks para clientes:
+        // 1) Si está cancelado por admin, no recalcular por pagos
+        if (!socioCanceladoPorAdmin && socioId) {
+          try {
+            // 2) Calcular estado recomendado por pagos (activo / inactivo / abandono)
+            const resultadoEstado = calcularEstadoSocioConPagos(socioId);
+            const { estadoRecomendado } = resultadoEstado;
+
+            // 3) Actualizar estado y fecha_cambio solo si el estado recomendado es distinto al actual
+            if (
+              estadoRecomendado &&
+              ['activo', 'inactivo', 'abandono'].includes(estadoRecomendado)
+            ) {
+              const estadoRow = get('SELECT id FROM socio_estado WHERE nombre = ?', [estadoRecomendado]);
+              if (estadoRow && estadoRow.id !== socioExistente.socio_estado_id) {
+                run("UPDATE socios SET socio_estado_id = ?, fecha_cambio = datetime('now') WHERE id = ?", [
+                  estadoRow.id,
+                  socioId,
+                ]);
+              }
+            }
+          } catch (error) {
+            // Si hay error en la verificación, no afectar el proceso de login
+            console.error(
+              'Error al actualizar estado del socio en login:',
+              error
+            );
+          }
         }
       }
       // No asignar automáticamente socios sin usuario - deben estar correctamente asociados desde el seed
     }
 
-    // Si es instructor, obtener su instructor_id
+    // Si es instructor, obtener su instructor_id por usuario_id (FK)
     let instructorId = null;
     if (user.rol === 'instructor') {
-      const instructorExistente = get('SELECT id FROM instructores WHERE email = ?', [user.email]);
+      const instructorExistente = get('SELECT id FROM instructores WHERE usuario_id = ?', [user.id]);
       if (instructorExistente) {
         instructorId = instructorExistente.id;
       }
     }
 
-    // Guardar en sesión
+    // Guardar en sesión (estado_activo para admin/root: si es false, pueden entrar pero sin funciones)
     req.session.user = {
       id: user.id,
       nombre: user.nombre,
@@ -72,6 +108,8 @@ router.post('/login', async (req, res) => {
       rol: user.rol,
       socio_id: socioId,
       instructor_id: instructorId,
+      cancelado_por_admin: socioCanceladoPorAdmin,
+      estado_activo: user.rol === 'admin' || user.rol === 'root' ? estadoActivo : true,
     };
 
     res.json({
@@ -82,6 +120,8 @@ router.post('/login', async (req, res) => {
         rol: user.rol,
         socio_id: socioId,
         instructor_id: instructorId,
+        cancelado_por_admin: socioCanceladoPorAdmin,
+        estado_activo: user.rol === 'admin' || user.rol === 'root' ? estadoActivo : true,
       },
     });
   } catch (error) {
@@ -101,13 +141,21 @@ router.post('/logout', (req, res) => {
   });
 });
 
-// GET /auth/me
+// GET /auth/me (incluye estado_activo para admin/root)
 router.get('/me', (req, res) => {
-  if (req.session && req.session.user) {
-    res.json({ user: req.session.user });
-  } else {
-    res.json({ user: null });
+  if (!req.session || !req.session.user) {
+    return res.json({ user: null });
   }
+  const user = req.session.user;
+  if (user.rol === 'admin' || user.rol === 'root') {
+    const table = user.rol === 'admin' ? 'admins' : 'roots';
+    const row = get(`SELECT estado FROM ${table} WHERE usuario_id = ?`, [user.id]);
+    const estadoActivo = !!(row && row.estado === 1);
+    if (user.estado_activo !== estadoActivo) {
+      req.session.user = { ...user, estado_activo: estadoActivo };
+    }
+  }
+  res.json({ user: req.session.user });
 });
 
 // PUT /auth/me/password - Cambiar contraseña (cliente o admin)

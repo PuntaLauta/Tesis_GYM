@@ -46,3 +46,8 @@ export const actualizarNotasEjercicio = (rutinaEjercicioId, notas) => {
     notas
   }).then(r => r.data);
 };
+
+/** Agregar ejercicio sugerido por instructor a una rutina (estado Pendiente). Body: { nombre, series, repeticiones, descripcion } */
+export const sugerirEjercicio = (rutinaId, data) => {
+  return api.post(`/api/rutinas/${rutinaId}/ejercicios`, data).then(r => r.data);
+};

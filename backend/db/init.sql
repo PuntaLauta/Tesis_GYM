@@ -14,6 +14,19 @@ CREATE TABLE IF NOT EXISTS planes (
   duracion INTEGER NOT NULL, -- días
   precio REAL NOT NULL
 );
+-- Planes por defecto: insertar si no existen
+INSERT INTO planes (nombre, duracion, precio) SELECT 'Mensual', 30, 35000 WHERE NOT EXISTS (SELECT 1 FROM planes WHERE nombre = 'Mensual');
+INSERT INTO planes (nombre, duracion, precio) SELECT 'Trimestral', 90, 90000 WHERE NOT EXISTS (SELECT 1 FROM planes WHERE nombre = 'Trimestral');
+-- Actualizar precios a valores actuales (para quienes ya tenían estos planes con precios viejos)
+UPDATE planes SET duracion = 30, precio = 35000 WHERE nombre = 'Mensual';
+UPDATE planes SET duracion = 90, precio = 90000 WHERE nombre = 'Trimestral';
+
+-- Catálogo de estados de socio
+CREATE TABLE IF NOT EXISTS socio_estado (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  nombre TEXT UNIQUE NOT NULL
+);
+INSERT OR IGNORE INTO socio_estado (id, nombre) VALUES (1, 'activo'), (2, 'inactivo'), (3, 'suspendido'), (4, 'abandono');
 
 -- Tabla de socios
 CREATE TABLE IF NOT EXISTS socios (
@@ -21,7 +34,9 @@ CREATE TABLE IF NOT EXISTS socios (
   nombre TEXT NOT NULL,
   documento TEXT,
   telefono TEXT,
-  estado TEXT NOT NULL DEFAULT 'activo' CHECK(estado IN ('activo', 'suspendido', 'inactivo')),
+  socio_estado_id INTEGER NOT NULL DEFAULT 1 REFERENCES socio_estado(id),
+  fecha_cambio TEXT,
+  cancelado_por_admin INTEGER NOT NULL DEFAULT 0,
   plan_id INTEGER,
   usuario_id INTEGER,
   qr_token TEXT UNIQUE,
@@ -53,15 +68,40 @@ CREATE TABLE IF NOT EXISTS tipo_rutina (
   nombre TEXT NOT NULL,
   descripcion TEXT
 );
+-- Tipos de rutina por defecto (cubren los casos del sistema: socio pide rutina por tipo)
+INSERT INTO tipo_rutina (nombre, descripcion) SELECT 'Fuerza', 'Rutina orientada a desarrollo de fuerza máxima y potencia. Incluye ejercicios compuestos y trabajo con cargas altas.' WHERE NOT EXISTS (SELECT 1 FROM tipo_rutina WHERE nombre = 'Fuerza');
+INSERT INTO tipo_rutina (nombre, descripcion) SELECT 'Hipertrofia', 'Rutina para ganancia de masa muscular. Volumen moderado-alto, rangos de repeticiones 8-12, múltiples series.' WHERE NOT EXISTS (SELECT 1 FROM tipo_rutina WHERE nombre = 'Hipertrofia');
+INSERT INTO tipo_rutina (nombre, descripcion) SELECT 'Full body', 'Rutina de cuerpo completo por sesión. Ideal para 2-4 días por semana y mantenimiento general.' WHERE NOT EXISTS (SELECT 1 FROM tipo_rutina WHERE nombre = 'Full body');
+INSERT INTO tipo_rutina (nombre, descripcion) SELECT 'Resistencia', 'Rutina enfocada en resistencia muscular y cardiovascular. Circuitos, repeticiones altas y poco descanso.' WHERE NOT EXISTS (SELECT 1 FROM tipo_rutina WHERE nombre = 'Resistencia');
 
--- Tabla de instructores
+-- Tablas admins y roots (FK a usuarios; nombre/email se obtienen por JOIN con usuarios)
+CREATE TABLE IF NOT EXISTS admins (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  usuario_id INTEGER NOT NULL UNIQUE REFERENCES usuarios(id),
+  estado INTEGER NOT NULL DEFAULT 1 CHECK(estado IN (0, 1))
+);
+CREATE TABLE IF NOT EXISTS roots (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  usuario_id INTEGER NOT NULL UNIQUE REFERENCES usuarios(id),
+  estado INTEGER NOT NULL DEFAULT 1 CHECK(estado IN (0, 1))
+);
+
+-- Tabla de instructores (usuario_id conecta con usuarios)
 CREATE TABLE IF NOT EXISTS instructores (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
+  usuario_id INTEGER UNIQUE REFERENCES usuarios(id),
   nombre TEXT NOT NULL,
   email TEXT UNIQUE NOT NULL,
   telefono TEXT,
   activo INTEGER DEFAULT 1 CHECK(activo IN (0, 1))
 );
+
+-- Estado de clase (activa, finalizada, cancelada)
+CREATE TABLE IF NOT EXISTS estado_clase (
+  id INTEGER PRIMARY KEY,
+  nombre TEXT UNIQUE NOT NULL
+);
+INSERT OR IGNORE INTO estado_clase (id, nombre) VALUES (1, 'activa'), (2, 'finalizada'), (3, 'cancelada');
 
 -- Tabla de clases
 CREATE TABLE IF NOT EXISTS clases (
@@ -73,7 +113,8 @@ CREATE TABLE IF NOT EXISTS clases (
   cupo INTEGER NOT NULL,
   instructor TEXT,
   instructor_id INTEGER,
-  estado TEXT DEFAULT 'activa' CHECK(estado IN ('activa', 'cancelada')),
+  estado_clase_id INTEGER DEFAULT 1 REFERENCES estado_clase(id),
+  fecha_cambio_estado TEXT,
   FOREIGN KEY (tipo_clase_id) REFERENCES tipo_clase(id),
   FOREIGN KEY (instructor_id) REFERENCES instructores(id)
 );
@@ -204,7 +245,8 @@ CREATE TABLE IF NOT EXISTS estado_ejercicios (
 );
 
 -- Insertar estados por defecto
-INSERT OR IGNORE INTO estado_ejercicios (nombre, descripcion) VALUES 
-  ('PENDIENTE', 'Pendiente de revisión por instructor'),
-  ('APROBADO', 'Aprobado por instructor'),
-  ('RECHAZADO', 'Rechazado por instructor');
+INSERT OR IGNORE INTO estado_ejercicios (id, nombre, descripcion) VALUES 
+  (1, 'PENDIENTE', 'Pendiente de revisión por instructor'),
+  (2, 'APROBADO', 'Aprobado por instructor'),
+  (3, 'RECHAZADO', 'Rechazado por instructor'),
+  (4, 'SUGERIDO', 'Sugerido por instructor');

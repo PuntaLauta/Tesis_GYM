@@ -286,11 +286,17 @@ export default function Profile() {
             <p><strong>Email:</strong> {user.email || 'N/A'}</p>
             <p><strong>Teléfono:</strong> {socio?.telefono || 'No registrado'}</p>
             <p><strong>Estado:</strong> 
-              <span className={`ml-2 px-2 py-1 rounded text-xs ${
-                socio?.estado === 'activo' ? 'bg-green-100 text-green-800' :
-                socio?.estado === 'suspendido' ? 'bg-yellow-100 text-yellow-800' :
-                'bg-red-100 text-red-800'
-              }`}>
+              <span
+                className={`ml-2 px-2 py-1 rounded text-xs ${
+                  socio?.estado === 'activo'
+                    ? 'bg-green-100 text-green-800'
+                    : socio?.estado === 'suspendido'
+                    ? 'bg-yellow-100 text-yellow-800'
+                    : socio?.estado === 'abandono'
+                    ? 'bg-orange-100 text-orange-800'
+                    : 'bg-red-100 text-red-800'
+                }`}
+              >
                 {socio?.estado || 'N/A'}
               </span>
             </p>
@@ -398,10 +404,10 @@ export default function Profile() {
         )}
       </div>
 
-      {/* Cambiar Contraseña */}
+      {/* Mi Contraseña */}
       <div className="bg-white p-6 rounded-lg shadow">
         <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-semibold">Cambiar Contraseña</h2>
+          <h2 className="text-xl font-semibold">Mi Contraseña</h2>
           {!showPasswordForm && (
             <button
               onClick={() => setShowPasswordForm(true)}

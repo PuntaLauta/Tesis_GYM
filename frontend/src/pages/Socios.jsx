@@ -1,18 +1,20 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { listSocios, createSocio, updateSocio, deleteSocio } from '../services/socios';
+import { listSocios, createSocio, updateSocio, updateSocioEstadoAdmin } from '../services/socios';
 import { listPlanes } from '../services/planes';
-import SocioQrCard from '../components/SocioQrCard';
 
 export default function Socios() {
   const [socios, setSocios] = useState([]);
   const [sociosFiltrados, setSociosFiltrados] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
+  const [estadoFiltro, setEstadoFiltro] = useState('');
   const [planes, setPlanes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingSocio, setEditingSocio] = useState(null);
-  const [selectedSocioId, setSelectedSocioId] = useState(null);
+  const [successMessage, setSuccessMessage] = useState('');
+  const [paginaSocios, setPaginaSocios] = useState(1);
+  const ITEMS_POR_PAGINA = 10;
   const [formData, setFormData] = useState({
     nombre: '',
     documento: '',
@@ -53,28 +55,61 @@ export default function Socios() {
   };
 
   useEffect(() => {
+    let filtrados = [...socios];
+
+    if (estadoFiltro) {
+      filtrados = filtrados.filter((s) => s.estado === estadoFiltro);
+    }
+
     if (searchTerm.trim()) {
       const term = searchTerm.toLowerCase();
-      const filtrados = socios.filter(s => 
-        s.nombre?.toLowerCase().includes(term) || 
-        s.documento?.toLowerCase().includes(term)
+      filtrados = filtrados.filter(
+        (s) =>
+          s.nombre?.toLowerCase().includes(term) ||
+          s.documento?.toLowerCase().includes(term)
       );
-      setSociosFiltrados(filtrados);
-    } else {
-      setSociosFiltrados(socios);
     }
-  }, [searchTerm, socios]);
+
+    setSociosFiltrados(filtrados);
+    setPaginaSocios(1);
+  }, [searchTerm, socios, estadoFiltro]);
+
+  const totalPaginasSocios = Math.max(1, Math.ceil(sociosFiltrados.length / ITEMS_POR_PAGINA));
+  const paginaActualSocios = Math.min(paginaSocios, totalPaginasSocios);
+  const sociosEnPagina = sociosFiltrados.slice(
+    (paginaActualSocios - 1) * ITEMS_POR_PAGINA,
+    paginaActualSocios * ITEMS_POR_PAGINA
+  );
+
+  const irAPaginaSocios = (num) => {
+    const n = Math.max(1, Math.min(num, totalPaginasSocios));
+    setPaginaSocios(n);
+  };
+
+  const getNumerosPagina = () => {
+    const total = totalPaginasSocios;
+    if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
+    const vecinos = 2;
+    const left = Math.max(2, paginaActualSocios - vecinos);
+    const right = Math.min(total - 1, paginaActualSocios + vecinos);
+    const nums = new Set([1]);
+    for (let i = left; i <= right; i++) nums.add(i);
+    if (total > 1) nums.add(total);
+    return Array.from(nums).sort((a, b) => a - b);
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     e.stopPropagation();
-    
+    setSuccessMessage('');
+
     try {
       const isEditing = !!editingSocio;
       
       if (isEditing) {
         // Si hay contraseña nueva, incluirla en la actualización
-        const updateData = { ...formData };
+        const { estado, ...rest } = formData;
+        const updateData = { ...rest };
         // Solo incluir password si se proporcionó una nueva
         if (!updateData.password || updateData.password.trim() === '') {
           delete updateData.password;
@@ -82,6 +117,11 @@ export default function Socios() {
         // No enviar email en la actualización (ya está deshabilitado)
         delete updateData.email;
         await updateSocio(editingSocio.id, updateData);
+        // Actualizar estado y marca de cancelación por admin en endpoint dedicado
+        const estadoAdminActual = editingSocio.cancelado_por_admin ? 'suspendido' : 'activo';
+        if (estado && estado !== estadoAdminActual) {
+          await updateSocioEstadoAdmin(editingSocio.id, { estado });
+        }
       } else {
         await createSocio(formData);
       }
@@ -90,7 +130,11 @@ export default function Socios() {
       setEditingSocio(null);
       setFormData({ nombre: '', documento: '', telefono: '', estado: 'activo', plan_id: '', email: '', password: '', notas: '' });
       await loadSocios();
-      alert(isEditing ? 'Socio actualizado' : 'Socio creado. QR generado automáticamente.');
+      if (isEditing) {
+        setSuccessMessage('Socio actualizado correctamente.');
+      } else {
+        alert('Socio creado. QR generado automáticamente.');
+      }
     } catch (error) {
       console.error('Error al guardar socio:', error);
       alert(error.response?.data?.error || 'Error al guardar socio');
@@ -103,7 +147,7 @@ export default function Socios() {
       nombre: socio.nombre,
       documento: socio.documento || '',
       telefono: socio.telefono || '',
-      estado: socio.estado,
+      estado: socio.cancelado_por_admin ? 'suspendido' : 'activo',
       plan_id: socio.plan_id || '',
       email: socio.usuario_email || '',
       password: '',
@@ -120,32 +164,13 @@ export default function Socios() {
     }, 100);
   };
 
-  const handleChangePassword = async (socioId, newPassword) => {
-    if (!newPassword || newPassword.length < 6) {
-      alert('La contraseña debe tener al menos 6 caracteres');
-      return;
-    }
-
-    try {
-      await updateSocio(socioId, { password: newPassword });
-      alert('Contraseña actualizada correctamente');
-    } catch (error) {
-      alert(error.response?.data?.error || 'Error al actualizar contraseña');
-    }
-  };
-
-  const handleDelete = async (id) => {
-    if (!confirm('¿Estás seguro de eliminar este socio?')) return;
-    try {
-      await deleteSocio(id);
-      loadSocios();
-    } catch (error) {
-      alert(error.response?.data?.error || 'Error al eliminar socio');
-    }
-  };
-
   return (
     <div className="max-w-6xl mx-auto p-6">
+      {successMessage && (
+        <div className="mb-4 px-4 py-3 rounded bg-green-100 border border-green-300 text-green-800 text-sm">
+          {successMessage}
+        </div>
+      )}
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold">Gestión de Socios</h1>
         <button
@@ -238,7 +263,6 @@ export default function Socios() {
               >
                 <option value="activo">Activo</option>
                 <option value="suspendido">Suspendido</option>
-                <option value="inactivo">Inactivo</option>
               </select>
             </div>
             <div>
@@ -323,14 +347,70 @@ export default function Socios() {
       ) : (
         <div className="grid grid-cols-1 gap-6">
           <div>
+            <div className="mb-4 flex flex-wrap gap-3 items-end">
+              <div className="flex-[3] min-w-[200px]">
+                <label className="block text-xs font-medium text-gray-600 mb-1">Buscar</label>
+                <input
+                  type="text"
+                  placeholder="Por nombre o documento..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full border rounded px-3 py-2"
+                />
+              </div>
+              <div className="flex-[2] min-w-[160px]">
+                <label className="block text-xs font-medium text-gray-600 mb-1">
+                  Filtrar por estado
+                </label>
+                <select
+                  value={estadoFiltro}
+                  onChange={(e) => setEstadoFiltro(e.target.value)}
+                  className="w-full border rounded px-3 py-2 text-sm"
+                >
+                  <option value="">Todos</option>
+                  <option value="activo">Activo</option>
+                  <option value="suspendido">Suspendido</option>
+                  <option value="inactivo">Inactivo</option>
+                  <option value="abandono">Abandono</option>
+                </select>
+              </div>
+            </div>
             <div className="mb-4">
-              <input
-                type="text"
-                placeholder="Buscar por nombre o documento..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full border rounded px-3 py-2"
-              />
+              <h2 className="text-sm font-semibold text-gray-700 mb-2">Guía de estados</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div className="flex flex-col border rounded-lg bg-green-50 border-green-200 p-3">
+                  <span className="text-xs font-semibold text-green-800 mb-1">
+                    Activo
+                  </span>
+                  <span className="text-xs text-gray-700">
+                    Socio con la cuota al día.
+                  </span>
+                </div>
+                <div className="flex flex-col border rounded-lg bg-yellow-50 border-yellow-200 p-3">
+                  <span className="text-xs font-semibold text-yellow-800 mb-1">
+                    Suspendido
+                  </span>
+                  <span className="text-xs text-gray-700">
+                    Socio suspendido manualmente por un administrador.
+                  </span>
+                </div>
+                <div className="flex flex-col border rounded-lg bg-red-50 border-red-200 p-3">
+                  <span className="text-xs font-semibold text-red-800 mb-1">
+                    Inactivo
+                  </span>
+                  <span className="text-xs text-gray-700">
+                    Socio con la cuota vencida hace menos de 90 días.
+                  </span>
+                </div>
+                <div className="flex flex-col border rounded-lg bg-orange-50 border-orange-200 p-3">
+                  <span className="text-xs font-semibold text-orange-800 mb-1">
+                    Abandono
+                  </span>
+                  <span className="text-xs text-gray-700">
+                    Socio en estado de abandono, con más de 90 días de cuota vencida.
+                  </span>
+                </div>
+              </div>
             </div>
             <div className="space-y-4">
               {sociosFiltrados.length === 0 ? (
@@ -338,7 +418,7 @@ export default function Socios() {
                   {searchTerm ? 'No se encontraron socios con ese criterio' : 'No hay socios registrados'}
                 </div>
               ) : (
-                sociosFiltrados.map((socio) => (
+                sociosEnPagina.map((socio) => (
                   <div key={socio.id} className="bg-white p-4 rounded-lg shadow">
                     <div className="flex justify-between items-start">
                       <div className="flex-1">
@@ -369,20 +449,23 @@ export default function Socios() {
                           )}
                         </div>
                         <span className={`inline-block mt-2 px-2 py-1 rounded text-xs ${
-                          socio.estado === 'activo' ? 'bg-green-100 text-green-800' :
-                          socio.estado === 'suspendido' ? 'bg-yellow-100 text-yellow-800' :
-                          'bg-red-100 text-red-800'
+                          socio.estado === 'activo'
+                            ? 'bg-green-100 text-green-800'
+                            : socio.estado === 'suspendido'
+                            ? 'bg-yellow-100 text-yellow-800'
+                            : socio.estado === 'abandono'
+                            ? 'bg-orange-100 text-orange-800'
+                            : 'bg-red-100 text-red-800'
                         }`}>
                           {socio.estado}
                         </span>
+                        {socio.cancelado_por_admin ? (
+                          <span className="inline-block mt-2 ml-2 px-2 py-1 rounded text-xs bg-red-200 text-red-900">
+                            Cancelado por admin
+                          </span>
+                        ) : null}
                       </div>
                       <div className="flex flex-col md:flex-row gap-2 ml-4">
-                        <button
-                          onClick={() => setSelectedSocioId(socio.id)}
-                          className="px-3 py-1 bg-blue-600 text-white rounded text-sm hover:bg-blue-700 whitespace-nowrap"
-                        >
-                          Ver QR
-                        </button>
                         <button
                           onClick={() => handleEdit(socio)}
                           className="px-3 py-1 bg-yellow-600 text-white rounded text-sm hover:bg-yellow-700 whitespace-nowrap"
@@ -396,31 +479,76 @@ export default function Socios() {
                         >
                           Gestionar Pagos
                         </Link>
-                        <button
-                          onClick={() => handleDelete(socio.id)}
-                          className="px-3 py-1 bg-red-600 text-white rounded text-sm hover:bg-red-700 whitespace-nowrap"
-                        >
-                          Eliminar
-                        </button>
                       </div>
                     </div>
                   </div>
                 ))
               )}
             </div>
+            {sociosFiltrados.length > ITEMS_POR_PAGINA && (
+              <div className="mt-6 flex flex-wrap items-center justify-between gap-2 border-t pt-4">
+                <div className="text-sm text-gray-600">
+                  Mostrando {(paginaActualSocios - 1) * ITEMS_POR_PAGINA + 1}–{Math.min(paginaActualSocios * ITEMS_POR_PAGINA, sociosFiltrados.length)} de {sociosFiltrados.length} socios
+                </div>
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => irAPaginaSocios(1)}
+                    disabled={paginaActualSocios <= 1}
+                    className="px-2 py-1 rounded border text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100"
+                    title="Primera página"
+                  >
+                    «
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => irAPaginaSocios(paginaActualSocios - 1)}
+                    disabled={paginaActualSocios <= 1}
+                    className="px-2 py-1 rounded border text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100"
+                    title="Anterior"
+                  >
+                    ‹
+                  </button>
+                  {getNumerosPagina().map((num, idx) => (
+                    <span key={num}>
+                      {idx > 0 && getNumerosPagina()[idx - 1] !== num - 1 && (
+                        <span className="px-1 text-gray-400">…</span>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => irAPaginaSocios(num)}
+                        className={`min-w-[2rem] px-2 py-1 rounded text-sm ${
+                          paginaActualSocios === num
+                            ? 'bg-blue-600 text-white border border-blue-600'
+                            : 'border hover:bg-gray-100'
+                        }`}
+                      >
+                        {num}
+                      </button>
+                    </span>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={() => irAPaginaSocios(paginaActualSocios + 1)}
+                    disabled={paginaActualSocios >= totalPaginasSocios}
+                    className="px-2 py-1 rounded border text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100"
+                    title="Siguiente"
+                  >
+                    ›
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => irAPaginaSocios(totalPaginasSocios)}
+                    disabled={paginaActualSocios >= totalPaginasSocios}
+                    className="px-2 py-1 rounded border text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100"
+                    title="Última página"
+                  >
+                    »
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
-
-          {selectedSocioId && (
-            <div>
-              <SocioQrCard socioId={selectedSocioId} />
-              <button
-                onClick={() => setSelectedSocioId(null)}
-                className="mt-2 w-full px-3 py-2 bg-gray-600 text-white rounded hover:bg-gray-700"
-              >
-                Cerrar
-              </button>
-            </div>
-          )}
         </div>
       )}
     </div>

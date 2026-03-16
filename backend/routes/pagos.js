@@ -130,8 +130,11 @@ router.post('/', requireRole('admin', 'root'), (req, res) => {
     fechaVencimiento.setDate(fechaVencimiento.getDate() + socio.plan_duracion);
 
     // Actualizar el estado del socio a 'activo' si estaba inactivo
-    const { run } = require('../db/database');
-    run('UPDATE socios SET estado = ? WHERE id = ?', ['activo', socio_id]);
+    const { run, get: getDb } = require('../db/database');
+    const estadoActivo = getDb('SELECT id FROM socio_estado WHERE nombre = ?', ['activo']);
+    if (estadoActivo) {
+      run("UPDATE socios SET socio_estado_id = ?, fecha_cambio = datetime('now') WHERE id = ?", [estadoActivo.id, socio_id]);
+    }
 
     const nuevoPago = get(`
       SELECT p.*, s.nombre as socio_nombre 

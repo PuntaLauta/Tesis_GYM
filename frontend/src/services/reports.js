@@ -28,8 +28,14 @@ export const getSociosActivos = () => {
   return api.get('/api/reportes/socios_activos').then(r => r.data);
 };
 
-export const getClasesPopulares = () => {
-  return api.get('/api/reportes/clases_populares').then(r => r.data);
+export const getEstadoSocios = (params = {}) => {
+  const queryParams = new URLSearchParams(params).toString();
+  return api.get(`/api/reportes/estado_socios?${queryParams}`).then(r => r.data);
+};
+
+export const getClasesPopulares = (params = {}) => {
+  const queryParams = new URLSearchParams(params).toString();
+  return api.get(`/api/reportes/clases_populares?${queryParams}`).then(r => r.data);
 };
 
 export const getMetodosPago = (params = {}) => {

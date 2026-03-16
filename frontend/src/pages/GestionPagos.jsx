@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { listSocios } from '../services/socios';
@@ -9,6 +9,9 @@ export default function GestionPagos() {
   const location = useLocation();
   const { user } = useAuth();
   const [socios, setSocios] = useState([]);
+  const [busquedaSocio, setBusquedaSocio] = useState('');
+  const [dropdownSocioAbierto, setDropdownSocioAbierto] = useState(false);
+  const comboRef = useRef(null);
   const [loading, setLoading] = useState(true);
   const [selectedSocio, setSelectedSocio] = useState(null);
   const [formData, setFormData] = useState({
@@ -22,6 +25,16 @@ export default function GestionPagos() {
 
   useEffect(() => {
     loadSocios();
+  }, []);
+
+  useEffect(() => {
+    function handleClickOutside(e) {
+      if (comboRef.current && !comboRef.current.contains(e.target)) {
+        setDropdownSocioAbierto(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
   useEffect(() => {
@@ -53,16 +66,24 @@ export default function GestionPagos() {
     }
   };
 
-  const handleSocioChange = (e) => {
-    const socioId = e.target.value;
-    const socio = socios.find(s => s.id === parseInt(socioId));
+  const sociosFiltrados = busquedaSocio.trim()
+    ? socios.filter(
+        (s) =>
+          (s.nombre || '').toLowerCase().includes(busquedaSocio.toLowerCase()) ||
+          (s.documento || '').toLowerCase().includes(busquedaSocio.toLowerCase()) ||
+          (s.plan_nombre || '').toLowerCase().includes(busquedaSocio.toLowerCase())
+      )
+    : socios;
+
+  const handleSeleccionarSocio = (socio) => {
     setSelectedSocio(socio);
-    setFormData({ ...formData, socio_id: socioId });
-    
-    // Si el socio tiene un plan, sugerir el monto del plan
-    if (socio && socio.plan_precio) {
-      setFormData({ ...formData, socio_id: socioId, monto: socio.plan_precio });
-    }
+    setFormData((prev) => ({
+      ...prev,
+      socio_id: String(socio.id),
+      monto: socio.plan_precio ? String(socio.plan_precio) : prev.monto
+    }));
+    setBusquedaSocio('');
+    setDropdownSocioAbierto(false);
   };
 
   const handleSubmit = async (e) => {
@@ -98,6 +119,7 @@ export default function GestionPagos() {
         metodo_pago: 'efectivo'
       });
       setSelectedSocio(null);
+      setBusquedaSocio('');
       
       // Recargar socios para ver los cambios
       await loadSocios();
@@ -154,19 +176,60 @@ export default function GestionPagos() {
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Socio *
             </label>
-            <select
-              value={formData.socio_id}
-              onChange={handleSocioChange}
-              className="w-full border rounded px-3 py-2"
-              required
-            >
-              <option value="">-- Selecciona un socio --</option>
-              {socios.map((socio) => (
-                <option key={socio.id} value={socio.id}>
-                  {socio.nombre} {socio.plan_nombre ? `- ${socio.plan_nombre}` : '(Sin plan)'}
-                </option>
-              ))}
-            </select>
+            <div ref={comboRef} className="flex flex-col sm:flex-row gap-3 relative">
+              {/* Izquierda: buscador — al escribir o enfocar se abre la lista */}
+              <div className="flex-1 min-w-0 sm:max-w-xs">
+                <input
+                  type="text"
+                  value={busquedaSocio}
+                  onChange={(e) => {
+                    setBusquedaSocio(e.target.value);
+                    setDropdownSocioAbierto(true);
+                  }}
+                  onFocus={() => setDropdownSocioAbierto(true)}
+                  placeholder="Buscar por nombre, documento o plan..."
+                  className="w-full border rounded px-3 py-2"
+                />
+              </div>
+              {/* Derecha: dropdown (valor seleccionado); al hacer clic también abre la lista */}
+              <div className="flex-1 min-w-0 relative">
+                <button
+                  type="button"
+                  onClick={() => setDropdownSocioAbierto((v) => !v)}
+                  className="w-full border rounded px-3 py-2 text-left bg-white flex items-center justify-between gap-2"
+                >
+                  <span className={selectedSocio ? 'text-gray-900' : 'text-gray-500'}>
+                    {selectedSocio
+                      ? `${selectedSocio.nombre}${selectedSocio.plan_nombre ? ` - ${selectedSocio.plan_nombre}` : ''}`
+                      : '-- Selecciona un socio --'}
+                  </span>
+                  <span className="text-gray-400">{dropdownSocioAbierto ? '▲' : '▼'}</span>
+                </button>
+                <input type="hidden" name="socio_id" value={formData.socio_id} readOnly aria-hidden />
+              </div>
+              {/* Lista de coincidencias: se abre al escribir o al abrir el dropdown; ancho completo debajo de la fila */}
+              {dropdownSocioAbierto && (
+                <ul className="absolute z-10 left-0 right-0 top-full mt-1 max-h-60 overflow-y-auto border rounded bg-white shadow-lg py-1">
+                  {sociosFiltrados.length === 0 ? (
+                    <li className="px-3 py-2 text-gray-500 text-sm">
+                      {busquedaSocio.trim() ? 'Ningún socio coincide con la búsqueda' : 'Escribí para buscar'}
+                    </li>
+                  ) : (
+                    sociosFiltrados.map((socio) => (
+                      <li key={socio.id}>
+                        <button
+                          type="button"
+                          onClick={() => handleSeleccionarSocio(socio)}
+                          className="w-full px-3 py-2 text-left text-sm hover:bg-blue-50 focus:bg-blue-50 focus:outline-none"
+                        >
+                          {socio.nombre} {socio.plan_nombre ? `- ${socio.plan_nombre}` : '(Sin plan)'}
+                        </button>
+                      </li>
+                    ))
+                  )}
+                </ul>
+              )}
+            </div>
             {selectedSocio && selectedSocio.plan_nombre && (
               <p className="text-xs text-gray-500 mt-1">
                 Plan: {selectedSocio.plan_nombre}
@@ -230,6 +293,7 @@ export default function GestionPagos() {
                   metodo_pago: 'efectivo'
                 });
                 setSelectedSocio(null);
+                setBusquedaSocio('');
                 setError('');
                 setSuccess('');
               }}

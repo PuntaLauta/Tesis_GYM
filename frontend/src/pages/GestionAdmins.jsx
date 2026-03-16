@@ -1,28 +1,26 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { listUsuarios, createUsuario, updateUsuario, deleteUsuario, changePasswordUsuario } from '../services/usuarios';
-import { listInstructores, changePasswordInstructor } from '../services/instructores';
+import { useAuth } from '../context/AuthContext';
+import { listUsuarios, createUsuario, updateUsuario, changePasswordUsuario, updateUsuarioEstado } from '../services/usuarios';
+import { listInstructores } from '../services/instructores';
 
 export default function GestionAdmins() {
   const navigate = useNavigate();
+  const { user: currentUser } = useAuth();
   const [usuarios, setUsuarios] = useState([]);
   const [instructores, setInstructores] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingUsuario, setEditingUsuario] = useState(null);
   const [changingPassword, setChangingPassword] = useState(null);
-  const [changingPasswordInstructor, setChangingPasswordInstructor] = useState(null);
   const [formData, setFormData] = useState({
     nombre: '',
     email: '',
     password: '',
-    rol: 'admin'
+    rol: 'admin',
+    estado: 1
   });
   const [passwordData, setPasswordData] = useState({
-    password: '',
-    confirmPassword: ''
-  });
-  const [passwordDataInstructor, setPasswordDataInstructor] = useState({
     password: '',
     confirmPassword: ''
   });
@@ -77,7 +75,10 @@ export default function GestionAdmins() {
 
     try {
       if (editingUsuario) {
-        await updateUsuario(editingUsuario.id, formData.nombre, formData.email, formData.rol);
+        await updateUsuario(editingUsuario.id, formData.nombre, formData.email, editingUsuario.rol);
+        if ((editingUsuario.rol === 'admin' || editingUsuario.rol === 'root') && (formData.estado === 0 || formData.estado === 1)) {
+          await updateUsuarioEstado(editingUsuario.id, formData.estado);
+        }
         setSuccess('Usuario actualizado correctamente');
       } else {
         await createUsuario(formData.nombre, formData.email, formData.password, formData.rol);
@@ -85,7 +86,7 @@ export default function GestionAdmins() {
       }
       setShowForm(false);
       setEditingUsuario(null);
-      setFormData({ nombre: '', email: '', password: '', rol: 'admin' });
+      setFormData({ nombre: '', email: '', password: '', rol: 'admin', estado: 1 });
       await loadAll();
     } catch (err) {
       console.error('Error al guardar usuario:', err);
@@ -99,7 +100,8 @@ export default function GestionAdmins() {
       nombre: usuario.nombre,
       email: usuario.email,
       password: '',
-      rol: usuario.rol
+      rol: usuario.rol,
+      estado: usuario.estado === 1 ? 1 : 0
     });
     setShowForm(true);
     setError('');
@@ -112,21 +114,6 @@ export default function GestionAdmins() {
         formElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }
     }, 100);
-  };
-
-  const handleDelete = async (id) => {
-    if (!window.confirm('¿Estás seguro de que deseas eliminar este usuario?')) {
-      return;
-    }
-
-    try {
-      await deleteUsuario(id);
-      setSuccess('Usuario eliminado correctamente');
-      await loadAll();
-    } catch (err) {
-      console.error('Error al eliminar usuario:', err);
-      setError(err.response?.data?.error || 'Error al eliminar usuario');
-    }
   };
 
   const handleChangePassword = async (e) => {
@@ -202,7 +189,7 @@ export default function GestionAdmins() {
                 onClick={() => {
                   setShowForm(true);
                   setEditingUsuario(null);
-                  setFormData({ nombre: '', email: '', password: '', rol: 'admin' });
+                  setFormData({ nombre: '', email: '', password: '', rol: 'admin', estado: 1 });
                   setError('');
                   setSuccess('');
                   
@@ -227,6 +214,7 @@ export default function GestionAdmins() {
                     <th className="px-4 py-3 text-left text-sm font-semibold">Nombre</th>
                     <th className="px-4 py-3 text-left text-sm font-semibold">Email</th>
                     <th className="px-4 py-3 text-left text-sm font-semibold">Rol</th>
+                    <th className="px-4 py-3 text-left text-sm font-semibold">Estado</th>
                     <th className="px-4 py-3 text-right text-sm font-semibold">Acciones</th>
                   </tr>
                 </thead>
@@ -242,6 +230,13 @@ export default function GestionAdmins() {
                           {usuario.rol}
                         </span>
                       </td>
+                      <td className="px-4 py-3">
+                        <span className={`px-2 py-1 rounded text-xs ${
+                          usuario.estado === 1 ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                        }`}>
+                          {usuario.estado === 1 ? 'Activo' : 'Desactivado'}
+                        </span>
+                      </td>
                       <td className="px-4 py-3 text-right">
                         <div className="flex justify-end gap-2">
                           <button
@@ -253,8 +248,6 @@ export default function GestionAdmins() {
                           <button
                             onClick={() => {
                               setChangingPassword(usuario);
-                              
-                              // Scroll automático al modal después de un pequeño delay
                               setTimeout(() => {
                                 const modalElement = document.getElementById('modal-password');
                                 if (modalElement) {
@@ -265,12 +258,6 @@ export default function GestionAdmins() {
                             className="px-3 py-1 bg-indigo-600 text-white rounded text-sm hover:bg-indigo-700"
                           >
                             Cambiar contraseña
-                          </button>
-                          <button
-                            onClick={() => handleDelete(usuario.id)}
-                            className="px-3 py-1 bg-red-600 text-white rounded text-sm hover:bg-red-700"
-                          >
-                            Eliminar
                           </button>
                         </div>
                       </td>
@@ -317,27 +304,6 @@ export default function GestionAdmins() {
                         </td>
                         <td className="px-4 py-3 text-right">
                           <div className="flex justify-end gap-2">
-                            {instructor.usuario_id && (
-                              <button
-                                onClick={() => {
-                                  setChangingPasswordInstructor(instructor);
-                                  setPasswordDataInstructor({ password: '', confirmPassword: '' });
-                                  setError('');
-                                  setSuccess('');
-                                  
-                                  // Scroll automático al modal después de un pequeño delay
-                                  setTimeout(() => {
-                                    const modalElement = document.getElementById('modal-password-instructor-staff');
-                                    if (modalElement) {
-                                      modalElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                                    }
-                                  }, 100);
-                                }}
-                                className="px-3 py-1 bg-indigo-600 text-white rounded text-sm hover:bg-indigo-700"
-                              >
-                                Cambiar contraseña
-                              </button>
-                            )}
                             <Link
                               to="/admin/instructores"
                               className="px-3 py-1 bg-indigo-600 text-white rounded text-sm hover:bg-indigo-700 inline-block"
@@ -394,18 +360,23 @@ export default function GestionAdmins() {
                 <p className="text-xs text-gray-500 mt-1">Mínimo 6 caracteres</p>
               </div>
             )}
-            <div>
-              <label className="block text-sm font-medium mb-1">Rol *</label>
-              <select
-                value={formData.rol}
-                onChange={(e) => setFormData({ ...formData, rol: e.target.value })}
-                className="w-full border rounded px-3 py-2"
-                required
-              >
-                <option value="admin">Admin</option>
-                <option value="root">Root</option>
-              </select>
-            </div>
+            {editingUsuario && (editingUsuario.rol === 'admin' || editingUsuario.rol === 'root') && (
+              <div>
+                <label className="block text-sm font-medium mb-1">Estado</label>
+                <select
+                  value={formData.estado === 1 ? 1 : 0}
+                  onChange={(e) => setFormData({ ...formData, estado: parseInt(e.target.value, 10) })}
+                  disabled={currentUser && editingUsuario.id === currentUser.id && editingUsuario.rol === 'root'}
+                  className="w-full border rounded px-3 py-2"
+                >
+                  <option value={1}>Activo</option>
+                  <option value={0}>Inactivo</option>
+                </select>
+                <p className="text-xs text-gray-500 mt-1">
+                  Inactivo: puede iniciar sesión pero no tiene acceso a funciones de administrador.
+                </p>
+              </div>
+            )}
             <div className="flex gap-3">
               <button
                 type="submit"
@@ -418,7 +389,7 @@ export default function GestionAdmins() {
                 onClick={() => {
                   setShowForm(false);
                   setEditingUsuario(null);
-                  setFormData({ nombre: '', email: '', password: '', rol: 'admin' });
+                  setFormData({ nombre: '', email: '', password: '', rol: 'admin', estado: 1 });
                   setError('');
                   setSuccess('');
                 }}
@@ -428,62 +399,6 @@ export default function GestionAdmins() {
               </button>
             </div>
           </form>
-        </div>
-      )}
-
-      {/* Modal para cambiar contraseña de instructor */}
-      {changingPasswordInstructor && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div id="modal-password-instructor-staff" className="bg-white p-6 rounded-lg shadow-lg max-w-md w-full mx-4">
-            <h2 className="text-xl font-semibold mb-4">
-              Cambiar Contraseña - {changingPasswordInstructor.nombre}
-            </h2>
-            <form onSubmit={handleChangePasswordInstructor} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium mb-1">Nueva Contraseña *</label>
-                <input
-                  type="password"
-                  value={passwordDataInstructor.password}
-                  onChange={(e) => setPasswordDataInstructor({ ...passwordDataInstructor, password: e.target.value })}
-                  className="w-full border rounded px-3 py-2"
-                  required
-                  minLength={6}
-                />
-                <p className="text-xs text-gray-500 mt-1">Mínimo 6 caracteres</p>
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">Confirmar Contraseña *</label>
-                <input
-                  type="password"
-                  value={passwordDataInstructor.confirmPassword}
-                  onChange={(e) => setPasswordDataInstructor({ ...passwordDataInstructor, confirmPassword: e.target.value })}
-                  className="w-full border rounded px-3 py-2"
-                  required
-                  minLength={6}
-                />
-              </div>
-              <div className="flex gap-3">
-                <button
-                  type="submit"
-                  className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
-                >
-                  Cambiar Contraseña
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setChangingPasswordInstructor(null);
-                    setPasswordDataInstructor({ password: '', confirmPassword: '' });
-                    setError('');
-                    setSuccess('');
-                  }}
-                  className="px-4 py-2 border border-gray-300 rounded hover:bg-gray-50"
-                >
-                  Cancelar
-                </button>
-              </div>
-            </form>
-          </div>
         </div>
       )}
 

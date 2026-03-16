@@ -401,10 +401,10 @@ export default function ProfileInstructor() {
         )}
       </div>
 
-      {/* Cambiar Contraseña */}
+      {/* Mi Contraseña */}
       <div className="bg-white p-6 rounded-lg shadow">
         <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-semibold">Cambiar Contraseña</h2>
+          <h2 className="text-xl font-semibold">Mi Contraseña</h2>
           {!showPasswordForm && (
             <button
               onClick={() => setShowPasswordForm(true)}

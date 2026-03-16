@@ -8,6 +8,7 @@ export default function AccessForm({ onSuccess }) {
   const [result, setResult] = useState(null);
   const [error, setError] = useState('');
   const [socios, setSocios] = useState([]);
+  const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
     loadSocios();
@@ -21,6 +22,12 @@ export default function AccessForm({ onSuccess }) {
       console.error('Error al cargar socios:', error);
     }
   };
+
+  const sociosFiltrados = socios.filter((socio) => {
+    if (!searchTerm.trim()) return true;
+    const term = searchTerm.toLowerCase();
+    return socio.nombre?.toLowerCase().includes(term);
+  });
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -50,9 +57,16 @@ export default function AccessForm({ onSuccess }) {
       {socios.length > 0 && (
         <div className="mb-4">
           <label className="block text-sm font-medium mb-2">Lista de Socios</label>
+          <input
+            type="text"
+            placeholder="Buscar socio por nombre..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full border rounded px-3 py-2 mb-2 text-sm"
+          />
           <div className="border rounded p-3 max-h-40 overflow-y-auto bg-gray-50">
             <div className="space-y-1 text-sm">
-              {socios.map((socio) => (
+              {sociosFiltrados.map((socio) => (
                 <div 
                   key={socio.id} 
                   className="flex justify-between items-center py-1 hover:bg-gray-100 px-2 rounded cursor-pointer"
