@@ -27,6 +27,10 @@ export default function RutinasInstructor() {
   const [guardandoSugerencia, setGuardandoSugerencia] = useState(false);
   const [errorSugerencia, setErrorSugerencia] = useState('');
 
+  // Paginación de tarjetas de rutinas (9 por página)
+  const [paginaRutinas, setPaginaRutinas] = useState(1);
+  const ITEMS_POR_PAGINA_RUTINAS = 9;
+
   useEffect(() => {
     loadRutinas();
   }, []);
@@ -247,7 +251,37 @@ export default function RutinasInstructor() {
     setSocioFiltroTexto('');
     setSocioDropdownAbierto(false);
     setSoloPendientes(false);
+    setPaginaRutinas(1);
   };
+
+  // Rutinas filtradas y paginación (9 tarjetas por página)
+  const rutinasFiltradas = filtrarRutinas();
+  const totalPaginasRutinas = Math.max(1, Math.ceil(rutinasFiltradas.length / ITEMS_POR_PAGINA_RUTINAS));
+  const paginaActualRutinas = Math.min(paginaRutinas, totalPaginasRutinas);
+  const rutinasEnPagina = rutinasFiltradas.slice(
+    (paginaActualRutinas - 1) * ITEMS_POR_PAGINA_RUTINAS,
+    paginaActualRutinas * ITEMS_POR_PAGINA_RUTINAS
+  );
+  const irAPaginaRutinas = (num) => {
+    const n = Math.max(1, Math.min(num, totalPaginasRutinas));
+    setPaginaRutinas(n);
+  };
+  const getNumerosPaginaRutinas = () => {
+    const total = totalPaginasRutinas;
+    if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
+    const vecinos = 2;
+    const left = Math.max(2, paginaActualRutinas - vecinos);
+    const right = Math.min(total - 1, paginaActualRutinas + vecinos);
+    const nums = new Set([1]);
+    for (let i = left; i <= right; i++) nums.add(i);
+    if (total > 1) nums.add(total);
+    return Array.from(nums).sort((a, b) => a - b);
+  };
+
+  // Al cambiar filtros, volver a la primera página
+  useEffect(() => {
+    setPaginaRutinas(1);
+  }, [ocultarInactivas, socioFiltro, soloPendientes]);
 
   const handleCerrarModalSugerencia = () => {
     setRutinaParaSugerir(null);
@@ -619,13 +653,33 @@ export default function RutinasInstructor() {
             <p className="text-gray-500">No hay rutinas disponibles.</p>
           ) : (
             <>
-              {filtrarRutinas().length === 0 ? (
+              {rutinasFiltradas.length === 0 ? (
                 <div className="bg-gray-50 border rounded-lg p-6 text-center">
                   <p className="text-gray-500">No hay rutinas que coincidan con los filtros seleccionados.</p>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {filtrarRutinas().map((rutina) => {
+                <>
+                  {rutinasFiltradas.length > ITEMS_POR_PAGINA_RUTINAS && (
+                    <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+                      <div className="text-sm text-gray-600">
+                        Mostrando {(paginaActualRutinas - 1) * ITEMS_POR_PAGINA_RUTINAS + 1}–{Math.min(paginaActualRutinas * ITEMS_POR_PAGINA_RUTINAS, rutinasFiltradas.length)} de {rutinasFiltradas.length} rutinas
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <button type="button" onClick={() => irAPaginaRutinas(1)} disabled={paginaActualRutinas <= 1} className="px-2 py-1 rounded border text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100" title="Primera">«</button>
+                        <button type="button" onClick={() => irAPaginaRutinas(paginaActualRutinas - 1)} disabled={paginaActualRutinas <= 1} className="px-2 py-1 rounded border text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100" title="Anterior">‹</button>
+                        {getNumerosPaginaRutinas().map((num, idx) => (
+                          <span key={num}>
+                            {idx > 0 && getNumerosPaginaRutinas()[idx - 1] !== num - 1 && <span className="px-1 text-gray-400">…</span>}
+                            <button type="button" onClick={() => irAPaginaRutinas(num)} className={`min-w-[2rem] px-2 py-1 rounded text-sm ${paginaActualRutinas === num ? 'bg-blue-600 text-white border border-blue-600' : 'border hover:bg-gray-100'}`}>{num}</button>
+                          </span>
+                        ))}
+                        <button type="button" onClick={() => irAPaginaRutinas(paginaActualRutinas + 1)} disabled={paginaActualRutinas >= totalPaginasRutinas} className="px-2 py-1 rounded border text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100" title="Siguiente">›</button>
+                        <button type="button" onClick={() => irAPaginaRutinas(totalPaginasRutinas)} disabled={paginaActualRutinas >= totalPaginasRutinas} className="px-2 py-1 rounded border text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100" title="Última">»</button>
+                      </div>
+                    </div>
+                  )}
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {rutinasEnPagina.map((rutina) => {
                 let ejerciciosCard = [];
                 try {
                   ejerciciosCard = Array.isArray(rutina.ejercicios)
@@ -711,6 +765,26 @@ export default function RutinasInstructor() {
                 );
                   })}
                 </div>
+                  {rutinasFiltradas.length > ITEMS_POR_PAGINA_RUTINAS && (
+                    <div className="mt-6 flex flex-wrap items-center justify-between gap-2 border-t pt-4">
+                      <div className="text-sm text-gray-600">
+                        Mostrando {(paginaActualRutinas - 1) * ITEMS_POR_PAGINA_RUTINAS + 1}–{Math.min(paginaActualRutinas * ITEMS_POR_PAGINA_RUTINAS, rutinasFiltradas.length)} de {rutinasFiltradas.length} rutinas
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <button type="button" onClick={() => irAPaginaRutinas(1)} disabled={paginaActualRutinas <= 1} className="px-2 py-1 rounded border text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100" title="Primera">«</button>
+                        <button type="button" onClick={() => irAPaginaRutinas(paginaActualRutinas - 1)} disabled={paginaActualRutinas <= 1} className="px-2 py-1 rounded border text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100" title="Anterior">‹</button>
+                        {getNumerosPaginaRutinas().map((num, idx) => (
+                          <span key={num}>
+                            {idx > 0 && getNumerosPaginaRutinas()[idx - 1] !== num - 1 && <span className="px-1 text-gray-400">…</span>}
+                            <button type="button" onClick={() => irAPaginaRutinas(num)} className={`min-w-[2rem] px-2 py-1 rounded text-sm ${paginaActualRutinas === num ? 'bg-blue-600 text-white border border-blue-600' : 'border hover:bg-gray-100'}`}>{num}</button>
+                          </span>
+                        ))}
+                        <button type="button" onClick={() => irAPaginaRutinas(paginaActualRutinas + 1)} disabled={paginaActualRutinas >= totalPaginasRutinas} className="px-2 py-1 rounded border text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100" title="Siguiente">›</button>
+                        <button type="button" onClick={() => irAPaginaRutinas(totalPaginasRutinas)} disabled={paginaActualRutinas >= totalPaginasRutinas} className="px-2 py-1 rounded border text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100" title="Última">»</button>
+                      </div>
+                    </div>
+                  )}
+                </>
               )}
             </>
           )}
