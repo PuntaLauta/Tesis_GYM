@@ -214,7 +214,7 @@ export default function LandingPage() {
                     <div className="text-center mb-12">
                         <h2 className="text-base font-semibold text-blue-600 tracking-wide uppercase">Galería</h2>
                         <p className="mt-1 text-3xl font-extrabold text-gray-900 sm:text-4xl">
-                            Nuetra interfaz
+                            Nuestra interfaz
                         </p>
                     </div>
                     <div className="relative">
