@@ -159,23 +159,10 @@ export default function Home() {
   const panelClasesDeshabilitado =
     socio && ['inactivo', 'abandono', 'suspendido'].includes(socio.estado || '');
 
-  const isWithinYears = (dateString, years) => {
-    if (!dateString) return true;
-    const fecha = new Date(dateString);
-    if (Number.isNaN(fecha.getTime())) return true;
-    const limite = new Date();
-    limite.setFullYear(limite.getFullYear() - years);
-    fecha.setHours(0, 0, 0, 0);
-    limite.setHours(0, 0, 0, 0);
-    return fecha >= limite;
-  };
-
-  const reservasFiltradasUltimoAnio = reservas.filter((reserva) => isWithinYears(reserva.fecha, 1));
-
-  const totalPaginasReservas = Math.max(1, Math.ceil(reservasFiltradasUltimoAnio.length / RESERVAS_POR_PAGINA));
+  const totalPaginasReservas = Math.max(1, Math.ceil(reservas.length / RESERVAS_POR_PAGINA));
   const paginaReservasSafe = Math.min(paginaClasesReservadas, totalPaginasReservas);
   const inicioReservas = (paginaReservasSafe - 1) * RESERVAS_POR_PAGINA;
-  const reservasPagina = reservasFiltradasUltimoAnio.slice(inicioReservas, inicioReservas + RESERVAS_POR_PAGINA);
+  const reservasPagina = reservas.slice(inicioReservas, inicioReservas + RESERVAS_POR_PAGINA);
 
   if (!user) {
     return <LandingPage />;
@@ -427,9 +414,6 @@ export default function Home() {
                 {/* Clases Reservadas */}
                 <div className={`bg-white p-6 rounded-lg shadow flex-1 flex flex-col ${panelClasesDeshabilitado ? 'opacity-75' : ''}`}>
                   <h2 className="text-xl font-semibold mb-4">Mis Clases Reservadas</h2>
-                  <p className="text-xs text-gray-500 mb-3">
-                    Se muestran clases reservadas del último año.
-                  </p>
                   {panelClasesDeshabilitado && (
                     <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
                       <p className="text-sm text-amber-800 font-medium">
@@ -439,7 +423,7 @@ export default function Home() {
                   )}
                   {loading ? (
                     <div className="text-center py-4 text-gray-500">Cargando...</div>
-                  ) : reservasFiltradasUltimoAnio.length === 0 ? (
+                  ) : reservas.length === 0 ? (
                     <div className="text-center py-8">
                       {panelClasesDeshabilitado ? (
                         <>
@@ -548,7 +532,7 @@ export default function Home() {
                       )}
                     </div>
                   )}
-                  {reservasFiltradasUltimoAnio.length > 0 && !panelClasesDeshabilitado && (
+                  {reservas.length > 0 && !panelClasesDeshabilitado && (
                     <div className="mt-4 pt-4 border-t">
                       <Link
                         to="/classes"
