@@ -14,6 +14,18 @@ export default function MisRutinas() {
   const [rutinaAEliminar, setRutinaAEliminar] = useState(null);
   const [ocultarRechazados, setOcultarRechazados] = useState(false);
 
+  const isWithinDays = (dateString, days) => {
+    if (!dateString) return true;
+    const fecha = new Date(dateString);
+    if (Number.isNaN(fecha.getTime())) return true;
+    const hoy = new Date();
+    fecha.setHours(0, 0, 0, 0);
+    hoy.setHours(0, 0, 0, 0);
+    const diffMs = hoy - fecha;
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+    return diffDays <= days;
+  };
+
   useEffect(() => {
     loadRutinas();
   }, []);
@@ -37,7 +49,7 @@ export default function MisRutinas() {
   };
 
   const filtrarRutinas = () => {
-    let filtradas = rutinas;
+    let filtradas = rutinas.filter((r) => isWithinDays(r.fecha_creacion || r.fecha_inicio, 30));
     
     if (filtro === 'activas') {
       filtradas = rutinas.filter((r) => r.activa === 1 || r.activa === true);
@@ -146,6 +158,9 @@ export default function MisRutinas() {
       </div>
 
       {/* Lista de rutinas */}
+      <p className="text-xs text-gray-500 mb-3">
+        Se muestran rutinas creadas en los últimos 30 días.
+      </p>
       {loading ? (
         <div className="text-center py-8 text-gray-500">Cargando rutinas...</div>
       ) : rutinasFiltradas.length === 0 ? (

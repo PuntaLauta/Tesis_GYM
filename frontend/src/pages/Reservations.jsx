@@ -13,6 +13,21 @@ export default function Reservations() {
 
   const isAdmin = user?.rol === 'admin' || user?.rol === 'root';
 
+  const isWithinYears = (dateString, years) => {
+    if (!dateString) return true;
+    const fecha = new Date(dateString);
+    if (Number.isNaN(fecha.getTime())) return true;
+    const limite = new Date();
+    limite.setFullYear(limite.getFullYear() - years);
+    fecha.setHours(0, 0, 0, 0);
+    limite.setHours(0, 0, 0, 0);
+    return fecha >= limite;
+  };
+
+  const reservasVisibles = isAdmin
+    ? reservas
+    : reservas.filter((reserva) => isWithinYears(reserva.clase_fecha || reserva.fecha, 1));
+
   useEffect(() => {
     if (isAdmin) {
       loadTiposClase();
@@ -86,6 +101,11 @@ export default function Reservations() {
       <h1 className="text-2xl font-bold mb-6">
         {isAdmin ? 'Gestión de Reservas' : 'Mis Reservas'}
       </h1>
+      {!isAdmin && (
+        <p className="text-xs text-gray-500 mb-4">
+          Se muestran reservas del último año.
+        </p>
+      )}
 
       {isAdmin && (
         <div className="bg-white p-4 rounded-lg shadow mb-4">
@@ -122,7 +142,7 @@ export default function Reservations() {
         <div className="text-center py-8">Cargando...</div>
       ) : (
         <div className="space-y-3">
-          {reservas.length === 0 ? (
+          {reservasVisibles.length === 0 ? (
             <div className="text-center py-8 text-gray-500">
               {isAdmin 
                 ? (!filtroTipoClase && !filtroFecha 
@@ -131,7 +151,7 @@ export default function Reservations() {
                 : 'No tienes reservas'}
             </div>
           ) : (
-            reservas.map((reserva) => (
+            reservasVisibles.map((reserva) => (
               <div key={reserva.id} className="bg-white p-4 rounded-lg shadow">
                 <div className="flex justify-between items-start">
                   <div>

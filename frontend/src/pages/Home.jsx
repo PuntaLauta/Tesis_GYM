@@ -21,6 +21,9 @@ export default function Home() {
   const [cancelando, setCancelando] = useState(false);
   const [pagos, setPagos] = useState([]);
   const [loadingPagos, setLoadingPagos] = useState(false);
+  const [paginaClasesReservadas, setPaginaClasesReservadas] = useState(1);
+
+  const RESERVAS_POR_PAGINA = 4;
 
   useEffect(() => {
     if (user && user.rol === 'cliente') {
@@ -29,6 +32,10 @@ export default function Home() {
       loadPagos();
     }
   }, [user]);
+
+  useEffect(() => {
+    setPaginaClasesReservadas(1);
+  }, [reservas.length]);
 
   useEffect(() => {
     return () => {
@@ -151,6 +158,24 @@ export default function Home() {
   // Deshabilita el panel de clases para inactivo, abandono y suspendido
   const panelClasesDeshabilitado =
     socio && ['inactivo', 'abandono', 'suspendido'].includes(socio.estado || '');
+
+  const isWithinYears = (dateString, years) => {
+    if (!dateString) return true;
+    const fecha = new Date(dateString);
+    if (Number.isNaN(fecha.getTime())) return true;
+    const limite = new Date();
+    limite.setFullYear(limite.getFullYear() - years);
+    fecha.setHours(0, 0, 0, 0);
+    limite.setHours(0, 0, 0, 0);
+    return fecha >= limite;
+  };
+
+  const reservasFiltradasUltimoAnio = reservas.filter((reserva) => isWithinYears(reserva.fecha, 1));
+
+  const totalPaginasReservas = Math.max(1, Math.ceil(reservasFiltradasUltimoAnio.length / RESERVAS_POR_PAGINA));
+  const paginaReservasSafe = Math.min(paginaClasesReservadas, totalPaginasReservas);
+  const inicioReservas = (paginaReservasSafe - 1) * RESERVAS_POR_PAGINA;
+  const reservasPagina = reservasFiltradasUltimoAnio.slice(inicioReservas, inicioReservas + RESERVAS_POR_PAGINA);
 
   if (!user) {
     return <LandingPage />;
@@ -402,6 +427,9 @@ export default function Home() {
                 {/* Clases Reservadas */}
                 <div className={`bg-white p-6 rounded-lg shadow flex-1 flex flex-col ${panelClasesDeshabilitado ? 'opacity-75' : ''}`}>
                   <h2 className="text-xl font-semibold mb-4">Mis Clases Reservadas</h2>
+                  <p className="text-xs text-gray-500 mb-3">
+                    Se muestran clases reservadas del último año.
+                  </p>
                   {panelClasesDeshabilitado && (
                     <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
                       <p className="text-sm text-amber-800 font-medium">
@@ -411,7 +439,7 @@ export default function Home() {
                   )}
                   {loading ? (
                     <div className="text-center py-4 text-gray-500">Cargando...</div>
-                  ) : reservas.length === 0 ? (
+                  ) : reservasFiltradasUltimoAnio.length === 0 ? (
                     <div className="text-center py-8">
                       {panelClasesDeshabilitado ? (
                         <>
@@ -439,25 +467,25 @@ export default function Home() {
                       )}
                     </div>
                   ) : (
-                    <div className="flex-1 overflow-y-auto pr-2" style={{ maxHeight: 'calc(100vh - 300px)' }}>
-                      <div className="space-y-4">
-                        {reservas.map((reserva) => (
+                    <div className="flex-1 flex flex-col gap-3">
+                      <div className="grid grid-cols-2 gap-2">
+                        {reservasPagina.map((reserva) => (
                           <div
                             key={reserva.id}
-                            className="border rounded-lg p-4 hover:shadow-md transition-shadow"
+                            className="border rounded-md px-2.5 py-2 hover:shadow-md transition-shadow flex flex-col min-h-0"
                           >
-                            <div className="flex justify-between items-start">
-                              <div className="flex-1">
-                                <h3 className="font-semibold text-lg mb-2">{reserva.clase_nombre}</h3>
-                                <div className="space-y-1 text-sm text-gray-600">
+                            <div className="flex justify-between items-start flex-1 min-w-0">
+                              <div className="flex-1 min-w-0">
+                                <h3 className="font-semibold text-sm leading-tight mb-1 line-clamp-2">{reserva.clase_nombre}</h3>
+                                <div className="space-y-0.5 text-[11px] sm:text-xs text-gray-600 leading-snug">
                                   <p><strong>Fecha:</strong> {formatFecha(reserva.fecha)}</p>
                                   <p><strong>Horario:</strong> {reserva.hora_inicio} - {reserva.hora_fin}</p>
                                   {reserva.instructor && (
-                                    <p><strong>Instructor:</strong> {reserva.instructor}</p>
+                                    <p className="line-clamp-2"><strong>Instructor:</strong> {reserva.instructor}</p>
                                   )}
                                 </div>
-                                <div className="mt-3 flex items-center gap-2 flex-wrap">
-                                  <span className={`px-2 py-1 rounded text-xs ${reserva.estado === 'reservado' ? 'bg-blue-100 text-blue-800' :
+                                <div className="mt-1.5 flex items-center gap-1 flex-wrap">
+                                  <span className={`px-1.5 py-0.5 rounded text-[10px] sm:text-xs ${reserva.estado === 'reservado' ? 'bg-blue-100 text-blue-800' :
                                       reserva.estado === 'asistio' ? 'bg-green-100 text-green-800' :
                                         reserva.estado === 'ausente' ? 'bg-red-100 text-red-800' :
                                           'bg-gray-100 text-gray-800'
@@ -468,19 +496,19 @@ export default function Home() {
                                           reserva.estado}
                                   </span>
                                   {reserva.clase_estado === 'cancelada' && (
-                                    <span className="px-2 py-1 rounded text-xs bg-red-100 text-red-800">
+                                    <span className="px-1.5 py-0.5 rounded text-[10px] sm:text-xs bg-red-100 text-red-800">
                                       Clase Cancelada
                                     </span>
                                   )}
                                   {reserva.clase_estado === 'finalizada' && (
-                                    <span className="px-2 py-1 rounded text-xs bg-gray-100 text-gray-800">
+                                    <span className="px-1.5 py-0.5 rounded text-[10px] sm:text-xs bg-gray-100 text-gray-800">
                                       Clase Finalizada
                                     </span>
                                   )}
                                   {reserva.estado === 'reservado' && reserva.clase_estado === 'activa' && !panelClasesDeshabilitado && (
                                     <button
                                       onClick={() => setReservaACancelar(reserva)}
-                                      className="px-3 py-1 text-xs bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
+                                      className="px-2 py-0.5 text-[10px] sm:text-xs bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
                                     >
                                       Eliminar
                                     </button>
@@ -491,9 +519,36 @@ export default function Home() {
                           </div>
                         ))}
                       </div>
+                      {totalPaginasReservas > 1 && (
+                        <div className="flex flex-col sm:flex-row items-center justify-between gap-2 pt-1">
+                          <p className="text-sm text-gray-600 order-2 sm:order-1">
+                            Página {paginaReservasSafe} de {totalPaginasReservas}
+                          </p>
+                          <div className="flex gap-2 order-1 sm:order-2">
+                            <button
+                              type="button"
+                              disabled={paginaReservasSafe <= 1}
+                              onClick={() => setPaginaClasesReservadas((p) => Math.max(1, p - 1))}
+                              className="px-3 py-1.5 text-sm rounded-md border border-gray-300 bg-white text-gray-700 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-50"
+                            >
+                              Anterior
+                            </button>
+                            <button
+                              type="button"
+                              disabled={paginaReservasSafe >= totalPaginasReservas}
+                              onClick={() =>
+                                setPaginaClasesReservadas((p) => Math.min(totalPaginasReservas, p + 1))
+                              }
+                              className="px-3 py-1.5 text-sm rounded-md border border-gray-300 bg-white text-gray-700 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-50"
+                            >
+                              Siguiente
+                            </button>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   )}
-                  {reservas.length > 0 && !panelClasesDeshabilitado && (
+                  {reservasFiltradasUltimoAnio.length > 0 && !panelClasesDeshabilitado && (
                     <div className="mt-4 pt-4 border-t">
                       <Link
                         to="/classes"

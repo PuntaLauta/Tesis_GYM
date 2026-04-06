@@ -177,10 +177,26 @@ export default function RutinasInstructor() {
     });
   };
 
+  const isWithinDays = (dateString, days) => {
+    if (!dateString) return true;
+    const fecha = new Date(dateString);
+    if (Number.isNaN(fecha.getTime())) return true;
+    const hoy = new Date();
+    fecha.setHours(0, 0, 0, 0);
+    hoy.setHours(0, 0, 0, 0);
+    const diffMs = hoy - fecha;
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+    return diffDays <= days;
+  };
+
   // Obtener socios únicos que tienen rutinas activas
   const getSociosConRutinasActivas = () => {
     const sociosMap = new Map();
     rutinas.forEach(rutina => {
+      // Respetar también el filtro temporal (ocultar rutinas antiguas)
+      if (!isWithinDays(rutina.fecha_creacion || rutina.fecha_inicio, 30)) {
+        return;
+      }
       if (rutina.activa === 1 || rutina.activa === true) {
         if (rutina.socio_id && rutina.socio_nombre) {
           if (!sociosMap.has(rutina.socio_id)) {
@@ -213,6 +229,11 @@ export default function RutinasInstructor() {
   // Filtrar rutinas según los filtros aplicados
   const filtrarRutinas = () => {
     return rutinas.filter(rutina => {
+      // Ocultar rutinas con más de 30 días de antigüedad (sin tocar BD)
+      if (!isWithinDays(rutina.fecha_creacion || rutina.fecha_inicio, 30)) {
+        return false;
+      }
+
       // Filtro: Ocultar rutinas inactivas
       if (ocultarInactivas && (rutina.activa !== 1 && rutina.activa !== true)) {
         return false;
@@ -536,6 +557,9 @@ export default function RutinasInstructor() {
         // Vista de lista de rutinas
         <div className="container mx-auto px-4 py-8">
           <h1 className="text-3xl font-bold text-gray-800 mb-6">Rutinas</h1>
+          <p className="text-xs text-gray-500 mb-4">
+            Se muestran rutinas creadas en los últimos 30 días.
+          </p>
 
           {/* Sector de Filtros */}
           <div className="bg-white border rounded-lg p-3 shadow-sm mb-4">
