@@ -22,10 +22,22 @@ export default function Classes() {
   const [selectedClaseForSocios, setSelectedClaseForSocios] = useState(null);
   const [sociosInscriptos, setSociosInscriptos] = useState([]);
   const [loadingSocios, setLoadingSocios] = useState(false);
-  const [cardsToShow, setCardsToShow] = useState(10);
+  const [paginaActual, setPaginaActual] = useState(1);
+  const CLASES_POR_PAGINA = 10;
 
   const isAdmin = user?.rol === 'admin' || user?.rol === 'root';
   const isInstructor = user?.rol === 'instructor';
+
+  const ordenarClasesNuevasPrimero = (items) => {
+    return [...items].sort((a, b) => {
+      // Prioridad: clases creadas más recientemente (id mayor primero)
+      if (b.id !== a.id) return (b.id || 0) - (a.id || 0);
+
+      // Fallback por fecha/hora por si no hay id consistente
+      if (a.fecha !== b.fecha) return String(b.fecha || '').localeCompare(String(a.fecha || ''));
+      return String(b.hora_inicio || '').localeCompare(String(a.hora_inicio || ''));
+    });
+  };
 
   useEffect(() => {
     loadClasses();
@@ -66,8 +78,8 @@ export default function Classes() {
       );
     }
 
-    setClases(filtered);
-    setCardsToShow(10); // Resetear paginación cuando cambian los filtros
+    setClases(ordenarClasesNuevasPrimero(filtered));
+    setPaginaActual(1); // Resetear paginación cuando cambian los filtros
   }, [filters, allClases]);
 
   const loadTiposClase = async () => {
@@ -93,8 +105,9 @@ export default function Classes() {
     try {
       const data = await listClasses({});
       const clasesData = data.data || [];
-      setAllClases(clasesData);
-      setClases(clasesData);
+      const clasesOrdenadas = ordenarClasesNuevasPrimero(clasesData);
+      setAllClases(clasesOrdenadas);
+      setClases(clasesOrdenadas);
     } catch (error) {
       console.error('Error al cargar clases:', error);
     } finally {
@@ -156,8 +169,11 @@ export default function Classes() {
     }
   };
 
-  const clasesMostradas = clases.slice(0, cardsToShow);
-  const hayMasClases = clases.length > cardsToShow;
+  const totalPaginas = Math.max(1, Math.ceil(clases.length / CLASES_POR_PAGINA));
+  const paginaSafe = Math.min(paginaActual, totalPaginas);
+  const inicioPagina = (paginaSafe - 1) * CLASES_POR_PAGINA;
+  const finPagina = inicioPagina + CLASES_POR_PAGINA;
+  const clasesMostradas = clases.slice(inicioPagina, finPagina);
 
   return (
     <div className="max-w-6xl mx-auto p-6">
@@ -378,14 +394,32 @@ export default function Classes() {
               </div>
             ))
           )}
-          {hayMasClases && (
-            <div className="text-center py-4">
-              <button
-                onClick={() => setCardsToShow(cardsToShow + 5)}
-                className="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700"
-              >
-                Ver más
-              </button>
+          {clases.length > 0 && (
+            <div className="py-4 flex flex-col sm:flex-row items-center justify-between gap-3 text-sm text-gray-600">
+              <span>
+                Mostrando {inicioPagina + 1}-{Math.min(finPagina, clases.length)} de {clases.length}
+              </span>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setPaginaActual((p) => Math.max(1, p - 1))}
+                  disabled={paginaSafe === 1}
+                  className="px-3 py-1.5 rounded border border-gray-300 bg-white text-gray-700 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-50"
+                >
+                  Anterior
+                </button>
+                <span className="text-sm text-gray-700">
+                  Página {paginaSafe} de {totalPaginas}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setPaginaActual((p) => Math.min(totalPaginas, p + 1))}
+                  disabled={paginaSafe >= totalPaginas}
+                  className="px-3 py-1.5 rounded border border-gray-300 bg-white text-gray-700 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-50"
+                >
+                  Siguiente
+                </button>
+              </div>
             </div>
           )}
         </div>

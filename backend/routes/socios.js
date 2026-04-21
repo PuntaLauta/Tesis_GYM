@@ -115,6 +115,21 @@ router.post('/', requireAdmin, async (req, res) => {
       return res.status(400).json({ error: 'Documento requerido' });
     }
 
+    // En alta, el plan es obligatorio para mantener la lógica de estados por pagos
+    if (!plan_id || String(plan_id).trim() === '') {
+      return res.status(400).json({ error: 'Plan requerido para crear un socio' });
+    }
+
+    const planIdNum = parseInt(plan_id, 10);
+    if (Number.isNaN(planIdNum)) {
+      return res.status(400).json({ error: 'Plan inválido' });
+    }
+
+    const plan = get('SELECT id, precio FROM planes WHERE id = ?', [planIdNum]);
+    if (!plan) {
+      return res.status(400).json({ error: 'El plan seleccionado no existe' });
+    }
+
     // Verificar que el documento no exista
     const documentoExistente = get('SELECT id FROM socios WHERE documento = ?', [documento]);
     if (documentoExistente) {
@@ -122,6 +137,7 @@ router.post('/', requireAdmin, async (req, res) => {
     }
 
     let usuarioId = null;
+    let result = null;
     
     // Si se proporciona email y contraseña, crear usuario
     if (email && password) {
@@ -149,10 +165,37 @@ router.post('/', requireAdmin, async (req, res) => {
     const estadoRow = get('SELECT id FROM socio_estado WHERE nombre = ?', [estadoNombre]);
     const socioEstadoId = estadoRow ? estadoRow.id : 1;
 
-    const result = insert(
-      `INSERT INTO socios (nombre, documento, telefono, socio_estado_id, fecha_cambio, plan_id, qr_token, usuario_id, notas) VALUES (?, ?, ?, ?, datetime('now'), ?, ?, ?, ?)`,
-      [nombre, documento, telefono || null, socioEstadoId, plan_id || null, token, usuarioId, notas || null]
-    );
+    // Alta secuencial con compensación: si falla pago inicial, deshacer alta
+    try {
+      result = insert(
+        `INSERT INTO socios (nombre, documento, telefono, socio_estado_id, fecha_cambio, plan_id, qr_token, usuario_id, notas) VALUES (?, ?, ?, ?, datetime('now'), ?, ?, ?, ?)`,
+        [nombre, documento, telefono || null, socioEstadoId, planIdNum, token, usuarioId, notas || null]
+      );
+
+      // Crear pago inicial para mantener flujo de estados por pagos/vencimientos
+      run(
+        `INSERT INTO pagos (socio_id, monto, fecha, metodo_pago) VALUES (?, ?, datetime('now'), ?)`,
+        [result.lastInsertRowid, plan.precio, 'efectivo']
+      );
+    } catch (creationError) {
+      // Si se creó socio pero falló pago, eliminar socio para evitar inconsistencia
+      if (result?.lastInsertRowid) {
+        try {
+          run('DELETE FROM socios WHERE id = ?', [result.lastInsertRowid]);
+        } catch (_) {
+          // noop
+        }
+      }
+      // Si se alcanzó a crear usuario, deshacerlo para no dejar registro huérfano
+      if (usuarioId) {
+        try {
+          run('DELETE FROM usuarios WHERE id = ?', [usuarioId]);
+        } catch (_) {
+          // noop
+        }
+      }
+      throw creationError;
+    }
 
     const nuevoSocio = get(`
       SELECT s.*, se.nombre as estado, p.nombre as plan_nombre, u.email as usuario_email

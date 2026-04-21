@@ -25,6 +25,22 @@ export default function Asistente() {
   const [errorModal, setErrorModal] = useState('');
   const [generandoRutina, setGenerandoRutina] = useState(false);
 
+  const isWithinDays = (dateString, days) => {
+    if (!dateString) return true;
+    const fecha = new Date(dateString);
+    if (Number.isNaN(fecha.getTime())) return true;
+    const hoy = new Date();
+    fecha.setHours(0, 0, 0, 0);
+    hoy.setHours(0, 0, 0, 0);
+    const diffMs = hoy - fecha;
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+    return diffDays <= days;
+  };
+
+  const rutinasVisibles = rutinas.filter((rutina) =>
+    isWithinDays(rutina.fecha_creacion || rutina.fecha_inicio, 30)
+  );
+
   useEffect(() => {
     loadSocio();
   }, []);
@@ -326,11 +342,14 @@ export default function Asistente() {
       {isSocioActivo && (
         <>
           <h2 className="text-2xl font-bold mb-4 mt-8">Mis Rutinas</h2>
+          <p className="text-xs text-gray-500 mb-3">
+            Se muestran rutinas creadas en los últimos 30 días.
+          </p>
 
           {/* Listado de rutinas */}
           {loadingRutinas ? (
         <div className="text-center py-8 text-gray-500">Cargando rutinas...</div>
-      ) : rutinas.length === 0 ? (
+      ) : rutinasVisibles.length === 0 ? (
         <div className="text-center py-12 bg-white rounded-lg shadow p-8">
           <p className="text-gray-600 text-lg mb-4">
             No se encontraron rutinas. Haz click en 'Crear Nueva Rutina' arriba para comenzar 💪
@@ -338,7 +357,7 @@ export default function Asistente() {
         </div>
       ) : (
         <div className="space-y-3">
-          {rutinas.map((rutina) => (
+          {rutinasVisibles.map((rutina) => (
             <div
               key={rutina.id}
               onClick={() => handleConsultarRutina(rutina)}

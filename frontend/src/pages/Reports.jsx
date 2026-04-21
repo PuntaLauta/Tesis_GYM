@@ -13,11 +13,29 @@ import { listTiposClase } from '../services/tipoClase';
 import { listSocios } from '../services/socios';
 import { Bar, Pie } from 'react-chartjs-2';
 import 'chart.js/auto';
-import StatCards from '../components/StatCards';
+import ReportsOverview, { ReportsOverviewStickyBar } from '../components/ReportsOverview';
 import ReportPdfModal from '../components/ReportPdfModal';
 import { generateReportPdf } from '../utils/reportPdf';
 
 const ESTADO_SOCIOS_PAGE_SIZE = 10;
+
+/** Encabezado de bloque de reporte: título y controles apilados en móvil */
+function ReportBlockHeader({ title, children }) {
+  return (
+    <div className="mb-4 flex flex-col gap-4 sm:flex-row sm:justify-between sm:items-start">
+      <h1 className="shrink-0 font-bold text-xl">{title}</h1>
+      <div className="flex w-full min-w-0 flex-col gap-3 sm:items-end">{children}</div>
+    </div>
+  );
+}
+
+const reportDateInputClass =
+  'min-w-0 w-full rounded border px-2 py-1 text-xs sm:w-[min(100%,11rem)]';
+const reportFilterBtnClass =
+  'w-full shrink-0 rounded bg-blue-600 px-2 py-1 text-xs text-white hover:bg-blue-700 sm:ml-0 sm:w-auto';
+const reportSelectClass = 'w-full min-w-0 rounded border px-2 py-1 text-sm sm:w-auto sm:min-w-[7.5rem]';
+const reportVistaBtnClass =
+  'mt-1 w-full rounded px-3 py-1 text-xs text-white sm:mt-0 sm:w-auto sm:self-end';
 
 function getMesActualRango() {
   const now = new Date();
@@ -372,53 +390,60 @@ export default function Reports() {
     };
   }, [loading]);
 
+  const ingresosRango = ingresosFiltroAplicado || mesActual;
+  const ingresosPeriodoLabel = (() => {
+    const d = ingresosRango?.desde;
+    const h = ingresosRango?.hasta;
+    if (!d && !h) return '';
+    const fmt = (x) =>
+      x
+        ? new Date(`${x}T12:00:00`).toLocaleDateString('es-ES', {
+            day: 'numeric',
+            month: 'short',
+            year: 'numeric',
+          })
+        : '';
+    if (d && h) return `${fmt(d)} – ${fmt(h)}`;
+    if (d) return `Desde ${fmt(d)}`;
+    return `Hasta ${fmt(h)}`;
+  })();
+
   return (
-    <div className="w-full">
-      <div className="max-w-6xl mx-auto p-6">
-        <h1 className="text-2xl font-bold mb-6">Reportes</h1>
+    <div className="w-full min-w-0">
+      <div className="max-w-6xl mx-auto min-w-0 overflow-x-hidden px-4 py-6 sm:px-6">
+        <h1 className="text-2xl font-bold mb-4">Reportes</h1>
       </div>
 
       {loading ? (
-        <div className="max-w-6xl mx-auto p-6 text-center py-8">Cargando...</div>
+        <div className="max-w-6xl mx-auto px-4 py-8 text-center sm:px-6">Cargando...</div>
       ) : (
         <>
-          <div ref={sentinelRef} className="h-px w-full" aria-hidden />
-          <div
-            className={
-              isSticky
-                ? 'sticky top-0 z-10 w-full bg-white shadow-sm border-b border-gray-100 py-2 transition-[padding,box-shadow,background-color,border-color] duration-300 ease-out'
-                : 'sticky top-0 z-10 py-4 transition-[padding,box-shadow,background-color,border-color] duration-300 ease-out'
-            }
-          >
-            <div
-              className={
-                isSticky
-                  ? 'max-w-6xl mx-auto px-6 transition-[padding,border-radius,box-shadow] duration-300 ease-out'
-                  : 'max-w-6xl mx-auto px-6 rounded-xl shadow-md bg-white p-4 transition-[padding,border-radius,box-shadow] duration-300 ease-out'
-              }
-            >
-              {isSticky ? (
-                <div className="flex items-center justify-between gap-4">
-                  <StatCards isSticky />
-                  <button
-                    onClick={handleGuardarEImprimir}
-                    disabled={loading}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap flex-shrink-0"
-                  >
-                    Generar e imprimir un reporte personalizado
-                  </button>
-                </div>
-              ) : (
-                <StatCards onPrint={handleGuardarEImprimir} />
-              )}
-            </div>
+          <div className="max-w-6xl mx-auto -mt-2 min-w-0 overflow-x-hidden px-4 pb-2 sm:px-6">
+            <ReportsOverview
+              ingresos={ingresos}
+              ingresosPeriodoLabel={ingresosPeriodoLabel}
+              clasesPopulares={clasesPopulares}
+              ocupacion={ocupacion}
+              accesos={accesos}
+              estadoSocios={estadoSocios}
+              onPrint={handleGuardarEImprimir}
+              printDisabled={loading}
+            />
           </div>
+          <div ref={sentinelRef} className="h-px w-full" aria-hidden />
+          {isSticky && (
+            <div className="sticky top-0 z-10 w-full border-b border-gray-100 bg-white/95 py-2 shadow-sm backdrop-blur-sm transition-[box-shadow] duration-300 ease-out">
+              <div className="max-w-6xl mx-auto overflow-x-auto px-4 pb-0.5 sm:px-6">
+                <ReportsOverviewStickyBar onPrint={handleGuardarEImprimir} printDisabled={loading} />
+              </div>
+            </div>
+          )}
 
-          <div className="max-w-6xl mx-auto p-6 pt-4">
+          <div className="max-w-6xl mx-auto min-w-0 overflow-x-hidden px-4 py-6 pt-4 sm:px-6">
 
           {/* Ingresos - primer bloque debajo de las cards */}
           {ingresos && (
-            <div id="reporte-ingresos" className="bg-white p-4 rounded-lg shadow mt-6">
+            <div id="reporte-ingresos" className="mt-6 min-w-0 max-w-full overflow-x-hidden rounded-lg bg-white p-4 shadow">
               {(() => {
                 const totalItems = ingresos.porDia?.length || 0;
                 const totalAgrupacion = (ingresos.porDia || []).reduce((sum, item) => sum + (item.monto || 0), 0);
@@ -505,37 +530,33 @@ export default function Reports() {
 
                 return ingresosVistaGrafica ? (
                   <>
-                    <div className="flex justify-between items-center mb-4">
-                      <h1 className="font-bold text-xl">Ingresos</h1>
-                      <div className="flex flex-col items-end gap-2">
-                        <div className="flex items-center gap-2 text-sm">
-                          <span className="text-gray-600">Filtro:</span>
+                    <ReportBlockHeader title="Ingresos">
+                      <>
+                        <div className="flex w-full min-w-0 flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-2 sm:gap-y-2">
+                          <span className="shrink-0 text-sm text-gray-600">Filtro:</span>
                           <input
                             type="date"
                             value={ingresosFiltro.desde}
                             onChange={(e) => handleFiltroChange('desde', e.target.value)}
-                            className="border rounded px-2 py-1 text-xs"
+                            className={reportDateInputClass}
                           />
-                          <span className="text-gray-500 text-xs">a</span>
+                          <span className="hidden shrink-0 text-xs text-gray-500 sm:inline">a</span>
                           <input
                             type="date"
                             value={ingresosFiltro.hasta}
                             onChange={(e) => handleFiltroChange('hasta', e.target.value)}
-                            className="border rounded px-2 py-1 text-xs"
+                            className={reportDateInputClass}
                           />
-                          <button
-                            onClick={handleAplicarFiltroIngresos}
-                            className="ml-2 px-2 py-1 bg-blue-600 text-white rounded text-xs hover:bg-blue-700"
-                          >
+                          <button type="button" onClick={handleAplicarFiltroIngresos} className={reportFilterBtnClass}>
                             Filtrar
                           </button>
                         </div>
-                        <div className="flex items-center gap-2 text-sm">
-                          <span className="text-gray-600">Agrupar por:</span>
+                        <div className="flex w-full min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:justify-end sm:gap-2">
+                          <span className="shrink-0 text-sm text-gray-600">Agrupar por:</span>
                           <select
                             value={ingresosAgrupacion}
                             onChange={(e) => setIngresosAgrupacion(e.target.value)}
-                            className="border rounded px-2 py-1 text-sm"
+                            className={reportSelectClass}
                           >
                             <option value="dia">Día</option>
                             <option value="semana">Semana</option>
@@ -546,12 +567,12 @@ export default function Reports() {
                         <button
                           type="button"
                           onClick={() => setIngresosVistaGrafica(false)}
-                          className="mt-1 px-3 py-1 rounded text-xs text-white bg-blue-600 hover:bg-blue-700"
+                          className={`${reportVistaBtnClass} bg-blue-600 hover:bg-blue-700`}
                         >
                           Cambiar a Vista Analítica
                         </button>
-                      </div>
-                    </div>
+                      </>
+                    </ReportBlockHeader>
                     <div className="mb-2 flex items-baseline gap-1">
                       <h2 className="text-lg font-bold text-black">Monto Total: </h2>
                       <span className="text-lg font-bold text-green-600">${totalAgrupacion.toFixed(2)}</span>
@@ -561,7 +582,7 @@ export default function Reports() {
                         Distribución por método de pago (Efectivo vs Transferencia) en el período seleccionado.
                       </div>
                     )}
-                    <div className="mt-2">
+                    <div className="mt-2 min-w-0 max-w-full">
                       <Bar data={dataGrafico} options={opcionesGrafico} />
                     </div>
                     <div className="mt-3 text-xs text-gray-600">
@@ -575,37 +596,33 @@ export default function Reports() {
                   </>
                 ) : (
                   <>
-              <div className="flex justify-between items-center mb-4">
-                <h1 className="font-bold text-xl">Ingresos</h1>
-                <div className="flex flex-col items-end gap-2">
-                  <div className="flex items-center gap-2 text-sm">
-                    <span className="text-gray-600">Filtro:</span>
+              <ReportBlockHeader title="Ingresos">
+                <>
+                  <div className="flex w-full min-w-0 flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-2 sm:gap-y-2">
+                    <span className="shrink-0 text-sm text-gray-600">Filtro:</span>
                     <input
                       type="date"
                       value={ingresosFiltro.desde}
                       onChange={(e) => handleFiltroChange('desde', e.target.value)}
-                      className="border rounded px-2 py-1 text-xs"
+                      className={reportDateInputClass}
                     />
-                    <span className="text-gray-500 text-xs">a</span>
+                    <span className="hidden shrink-0 text-xs text-gray-500 sm:inline">a</span>
                     <input
                       type="date"
                       value={ingresosFiltro.hasta}
                       onChange={(e) => handleFiltroChange('hasta', e.target.value)}
-                      className="border rounded px-2 py-1 text-xs"
+                      className={reportDateInputClass}
                     />
-                    <button
-                      onClick={handleAplicarFiltroIngresos}
-                      className="ml-2 px-2 py-1 bg-blue-600 text-white rounded text-xs hover:bg-blue-700"
-                    >
+                    <button type="button" onClick={handleAplicarFiltroIngresos} className={reportFilterBtnClass}>
                       Filtrar
                     </button>
                   </div>
-                  <div className="flex items-center gap-2 text-sm">
-                    <span className="text-gray-600">Agrupar por:</span>
+                  <div className="flex w-full min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:justify-end sm:gap-2">
+                    <span className="shrink-0 text-sm text-gray-600">Agrupar por:</span>
                     <select
                       value={ingresosAgrupacion}
                       onChange={(e) => setIngresosAgrupacion(e.target.value)}
-                      className="border rounded px-2 py-1 text-sm"
+                      className={reportSelectClass}
                     >
                       <option value="dia">Día</option>
                       <option value="semana">Semana</option>
@@ -616,12 +633,12 @@ export default function Reports() {
                   <button
                     type="button"
                     onClick={() => setIngresosVistaGrafica(true)}
-                    className="mt-1 px-3 py-1 rounded text-xs text-white bg-green-600 hover:bg-green-700"
+                    className={`${reportVistaBtnClass} bg-green-600 hover:bg-green-700`}
                   >
                     Cambiar a Vista Gráfica
                   </button>
-                </div>
-              </div>
+                </>
+              </ReportBlockHeader>
               <div className="mb-2 flex items-baseline gap-1">
                 <h2 className="text-lg font-bold text-black">Monto Total: </h2>
                 <span className="text-lg font-bold text-green-600">${totalAgrupacion.toFixed(2)}</span>
@@ -676,15 +693,15 @@ export default function Reports() {
                   ))}
               </div>
               {totalItems > 0 && (
-                <div className="mt-3 flex items-center justify-between text-xs text-gray-600">
-                  <span>
+                <div className="mt-3 flex flex-col gap-3 text-xs text-gray-600 sm:flex-row sm:items-center sm:justify-between">
+                  <span className="min-w-0 text-center sm:text-left">
                     Mostrando {inicio + 1}-{Math.min(fin, totalItems)} de {totalItems}
                   </span>
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center justify-center gap-2 sm:justify-end">
                     <button
                       onClick={() => setIngresosPagina(prev => Math.max(1, prev - 1))}
                       disabled={paginaActual === 1}
-                      className="px-2 py-1 border rounded disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="rounded border px-2 py-1 disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       Anterior
                     </button>
@@ -696,14 +713,14 @@ export default function Reports() {
                         max={totalPages}
                         value={paginaActual}
                         onChange={handlePaginaInputChange}
-                        className="w-12 border rounded px-1 py-0.5 text-center"
+                        className="w-12 rounded border px-1 py-0.5 text-center"
                       />
                       <span>de {totalPages}</span>
                     </span>
                     <button
                       onClick={() => setIngresosPagina(prev => Math.min(totalPages, prev + 1))}
                       disabled={paginaActual === totalPages}
-                      className="px-2 py-1 border rounded disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="rounded border px-2 py-1 disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       Siguiente
                     </button>
@@ -780,45 +797,40 @@ export default function Reports() {
             };
 
             return (
-              <div className="bg-white p-4 rounded-lg shadow mt-6">
-                <div className="flex justify-between items-center mb-4">
-                  <h1 className="font-bold text-xl">Clases Más Populares</h1>
-                  <div className="flex flex-col items-end gap-2 ml-auto">
-                    <div className="flex items-center gap-2 text-sm">
-                      <span className="text-gray-600">Filtro:</span>
+              <div className="mt-6 min-w-0 max-w-full overflow-x-hidden rounded-lg bg-white p-4 shadow">
+                <ReportBlockHeader title="Clases Más Populares">
+                  <>
+                    <div className="flex w-full min-w-0 flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-2 sm:gap-y-2">
+                      <span className="shrink-0 text-sm text-gray-600">Filtro:</span>
                       <input
                         type="date"
                         value={clasesPopularesFiltro.desde}
-                        onChange={(e) => setClasesPopularesFiltro(f => ({ ...f, desde: e.target.value }))}
-                        className="border rounded px-2 py-1 text-xs"
+                        onChange={(e) => setClasesPopularesFiltro((f) => ({ ...f, desde: e.target.value }))}
+                        className={reportDateInputClass}
                       />
-                      <span className="text-gray-500 text-xs">a</span>
+                      <span className="hidden shrink-0 text-xs text-gray-500 sm:inline">a</span>
                       <input
                         type="date"
                         value={clasesPopularesFiltro.hasta}
-                        onChange={(e) => setClasesPopularesFiltro(f => ({ ...f, hasta: e.target.value }))}
-                        className="border rounded px-2 py-1 text-xs"
+                        onChange={(e) => setClasesPopularesFiltro((f) => ({ ...f, hasta: e.target.value }))}
+                        className={reportDateInputClass}
                       />
-                      <button
-                        type="button"
-                        onClick={handleFiltrarClasesPopulares}
-                        className="ml-2 px-2 py-1 bg-blue-600 text-white rounded text-xs hover:bg-blue-700"
-                      >
+                      <button type="button" onClick={handleFiltrarClasesPopulares} className={reportFilterBtnClass}>
                         Filtrar
                       </button>
                     </div>
                     <button
                       type="button"
                       onClick={() => setClasesPopularesVistaGrafica(!clasesPopularesVistaGrafica)}
-                      className={`mt-1 px-3 py-1 rounded text-xs text-white ${clasesPopularesVistaGrafica ? 'bg-blue-600 hover:bg-blue-700' : 'bg-green-600 hover:bg-green-700'}`}
+                      className={`${reportVistaBtnClass} ${clasesPopularesVistaGrafica ? 'bg-blue-600 hover:bg-blue-700' : 'bg-green-600 hover:bg-green-700'}`}
                     >
                       {clasesPopularesVistaGrafica ? 'Cambiar a Vista Analítica' : 'Cambiar a Vista Gráfica'}
                     </button>
-                  </div>
-                </div>
+                  </>
+                </ReportBlockHeader>
                 {clasesPopularesVistaGrafica ? (
                   <>
-                  <div className="mt-4 flex gap-6 w-full items-start">
+                  <div className="mt-4 flex w-full min-w-0 flex-col items-start gap-4 lg:flex-row lg:gap-6">
                     <div className="flex-shrink-0 flex flex-col gap-1.5 text-sm">
                       {clasesPopulares.map((c, i) => {
                         const reservas = c.total_reservas || 0;
@@ -845,8 +857,8 @@ export default function Reports() {
                   </>
                 ) : (
                 <>
-                <div className="mt-4">
-                  <table className="w-full text-sm">
+                <div className="mt-4 overflow-x-auto">
+                  <table className="w-full min-w-[280px] text-sm">
                     <thead>
                       <tr className="border-b">
                         <th className="text-left py-2">Clase</th>
@@ -1010,70 +1022,67 @@ export default function Reports() {
             };
 
             return (
-              <div className="bg-white p-4 rounded-lg shadow mt-6">
-                <div className="flex justify-between items-center mb-4">
-                  <h1 className="font-bold text-xl">Ocupación de Clases</h1>
-                  <div className="flex flex-col items-end gap-2 ml-auto">
-                    <div className="flex items-center gap-2 text-sm">
-                      <span className="text-gray-600">Filtro:</span>
+              <div className="mt-6 min-w-0 max-w-full overflow-x-hidden rounded-lg bg-white p-4 shadow">
+                <ReportBlockHeader title="Ocupación de Clases">
+                  <>
+                    <div className="flex w-full min-w-0 flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-2 sm:gap-y-2">
+                      <span className="shrink-0 text-sm text-gray-600">Filtro:</span>
                       <input
                         type="date"
                         value={ocupacionFiltro.desde}
                         onChange={(e) => setOcupacionFiltro((f) => ({ ...f, desde: e.target.value }))}
-                        className="border rounded px-2 py-1 text-xs"
+                        className={reportDateInputClass}
                       />
-                      <span className="text-gray-500 text-xs">a</span>
+                      <span className="hidden shrink-0 text-xs text-gray-500 sm:inline">a</span>
                       <input
                         type="date"
                         value={ocupacionFiltro.hasta}
                         onChange={(e) => setOcupacionFiltro((f) => ({ ...f, hasta: e.target.value }))}
-                        className="border rounded px-2 py-1 text-xs"
+                        className={reportDateInputClass}
                       />
-                      <button
-                        type="button"
-                        onClick={handleAplicarFiltroOcupacion}
-                        className="ml-2 px-2 py-1 bg-blue-600 text-white rounded text-xs hover:bg-blue-700"
-                      >
+                      <button type="button" onClick={handleAplicarFiltroOcupacion} className={reportFilterBtnClass}>
                         Filtrar
                       </button>
                     </div>
-                    <div className="flex items-center gap-2 text-sm">
-                      <span className="text-gray-600">Filtro tipo de clase:</span>
+                    <div className="flex w-full min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:justify-end sm:gap-2">
+                      <span className="shrink-0 text-sm text-gray-600">Filtro tipo de clase:</span>
                       <select
                         value={ocupacionTipoClaseId}
                         onChange={(e) => setOcupacionTipoClaseId(e.target.value)}
-                        className="border rounded px-2 py-1 text-sm"
+                        className={reportSelectClass}
                       >
                         <option value="">Todos</option>
                         {tiposClase.map((t) => (
-                          <option key={t.id} value={t.id}>{t.nombre}</option>
+                          <option key={t.id} value={t.id}>
+                            {t.nombre}
+                          </option>
                         ))}
                       </select>
                     </div>
                     <button
                       type="button"
                       onClick={() => setOcupacionVistaGrafica(!ocupacionVistaGrafica)}
-                      className={`mt-1 px-3 py-1 rounded text-xs text-white ${ocupacionVistaGrafica ? 'bg-blue-600 hover:bg-blue-700' : 'bg-green-600 hover:bg-green-700'}`}
+                      className={`${reportVistaBtnClass} ${ocupacionVistaGrafica ? 'bg-blue-600 hover:bg-blue-700' : 'bg-green-600 hover:bg-green-700'}`}
                     >
                       {ocupacionVistaGrafica ? 'Cambiar a Vista Analítica' : 'Cambiar a Vista Gráfica'}
                     </button>
-                  </div>
-                </div>
+                  </>
+                </ReportBlockHeader>
                 <div className="mb-2">
                   <h2 className="text-lg font-semibold">Promedio de Ocupación: {ocupacion.promedio}%</h2>
                   <div className="text-sm text-gray-600">Total de clases: {ocupacion.total}</div>
                 </div>
                 {ocupacionVistaGrafica ? (
-                  <div className="mt-4 w-full">
-                    <div className="w-full">
+                  <div className="mt-4 w-full min-w-0 max-w-full">
+                    <div className="w-full min-w-0">
                       <Bar data={dataBarrasOcupacion} options={opcionesBarrasOcupacion} />
                     </div>
                     <p className="mt-2 text-xs text-gray-600">Límite (gris) vs. ocupación real (azul). Ordenado de mayor a menor % de ocupación.</p>
                   </div>
                 ) : (
                 <>
-                <div className="mt-4">
-                  <table className="w-full text-sm">
+                <div className="mt-4 overflow-x-auto">
+                  <table className="w-full min-w-[300px] text-sm">
                     <thead>
                       <tr className="border-b">
                         <th className="text-left py-2">Clase</th>
@@ -1105,15 +1114,15 @@ export default function Reports() {
                     </tbody>
                   </table>
                 </div>
-                <div className="mt-3 flex items-center justify-between text-xs text-gray-600">
-                  <span>
+                <div className="mt-3 flex flex-col gap-3 text-xs text-gray-600 sm:flex-row sm:items-center sm:justify-between">
+                  <span className="min-w-0 text-center sm:text-left">
                     Mostrando {totalItems === 0 ? 0 : inicio + 1}-{Math.min(fin, totalItems)} de {totalItems}
                   </span>
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center justify-center gap-2 sm:justify-end">
                       <button
                         onClick={() => setOcupacionPagina((p) => Math.max(1, p - 1))}
                         disabled={paginaActual === 1}
-                        className="px-2 py-1 border rounded disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="rounded border px-2 py-1 disabled:cursor-not-allowed disabled:opacity-50"
                       >
                         Anterior
                       </button>
@@ -1132,7 +1141,7 @@ export default function Reports() {
                       <button
                         onClick={() => setOcupacionPagina((p) => Math.min(totalPages, p + 1))}
                         disabled={paginaActual === totalPages}
-                        className="px-2 py-1 border rounded disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="rounded border px-2 py-1 disabled:cursor-not-allowed disabled:opacity-50"
                       >
                         Siguiente
                       </button>
@@ -1191,35 +1200,34 @@ export default function Reports() {
             };
 
             return (
-              <div className="bg-white p-4 rounded-lg shadow mt-6">
-                <div className="flex justify-between items-center mb-4">
-                  <h1 className="font-bold text-xl">Control de Accesos</h1>
-                  <div className="flex flex-col items-end gap-2 ml-auto">
-                    <div className="flex items-center gap-2 text-sm">
-                      <span className="text-gray-600">Filtro:</span>
+              <div className="mt-6 min-w-0 max-w-full overflow-x-hidden rounded-lg bg-white p-4 shadow">
+                <ReportBlockHeader title="Control de Accesos">
+                  <>
+                    <div className="flex w-full min-w-0 flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-2 sm:gap-y-2">
+                      <span className="shrink-0 text-sm text-gray-600">Filtro:</span>
                       <input
                         type="date"
                         value={accesosFiltro.desde}
                         onChange={(e) => setAccesosFiltro((f) => ({ ...f, desde: e.target.value }))}
-                        className="border rounded px-2 py-1 text-xs"
+                        className={reportDateInputClass}
                       />
-                      <span className="text-gray-500 text-xs">a</span>
+                      <span className="hidden shrink-0 text-xs text-gray-500 sm:inline">a</span>
                       <input
                         type="date"
                         value={accesosFiltro.hasta}
                         onChange={(e) => setAccesosFiltro((f) => ({ ...f, hasta: e.target.value }))}
-                        className="border rounded px-2 py-1 text-xs"
+                        className={reportDateInputClass}
                       />
-                      <button type="button" onClick={handleFiltrarAccesos} className="ml-2 px-2 py-1 bg-blue-600 text-white rounded text-xs hover:bg-blue-700">
+                      <button type="button" onClick={handleFiltrarAccesos} className={reportFilterBtnClass}>
                         Filtrar
                       </button>
                     </div>
-                    <div className="flex items-center gap-2 text-sm">
-                      <span className="text-gray-600">Agrupar por:</span>
+                    <div className="flex w-full min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:justify-end sm:gap-2">
+                      <span className="shrink-0 text-sm text-gray-600">Agrupar por:</span>
                       <select
                         value={accesosAgrupacion}
                         onChange={(e) => setAccesosAgrupacion(e.target.value)}
-                        className="border rounded px-2 py-1 text-sm"
+                        className={reportSelectClass}
                       >
                         <option value="dia">Día</option>
                         <option value="semana">Semana</option>
@@ -1230,13 +1238,13 @@ export default function Reports() {
                     <button
                       type="button"
                       onClick={() => setAccesosVistaGrafica(!accesosVistaGrafica)}
-                      className={`mt-1 px-3 py-1 rounded text-xs text-white ${accesosVistaGrafica ? 'bg-blue-600 hover:bg-blue-700' : 'bg-green-600 hover:bg-green-700'}`}
+                      className={`${reportVistaBtnClass} ${accesosVistaGrafica ? 'bg-blue-600 hover:bg-blue-700' : 'bg-green-600 hover:bg-green-700'}`}
                     >
                       {accesosVistaGrafica ? 'Cambiar a Vista Analítica' : 'Cambiar a Vista Gráfica'}
                     </button>
-                  </div>
-                </div>
-                <div className="grid grid-cols-3 gap-4 mb-4">
+                  </>
+                </ReportBlockHeader>
+                <div className="mb-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
                   <div>
                     <div className="text-2xl font-bold text-blue-600">{accesos.total}</div>
                     <div className="text-sm text-gray-600">Total accesos</div>
@@ -1251,24 +1259,27 @@ export default function Reports() {
                   </div>
                 </div>
                 {accesosVistaGrafica ? (
-                  <div className="mt-4 w-full">
+                  <div className="mt-4 w-full min-w-0 max-w-full">
                     <Bar data={dataBarrasAccesos} options={opcionesBarrasAccesos} />
                     <p className="mt-2 text-xs text-gray-600">Permitidos (verde) y denegados (rojo) por período.</p>
                   </div>
                 ) : (
                   <>
-                    <div className="mt-4">
-                      <div className="text-sm font-semibold mb-2 flex justify-between">
-                        <span>Período</span>
-                        <span className="flex gap-4">
+                    <div className="mt-4 min-w-0">
+                      <div className="mb-2 flex flex-col gap-1 text-sm font-semibold sm:flex-row sm:items-center sm:justify-between">
+                        <span className="min-w-0">Período</span>
+                        <span className="flex flex-wrap gap-3 sm:gap-4">
                           <span className="text-green-600">Permitidos</span>
                           <span className="text-red-600">Denegados</span>
                         </span>
                       </div>
                       {itemsPagina.map((dia, idx) => (
-                        <div key={idx} className="flex justify-between text-sm border-b py-1">
-                          <span>{dia.fecha}</span>
-                          <span className="flex gap-4">
+                        <div
+                          key={idx}
+                          className="flex flex-col gap-1 border-b py-2 text-sm sm:flex-row sm:items-center sm:justify-between sm:gap-2"
+                        >
+                          <span className="min-w-0 break-words">{dia.fecha}</span>
+                          <span className="flex shrink-0 gap-3 sm:gap-4">
                             <span className="text-green-600">{dia.permitidos ?? 0}</span>
                             <span className="text-red-600">{dia.denegados ?? 0}</span>
                           </span>
@@ -1276,21 +1287,27 @@ export default function Reports() {
                       ))}
                       {blanks > 0 &&
                         Array.from({ length: blanks }).map((_, idx) => (
-                          <div key={`blank-acc-${idx}`} className="flex justify-between text-sm border-b py-1 text-transparent">
+                          <div
+                            key={`blank-acc-${idx}`}
+                            className="flex flex-col gap-1 border-b py-2 text-sm text-transparent sm:flex-row sm:justify-between"
+                          >
                             <span>-</span>
-                            <span className="flex gap-4"><span>-</span><span>-</span></span>
+                            <span className="flex gap-4">
+                              <span>-</span>
+                              <span>-</span>
+                            </span>
                           </div>
                         ))}
                     </div>
-                    <div className="mt-3 flex items-center justify-between text-xs text-gray-600">
-                      <span>
+                    <div className="mt-3 flex flex-col gap-3 text-xs text-gray-600 sm:flex-row sm:items-center sm:justify-between">
+                      <span className="min-w-0 text-center sm:text-left">
                         Mostrando {totalItems === 0 ? 0 : inicio + 1}-{Math.min(fin, totalItems)} de {totalItems}
                       </span>
-                      <div className="flex items-center gap-2">
+                      <div className="flex flex-wrap items-center justify-center gap-2 sm:justify-end">
                         <button
                           onClick={() => setAccesosPagina((p) => Math.max(1, p - 1))}
                           disabled={paginaActual === 1}
-                          className="px-2 py-1 border rounded disabled:opacity-50 disabled:cursor-not-allowed"
+                          className="rounded border px-2 py-1 disabled:cursor-not-allowed disabled:opacity-50"
                         >
                           Anterior
                         </button>
@@ -1302,14 +1319,14 @@ export default function Reports() {
                             max={totalPages}
                             value={paginaActual}
                             onChange={handleAccesosPaginaChange}
-                            className="w-12 border rounded px-1 py-0.5 text-center"
+                            className="w-12 rounded border px-1 py-0.5 text-center"
                           />
                           <span>de {totalPages}</span>
                         </span>
                         <button
                           onClick={() => setAccesosPagina((p) => Math.min(totalPages, p + 1))}
                           disabled={paginaActual === totalPages}
-                          className="px-2 py-1 border rounded disabled:opacity-50 disabled:cursor-not-allowed"
+                          className="rounded border px-2 py-1 disabled:cursor-not-allowed disabled:opacity-50"
                         >
                           Siguiente
                         </button>
@@ -1325,42 +1342,40 @@ export default function Reports() {
 
           {/* Estado de Socios */}
           {estadoSocios && (
-            <div id="reporte-estado-socios" className="bg-white p-4 rounded-lg shadow mt-6">
-              <div className="flex justify-between items-center mb-4">
-                <h1 className="font-bold text-xl">Estado de Socios</h1>
-                <div className="flex flex-col items-end gap-2 ml-auto">
-                  <div className="flex items-center gap-2 text-sm">
-                    <span className="text-gray-600">Filtro:</span>
+            <div
+              id="reporte-estado-socios"
+              className="mt-6 min-w-0 max-w-full overflow-x-hidden rounded-lg bg-white p-4 shadow"
+            >
+              <ReportBlockHeader title="Estado de Socios">
+                <>
+                  <div className="flex w-full min-w-0 flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-2 sm:gap-y-2">
+                    <span className="shrink-0 text-sm text-gray-600">Filtro:</span>
                     <input
                       type="date"
                       value={estadoSociosFiltro.desde}
                       onChange={(e) => setEstadoSociosFiltro((f) => ({ ...f, desde: e.target.value }))}
-                      className="border rounded px-2 py-1 text-xs"
+                      className={reportDateInputClass}
                     />
-                    <span className="text-gray-500 text-xs">a</span>
+                    <span className="hidden shrink-0 text-xs text-gray-500 sm:inline">a</span>
                     <input
                       type="date"
                       value={estadoSociosFiltro.hasta}
                       onChange={(e) => setEstadoSociosFiltro((f) => ({ ...f, hasta: e.target.value }))}
-                      className="border rounded px-2 py-1 text-xs"
+                      className={reportDateInputClass}
                     />
-                    <button
-                      type="button"
-                      onClick={aplicarFiltroEstadoSocios}
-                      className="ml-2 px-2 py-1 bg-blue-600 text-white rounded text-xs hover:bg-blue-700"
-                    >
+                    <button type="button" onClick={aplicarFiltroEstadoSocios} className={reportFilterBtnClass}>
                       Filtrar
                     </button>
                   </div>
                   <button
                     type="button"
                     onClick={() => setEstadoSociosVistaGrafica((v) => !v)}
-                    className={`mt-1 px-3 py-1 rounded text-xs text-white ${estadoSociosVistaGrafica ? 'bg-blue-600 hover:bg-blue-700' : 'bg-green-600 hover:bg-green-700'}`}
+                    className={`${reportVistaBtnClass} ${estadoSociosVistaGrafica ? 'bg-blue-600 hover:bg-blue-700' : 'bg-green-600 hover:bg-green-700'}`}
                   >
                     {estadoSociosVistaGrafica ? 'Cambiar a Vista Analítica' : 'Cambiar a Vista Gráfica'}
                   </button>
-                </div>
-              </div>
+                </>
+              </ReportBlockHeader>
               {!estadoSociosVistaGrafica ? (
                 <>
                   <h2 className="text-lg font-semibold mb-4">Total: {estadoSocios.total ?? 0}</h2>
