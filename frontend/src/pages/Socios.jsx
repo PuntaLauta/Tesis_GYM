@@ -13,6 +13,7 @@ export default function Socios() {
   const [showForm, setShowForm] = useState(false);
   const [editingSocio, setEditingSocio] = useState(null);
   const [successMessage, setSuccessMessage] = useState('');
+  const [toast, setToast] = useState({ show: false, type: 'success', message: '' });
   const [paginaSocios, setPaginaSocios] = useState(1);
   const ITEMS_POR_PAGINA = 10;
   const [formData, setFormData] = useState({
@@ -31,6 +32,14 @@ export default function Socios() {
     loadSocios();
   }, []);
 
+  useEffect(() => {
+    if (!toast.show) return undefined;
+    const timer = setTimeout(() => {
+      setToast((prev) => ({ ...prev, show: false }));
+    }, 2800);
+    return () => clearTimeout(timer);
+  }, [toast.show]);
+
   const loadPlanes = async () => {
     try {
       const data = await listPlanes();
@@ -48,7 +57,11 @@ export default function Socios() {
       setSociosFiltrados(data.data || []);
     } catch (error) {
       console.error('Error al cargar socios:', error);
-      alert('Error al cargar socios');
+      setToast({
+        show: true,
+        type: 'error',
+        message: 'No se pudieron cargar los socios.',
+      });
     } finally {
       setLoading(false);
     }
@@ -105,6 +118,15 @@ export default function Socios() {
 
     try {
       const isEditing = !!editingSocio;
+
+      if (!isEditing && !formData.plan_id) {
+        setToast({
+          show: true,
+          type: 'warning',
+          message: 'Debes seleccionar un plan para crear el socio.',
+        });
+        return;
+      }
       
       if (isEditing) {
         // Si hay contraseña nueva, incluirla en la actualización
@@ -133,11 +155,19 @@ export default function Socios() {
       if (isEditing) {
         setSuccessMessage('Socio actualizado correctamente.');
       } else {
-        alert('Socio creado. QR generado automáticamente.');
+        setToast({
+          show: true,
+          type: 'success',
+          message: 'Socio creado correctamente. QR generado automáticamente.',
+        });
       }
     } catch (error) {
       console.error('Error al guardar socio:', error);
-      alert(error.response?.data?.error || 'Error al guardar socio');
+      setToast({
+        show: true,
+        type: 'error',
+        message: error.response?.data?.error || 'Error al guardar socio.',
+      });
     }
   };
 
@@ -166,6 +196,21 @@ export default function Socios() {
 
   return (
     <div className="max-w-6xl mx-auto p-6">
+      {toast.show && (
+        <div
+          className={`fixed right-4 top-4 z-50 max-w-sm rounded-lg border px-4 py-3 text-sm shadow-lg transition-all duration-300 ${
+            toast.type === 'success'
+              ? 'border-green-200 bg-green-50 text-green-800'
+              : toast.type === 'warning'
+              ? 'border-amber-200 bg-amber-50 text-amber-800'
+              : 'border-red-200 bg-red-50 text-red-800'
+          }`}
+          role="status"
+          aria-live="polite"
+        >
+          {toast.message}
+        </div>
+      )}
       {successMessage && (
         <div className="mb-4 px-4 py-3 rounded bg-green-100 border border-green-300 text-green-800 text-sm">
           {successMessage}
@@ -245,8 +290,11 @@ export default function Socios() {
                 value={formData.plan_id}
                 onChange={(e) => setFormData({ ...formData, plan_id: e.target.value })}
                 className="w-full border rounded px-3 py-2"
+                required={!editingSocio}
               >
-                <option value="">Sin plan</option>
+                <option value="" disabled>
+                  Selecciona un plan
+                </option>
                 {planes.map((plan) => (
                   <option key={plan.id} value={plan.id}>
                     {plan.nombre} - ${plan.precio} ({plan.duracion} días)
