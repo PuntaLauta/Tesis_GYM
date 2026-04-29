@@ -22,8 +22,10 @@ export default function Home() {
   const [pagos, setPagos] = useState([]);
   const [loadingPagos, setLoadingPagos] = useState(false);
   const [paginaClasesReservadas, setPaginaClasesReservadas] = useState(1);
+  const [paginaPagos, setPaginaPagos] = useState(1);
 
   const RESERVAS_POR_PAGINA = 4;
+  const PAGOS_POR_PAGINA = 3;
 
   useEffect(() => {
     if (user && user.rol === 'cliente') {
@@ -36,6 +38,10 @@ export default function Home() {
   useEffect(() => {
     setPaginaClasesReservadas(1);
   }, [reservas.length]);
+
+  useEffect(() => {
+    setPaginaPagos(1);
+  }, [pagos.length]);
 
   useEffect(() => {
     return () => {
@@ -171,11 +177,18 @@ export default function Home() {
   };
 
   const reservasFiltradasUltimoAnio = reservas.filter((reserva) => isWithinYears(reserva.fecha, 1));
+  const pagosFiltradosUltimoAnio = pagos
+    .filter((pago) => isWithinYears(pago.fecha, 1))
+    .sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
 
   const totalPaginasReservas = Math.max(1, Math.ceil(reservasFiltradasUltimoAnio.length / RESERVAS_POR_PAGINA));
   const paginaReservasSafe = Math.min(paginaClasesReservadas, totalPaginasReservas);
   const inicioReservas = (paginaReservasSafe - 1) * RESERVAS_POR_PAGINA;
   const reservasPagina = reservasFiltradasUltimoAnio.slice(inicioReservas, inicioReservas + RESERVAS_POR_PAGINA);
+  const totalPaginasPagos = Math.max(1, Math.ceil(pagosFiltradosUltimoAnio.length / PAGOS_POR_PAGINA));
+  const paginaPagosSafe = Math.min(paginaPagos, totalPaginasPagos);
+  const inicioPagos = (paginaPagosSafe - 1) * PAGOS_POR_PAGINA;
+  const pagosPagina = pagosFiltradosUltimoAnio.slice(inicioPagos, inicioPagos + PAGOS_POR_PAGINA);
 
   if (!user) {
     return <LandingPage />;
@@ -625,15 +638,18 @@ export default function Home() {
               {/* Historial de Pagos */}
               <div className="bg-white p-6 rounded-lg shadow">
                 <h2 className="text-lg font-semibold mb-4">Historial de Pagos</h2>
+                <p className="text-xs text-gray-500 mb-3">
+                  Se muestran los pagos del último año.
+                </p>
                 {loadingPagos ? (
                   <div className="text-center py-4 text-gray-500">Cargando...</div>
-                ) : pagos.length === 0 ? (
+                ) : pagosFiltradosUltimoAnio.length === 0 ? (
                   <div className="text-center py-8">
-                    <p className="text-gray-500 mb-4">No tienes pagos registrados.</p>
+                    <p className="text-gray-500 mb-4">No tienes pagos registrados en el último año.</p>
                   </div>
                 ) : (
                   <div className="space-y-3">
-                    {pagos.map((pago) => (
+                    {pagosPagina.map((pago) => (
                       <div
                         key={pago.id}
                         className="border rounded-lg p-4 hover:shadow-md transition-shadow"
@@ -663,6 +679,31 @@ export default function Home() {
                         </div>
                       </div>
                     ))}
+                    {totalPaginasPagos > 1 && (
+                      <div className="flex flex-col sm:flex-row items-center justify-between gap-2 pt-1">
+                        <p className="text-sm text-gray-600 order-2 sm:order-1">
+                          Página {paginaPagosSafe} de {totalPaginasPagos}
+                        </p>
+                        <div className="flex gap-2 order-1 sm:order-2">
+                          <button
+                            type="button"
+                            disabled={paginaPagosSafe <= 1}
+                            onClick={() => setPaginaPagos((p) => Math.max(1, p - 1))}
+                            className="px-3 py-1.5 text-sm rounded-md border border-gray-300 bg-white text-gray-700 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-50"
+                          >
+                            Anterior
+                          </button>
+                          <button
+                            type="button"
+                            disabled={paginaPagosSafe >= totalPaginasPagos}
+                            onClick={() => setPaginaPagos((p) => Math.min(totalPaginasPagos, p + 1))}
+                            className="px-3 py-1.5 text-sm rounded-md border border-gray-300 bg-white text-gray-700 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-50"
+                          >
+                            Siguiente
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

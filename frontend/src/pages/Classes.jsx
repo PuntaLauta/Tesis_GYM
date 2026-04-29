@@ -27,6 +27,19 @@ export default function Classes() {
 
   const isAdmin = user?.rol === 'admin' || user?.rol === 'root';
   const isInstructor = user?.rol === 'instructor';
+  const isSocio = user?.rol === 'cliente';
+  const limitarUltimos3Meses = isSocio || isAdmin;
+
+  const isWithinLastMonths = (fecha, months) => {
+    if (!fecha) return false;
+    const fechaClase = new Date(fecha);
+    if (Number.isNaN(fechaClase.getTime())) return false;
+    const limite = new Date();
+    limite.setMonth(limite.getMonth() - months);
+    fechaClase.setHours(0, 0, 0, 0);
+    limite.setHours(0, 0, 0, 0);
+    return fechaClase >= limite;
+  };
 
   const ordenarClasesNuevasPrimero = (items) => {
     return [...items].sort((a, b) => {
@@ -49,6 +62,10 @@ export default function Classes() {
 
   useEffect(() => {
     let filtered = allClases;
+
+    if (limitarUltimos3Meses) {
+      filtered = filtered.filter((clase) => isWithinLastMonths(clase.fecha, 3));
+    }
 
     if (filters.puedoInscribirme) {
       // Filtrar clases activas con cupo disponible
@@ -80,7 +97,7 @@ export default function Classes() {
 
     setClases(ordenarClasesNuevasPrimero(filtered));
     setPaginaActual(1); // Resetear paginación cuando cambian los filtros
-  }, [filters, allClases]);
+  }, [filters, allClases, limitarUltimos3Meses]);
 
   const loadTiposClase = async () => {
     try {
@@ -178,7 +195,14 @@ export default function Classes() {
   return (
     <div className="max-w-6xl mx-auto p-6">
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">Clases</h1>
+        <div>
+          <h1 className="text-2xl font-bold">Clases</h1>
+          {(isSocio || isAdmin) && (
+            <p className="text-xs text-gray-500 mt-1">
+              Mostrando clases de los ultimos 3 meses.
+            </p>
+          )}
+        </div>
         {isAdmin && (
           <button
             onClick={() => {

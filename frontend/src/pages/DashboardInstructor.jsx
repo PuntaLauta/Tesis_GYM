@@ -28,6 +28,18 @@ export default function DashboardInstructor() {
     clasesEsteMes: 0
   });
 
+  const isWithinDays = (dateString, days) => {
+    if (!dateString) return true;
+    const fecha = new Date(dateString);
+    if (Number.isNaN(fecha.getTime())) return true;
+    const hoy = new Date();
+    fecha.setHours(0, 0, 0, 0);
+    hoy.setHours(0, 0, 0, 0);
+    const diffMs = hoy - fecha;
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+    return diffDays <= days;
+  };
+
   useEffect(() => {
     if (user && user.instructor_id) {
       loadInstructor();
@@ -167,9 +179,11 @@ export default function DashboardInstructor() {
     setLoadingRutinas(true);
     try {
       const data = await listRutinasInstructor();
-      const rutinas = data.data || [];
+      const rutinas = (data.data || []).filter((rutina) =>
+        isWithinDays(rutina.fecha_creacion || rutina.fecha_inicio, 30)
+      );
       
-      // Contar ejercicios pendientes (estado_id = 1)
+      // Contar ejercicios pendientes de revisión (PENDIENTE=1, SUGERIDO=4)
       let ejerciciosPendientes = 0;
       rutinas.forEach(rutina => {
         if (rutina.ejercicios && Array.isArray(rutina.ejercicios)) {
@@ -177,7 +191,7 @@ export default function DashboardInstructor() {
             const estadoId = typeof ejercicio.estado_id === 'string' 
               ? parseInt(ejercicio.estado_id, 10) 
               : ejercicio.estado_id;
-            if (estadoId === 1) { // PENDIENTE
+            if (!estadoId || Number.isNaN(estadoId) || estadoId === 1 || estadoId === 4) {
               ejerciciosPendientes++;
             }
           });
@@ -254,6 +268,9 @@ export default function DashboardInstructor() {
                   <p className="text-sm text-gray-600">
                     Hay rutinas esperando tu revisión
                   </p>
+                  <p className="text-xs text-gray-500 mt-1">
+                    El conteo considera solo rutinas creadas en los últimos 30 días.
+                  </p>
                 </div>
               </>
             ) : (
@@ -267,6 +284,9 @@ export default function DashboardInstructor() {
                   </h3>
                   <p className="text-sm text-gray-600">
                     Todas las rutinas han sido revisadas
+                  </p>
+                  <p className="text-xs text-gray-500 mt-1">
+                    El conteo considera solo rutinas creadas en los últimos 30 días.
                   </p>
                 </div>
               </>

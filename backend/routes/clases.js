@@ -24,6 +24,15 @@ router.get('/', (req, res) => {
       params.push(req.session.user.instructor_id);
     }
 
+    // Si es socio (cliente) o admin/root, limitar el listado a los últimos 3 meses
+    if (
+      req.session &&
+      req.session.user &&
+      ['cliente', 'admin', 'root'].includes(req.session.user.rol)
+    ) {
+      sql += " AND date(c.fecha) >= date('now', '-3 months')";
+    }
+
     if (desde) {
       sql += ' AND c.fecha >= ?';
       params.push(desde);

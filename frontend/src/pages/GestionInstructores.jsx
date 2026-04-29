@@ -13,6 +13,7 @@ export default function GestionInstructores() {
   const [clasesInstructor, setClasesInstructor] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [estadoFiltro, setEstadoFiltro] = useState('');
+  const [paginaActual, setPaginaActual] = useState(1);
   const [passwordData, setPasswordData] = useState({
     password: '',
     confirmPassword: ''
@@ -27,6 +28,7 @@ export default function GestionInstructores() {
   });
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const INSTRUCTORES_POR_PAGINA = 5;
 
   useEffect(() => {
     loadInstructores();
@@ -168,6 +170,16 @@ export default function GestionInstructores() {
     );
   });
 
+  useEffect(() => {
+    setPaginaActual(1);
+  }, [searchTerm, estadoFiltro, instructores.length]);
+
+  const totalPaginas = Math.max(1, Math.ceil(instructoresFiltrados.length / INSTRUCTORES_POR_PAGINA));
+  const paginaSafe = Math.min(paginaActual, totalPaginas);
+  const inicioPagina = (paginaSafe - 1) * INSTRUCTORES_POR_PAGINA;
+  const finPagina = inicioPagina + INSTRUCTORES_POR_PAGINA;
+  const instructoresMostrados = instructoresFiltrados.slice(inicioPagina, finPagina);
+
   if (loading) {
     return (
       <div className="max-w-4xl mx-auto p-6">
@@ -262,7 +274,7 @@ export default function GestionInstructores() {
                       {searchTerm ? 'No se encontraron instructores con ese criterio' : 'No hay instructores registrados'}
                     </div>
                   ) : (
-                    instructoresFiltrados.map((instructor) => (
+                    instructoresMostrados.map((instructor) => (
                       <div key={instructor.id} className="bg-white p-4 rounded-lg shadow">
                         <div className="flex justify-between items-start">
                           <div className="flex-1">
@@ -325,6 +337,34 @@ export default function GestionInstructores() {
                     ))
                   )}
                 </div>
+                {instructoresFiltrados.length > 0 && (
+                  <div className="mt-4 pt-4 border-t flex flex-col sm:flex-row items-center justify-between gap-2 text-sm text-gray-600">
+                    <span>
+                      Mostrando {inicioPagina + 1}-{Math.min(finPagina, instructoresFiltrados.length)} de {instructoresFiltrados.length}
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setPaginaActual((p) => Math.max(1, p - 1))}
+                        disabled={paginaSafe === 1}
+                        className="px-3 py-1.5 rounded border border-gray-300 bg-white text-gray-700 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-50"
+                      >
+                        Anterior
+                      </button>
+                      <span>
+                        Página {paginaSafe} de {totalPaginas}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setPaginaActual((p) => Math.min(totalPaginas, p + 1))}
+                        disabled={paginaSafe >= totalPaginas}
+                        className="px-3 py-1.5 rounded border border-gray-300 bg-white text-gray-700 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-50"
+                      >
+                        Siguiente
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           )}
