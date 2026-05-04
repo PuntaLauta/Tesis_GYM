@@ -73,7 +73,7 @@ export default function DashboardRoot() {
       {/* Acciones Rápidas */}
       <div className="bg-white p-6 rounded-lg shadow mb-6">
         <h2 className="font-bold mb-4 text-center md:text-left">Gestion del Sistema</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 justify-items-center md:justify-items-stretch">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 justify-items-center md:justify-items-stretch">
           <Link
             to="/root/staff"
             className="p-4 border rounded-lg hover:bg-gray-50 transition w-full md:w-auto text-center md:text-left"
@@ -101,6 +101,13 @@ export default function DashboardRoot() {
           >
             <div className="font-semibold mb-1">Gestionar Planes</div>
             <div className="text-sm text-gray-600">Crear y editar planes de membresia</div>
+          </Link>
+          <Link
+            to="/reports"
+            className="p-4 border rounded-lg hover:bg-gray-50 transition w-full md:w-auto text-center md:text-left"
+          >
+            <div className="font-semibold mb-1">Reportes</div>
+            <div className="text-sm text-gray-600">Generar y ver reportes detallados</div>
           </Link>
           <Link
             to="/root/backup"

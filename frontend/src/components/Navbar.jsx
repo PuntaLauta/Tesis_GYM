@@ -49,8 +49,10 @@ export default function Navbar() {
         {user.rol === 'root' && user.estado_activo !== false ? (
           <>
             <Link to="/socios" className="text-sm block py-2" onClick={closeMobileMenu}>Socios</Link>
+            <Link to="/root/planes" className="text-sm block py-2" onClick={closeMobileMenu}>Gestionar planes</Link>
             <Link to="/root/staff" className="text-sm block py-2" onClick={closeMobileMenu}>Staff</Link>
             <Link to="/root/configuracion" className="text-sm block py-2" onClick={closeMobileMenu}>Configuracion</Link>
+            <Link to="/reports" className="text-sm block py-2" onClick={closeMobileMenu}>Reportes</Link>
             <Link to="/root/backup" className="text-sm block py-2" onClick={closeMobileMenu}>Backup</Link>
           </>
         ) : user.rol === 'instructor' ? (
@@ -129,8 +131,10 @@ export default function Navbar() {
               {user.rol === 'root' && user.estado_activo !== false ? (
                 <>
                   <Link to="/socios" className="text-sm">Socios</Link>
+                  <Link to="/root/planes" className="text-sm">Gestionar planes</Link>
                   <Link to="/root/staff" className="text-sm">Staff</Link>
                   <Link to="/root/configuracion" className="text-sm">Configuracion</Link>
+                  <Link to="/reports" className="text-sm">Reportes</Link>
                   <Link to="/root/backup" className="text-sm">Backup</Link>
                 </>
               ) : user.rol === 'instructor' ? (
