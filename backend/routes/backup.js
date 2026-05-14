@@ -34,7 +34,7 @@ router.post('/', (req, res) => {
 });
 
 // POST /api/backup/restore - Restaurar desde backup
-router.post('/restore', (req, res) => {
+router.post('/restore', async (req, res) => {
   try {
     const { nombre, tipo } = req.body;
     
@@ -42,7 +42,7 @@ router.post('/restore', (req, res) => {
       return res.status(400).json({ error: 'Nombre del backup requerido' });
     }
 
-    restaurarBackup(nombre, tipo || 'manual');
+    await restaurarBackup(nombre, tipo || 'manual');
     res.json({ message: 'Backup restaurado correctamente. El servidor debe reiniciarse.' });
   } catch (error) {
     console.error('Error al restaurar backup:', error);

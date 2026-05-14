@@ -80,7 +80,7 @@ function listarBackups() {
  * @param {string} nombreArchivo - Nombre del archivo de backup
  * @param {string} tipo - 'manual' o 'automatic'
  */
-function restaurarBackup(nombreArchivo, tipo = 'manual') {
+async function restaurarBackup(nombreArchivo, tipo = 'manual') {
   const subcarpeta = tipo === 'automatic' ? 'automatic' : 'manual';
   const rutaBackup = path.join(backupsDir, subcarpeta, nombreArchivo);
   
@@ -97,7 +97,7 @@ function restaurarBackup(nombreArchivo, tipo = 'manual') {
   
   // Reinicializar la base de datos en memoria
   const { initDatabase } = require('./database');
-  initDatabase();
+  await initDatabase();
 }
 
 /**

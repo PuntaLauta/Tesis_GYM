@@ -1144,6 +1144,7 @@ const dbPromise = initDatabase();
 
 module.exports = {
   dbPromise,
+  initDatabase,
   getDatabase,
   query,
   get,
